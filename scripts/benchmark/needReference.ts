@@ -66,6 +66,7 @@ export interface NeedReference {
 /**
  * Three ways to read NEED for a 90 m² semi in London built in the 1930s. NEED has no 1930–49 band;
  * 1919–1944 is the closest. None of these was chosen before the data was seen.
+ * Readings A and B scale with `floorAreaM2`; reading C is a published median and does not.
  */
 export function needReferences(floorAreaM2: number): NeedReference[] {
   const perM2 = needMedianGasPerM2;

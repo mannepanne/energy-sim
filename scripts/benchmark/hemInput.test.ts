@@ -4,6 +4,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { archetype, occupancy, uValues } from './draftValues.ts';
+import { roughEstimate } from './roughEstimate.ts';
 import {
   HEM_RUNS,
   R_SE,
@@ -67,8 +68,7 @@ describe('buildHemInput', () => {
     const fabricUa =
       sum([...opaque, ...windows].map((item) => uFromHem(item) * areaOf(item))) +
       (ground?.u_value ?? 0) * archetype.groundFloorAreaM2.value;
-    // Same total as roughEstimate.test.ts: 227.7365 W/K for the main case
-    expect(fabricUa).toBeCloseTo(227.7365, 6);
+    expect(fabricUa).toBeCloseTo(roughEstimate(uValues.roof.value).heatLoss.fabricWPerK, 6);
   });
 
   it('uses the draft U-values for each element type', () => {

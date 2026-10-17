@@ -130,6 +130,7 @@ npm run typecheck         # TypeScript type check
 npm run lint              # Oxlint, including type-aware rules
 npm run benchmark:rough   # Benchmark step 1: rough heat-demand estimate
 npm run benchmark:hem-input  # Benchmark step 2: write the HEM input files
+npm run benchmark:tables     # Benchmark steps 2–3: print the comparison tables
 ```
 
 Tests sit next to the code they test (`*.test.ts`), as the phase 1 spec lays out.

@@ -217,7 +217,7 @@ export function buildHemInput(options: HemInputOptions): HemInput {
 
   return {
     metadata: { hem_core_version: '1.0.0a7' },
-    temp_internal_air_static_calcs: occupancy.meanInternalTemperatureC.value,
+    temp_internal_air_static_calcs: options.thermostatC,
     SimulationTime: { start: 0, end: HOURS_PER_YEAR, step: 1 },
     ExternalConditions: {
       latitude: options.latitude,
@@ -306,7 +306,7 @@ export function buildHemInput(options: HemInputOptions): HemInput {
         SpaceHeatSystem: 'main',
         area: archetype.totalFloorAreaM2.value,
         volume: archetype.heatedVolumeM3.value,
-        temp_setpnt_init: occupancy.meanInternalTemperatureC.value,
+        temp_setpnt_init: options.thermostatC,
         BuildingElement: buildingElements,
         ThermalBridging: {},
       },
@@ -318,6 +318,8 @@ export interface HemRun {
   name: string;
   description: string;
   options: HemInputOptions;
+  /** Whether the run's air temperature is close enough to the rough calculation's 18 °C to compare. */
+  comparableWithRough: boolean;
 }
 
 // HEM models infiltration from an air-permeability test result. 20 m³/h·m² at 50 Pa gives the same
@@ -339,21 +341,25 @@ export const HEM_RUNS: [HemRun, ...HemRun[]] = [
     name: 'main',
     description: 'Pre-registered main case: 100 mm loft insulation, 18 °C thermostat',
     options: mainOptions,
+    comparableWithRough: true,
   },
   {
     name: 'no-loft-insulation',
     description: 'Variant: no loft insulation, 18 °C thermostat',
     options: { ...mainOptions, roofUValueWPerM2K: uValues.roofNoInsulation.value },
+    comparableWithRough: true,
   },
   {
     name: 'thermostat-17',
-    description: 'Sensitivity, run after the main result: 17 °C operative, which gives about 18 °C air',
+    description: 'Sensitivity, run after the main result: 17 °C operative thermostat (about 17.8 °C air)',
     options: { ...mainOptions, thermostatC: 17 },
+    comparableWithRough: true,
   },
   {
     name: 'thermostat-16',
-    description: 'Sensitivity, run after the main result: 16 °C operative',
+    description: 'Sensitivity, run after the main result: 16 °C operative thermostat',
     options: { ...mainOptions, thermostatC: 16 },
+    comparableWithRough: false,
   },
 ];
 

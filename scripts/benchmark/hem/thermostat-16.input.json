@@ -2,7 +2,7 @@
   "metadata": {
     "hem_core_version": "1.0.0a7"
   },
-  "temp_internal_air_static_calcs": 18,
+  "temp_internal_air_static_calcs": 16,
   "SimulationTime": {
     "start": 0,
     "end": 8760,
@@ -175,7 +175,7 @@
       "SpaceHeatSystem": "main",
       "area": 90,
       "volume": 225,
-      "temp_setpnt_init": 18,
+      "temp_setpnt_init": 16,
       "BuildingElement": {
         "wall front": {
           "type": "BuildingElementOpaque",

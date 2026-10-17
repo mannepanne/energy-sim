@@ -14,7 +14,8 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "benchmark:rough": "tsx scripts/benchmark-rough.ts",
-    "benchmark:hem-input": "tsx scripts/benchmark-hem-input.ts"
+    "benchmark:hem-input": "tsx scripts/benchmark-hem-input.ts",
+    "benchmark:tables": "tsx scripts/benchmark-tables.ts"
   },
   "devDependencies": {
     "@types/node": "^24.19.2",

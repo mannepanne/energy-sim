@@ -43,7 +43,7 @@ Background: [project-outline.md](./ORIGINAL_IDEA/project-outline.md) (scope and 
 ### Acceptance criteria
 - [x] The benchmark result is recorded, with the decision it triggers (see "Benchmark"), before the engine PR is merged.
 - [ ] `npm run report` regenerates the report from the register and snapshot alone, with no network access, and produces byte-identical output on a second run.
-- [ ] The report shows, for both setups: annual heat demand, kWh by fuel, running cost and carbon, each as a central value plus a 10th–90th percentile range and the median. It also shows the paired difference (gas minus heat pump), the share of samples in which the heat pump is cheaper, the sensitivity table, the benchmark result, the data dates, the seed and sample count, and the limitations.
+- [ ] The report shows, for both setups: annual heat demand, kWh by fuel, running cost and carbon, each as a central value plus a 10th–90th percentile range and the median. It also shows the paired difference (gas minus heat pump), the share of samples in which the heat pump is cheaper, the sensitivity table, the benchmark result, the data dates, the seed and sample count, and the limitations, including that one calibrated mean internal temperature applies to both setups.
 - [ ] Every non-constant number the engine uses comes from a register row, enforced as described under "Register integrity".
 - [ ] The register fails validation, with a message naming the row and field, for every rule under "Register integrity".
 - [ ] All physics, register and sampling tests pass. Coverage is 95%+ for lines, functions and statements and 90%+ for branches, type checking passes, and CI is green.
@@ -126,7 +126,7 @@ H = f_{fabric}\Big(\sum_i U_i A_i + 0.33\, n\, V\Big)
 
 H is in W/K. Element areas (external walls, roof, ground floor, windows, door) and heated volume come from geometry rows for the archetype. They are derived with RdSAP 10's dimension conventions and cross-checked against an MCS heat loss calculator run for the same house. The party wall is treated as having no heat loss, with the U-value convention checked against RdSAP and recorded in its row. The floor U-value is computed offline using the method RdSAP specifies, typically from perimeter and area, and stored as a fixed row with its working.
 
-**Space heat at a mean internal temperature.** Phase 1 heats continuously to a single mean internal temperature, following SAP's approach. This avoids the "house drops to outdoor temperature when the heating goes off" error that intermittent heating without thermal mass would cause, which would roughly halve annual demand. The mean internal temperature is an air temperature, not an operative one. The row is uncertain, carries the behaviour uncertainty, and is calibrated to measured consumption (see "Benchmark").
+**Space heat at a mean internal temperature.** Phase 1 heats continuously to a single mean internal temperature, following SAP's approach. This avoids the "house drops to outdoor temperature when the heating goes off" error that intermittent heating without thermal mass would cause, which would roughly halve annual demand. The mean internal temperature is an air temperature, not an operative one. The row is uncertain, carries the behaviour uncertainty, and is calibrated to measured consumption (see "Benchmark"). The calibration may also absorb fabric error from pessimistic default U-values, and the row's rationale says so.
 
 ```latex
 Q_{heat}(t) = \max\big(0,\; H\,(T_{mean} - T_{out}(t)) - G_{solar}(t) - G_{internal}\big)
@@ -164,7 +164,7 @@ L is litres per day (uncertain, from occupancy), the delivery temperature is a f
 - **Geometry:** element areas, storey height, heated volume and ground floor perimeter, each a fixed row with its derivation.
 - **Fabric:** U-values for walls, roof, floor, windows and door, and the air change rate, as fixed rows from the RdSAP 10 England tables; plus the uncertain fabric quality factor.
 - **Gains:** internal gains (uncertain), and g-value, frame factor and shading factor (fixed).
-- **Heating and hot water:** the mean internal temperature (uncertain, calibrated so the archetype's central annual gas use falls within the NEED range of 10,980–15,430 kWh, with NEED as its source; it applies to both setups, and the row says so), boiler seasonal efficiency (uncertain), the heat pump SPF (uncertain, see below), hot water litres per day (uncertain), delivery and cold-feed temperatures (fixed), and the cylinder standing loss (fixed).
+- **Heating and hot water:** the mean internal temperature (uncertain; its central value is set so the archetype's central annual gas use is 13,200 kWh, the midpoint of the NEED readings, staying within their range of 10,980–15,433 kWh; NEED is its source; it applies to both setups and may absorb fabric error, and the row says both), boiler seasonal efficiency (uncertain), the heat pump SPF (uncertain, see below), hot water litres per day (uncertain), delivery and cold-feed temperatures (fixed), and the cylinder standing loss (fixed).
 - **Prices and carbon:** the GB average price cap by Direct Debit for October–December 2026, verified against Ofgem on 2026-10-17, as fixed rows; the gas carbon factor; and the annual grid carbon factor.
 - **Base electricity:** uncertain, cross-checked against Ofgem's typical consumption figure.
 
@@ -179,9 +179,11 @@ The project's riskiest assumption is that a simple hourly engine gets heat deman
 3. **If HEM can't be run in that time, use measured data instead.** Use DESNZ's National Energy Efficiency Data-Framework (NEED) consumption statistics by property type and age band. Check that they break out semi-detached houses of this period before relying on them. Add Magnus's own bills if his house is similar. The MCS heat loss calculator only checks our heat loss sum, because it uses the same tables, and the report says so.
 4. **The decision rule, set in advance.** If annual space heat is within 15% of the reference, proceed. Between 15% and 30%, add a single thermal-mass node to the engine before phase 2. Above 30%, stop and revisit the single-zone approach with Magnus. The report states the reference used, which quantity it checks, the gap, and the decision taken.
 
-**Outcome (17 October 2026).** HEM gave 15,455 kWh at the pre-registered settings, 15.7% above the rough calculation. The gap comes from HEM's thermostat controlling operative temperature. Magnus decided:
-- to amend the rule, recorded as made after seeing the result: the engine's temperature is air temperature, and it is checked against HEM at matching air temperature (within 5%, so proceed with no thermal mass);
-- to calibrate the mean internal temperature row to NEED, because both models are above what comparable homes use (10,980–15,430 kWh of gas a year, about 7,600–11,400 kWh of space heat).
+**Outcome (17 October 2026).** HEM gave 15,455 kWh at the pre-registered settings, and the rough calculation is 15.7% below it. The gap comes from HEM's thermostat controlling operative temperature. Magnus decided:
+- to amend the rule, recorded as made after seeing the result: the engine's temperature is air temperature, and it is checked against HEM at matching air temperature (the rough calculation is 4.6% below HEM's run at about 17.8 °C air, so proceed with no thermal mass);
+- to calibrate the mean internal temperature row to NEED, because both models are above what comparable homes use (10,980–15,433 kWh of gas a year, about 7,600–11,400 kWh of space heat). The target is fixed now at 13,200 kWh of gas, the midpoint, so it can't be chosen after seeing engine output.
+
+The decisions are recorded in the [benchmark calibration ADR](../REFERENCE/decisions/2026-10-17-air-temperature-calibrated-to-need.md).
 
 The full write-up is in [scripts/benchmark/README.md](../scripts/benchmark/README.md).
 
@@ -262,7 +264,7 @@ The engine's tests use small inline fixture registers, so the engine PR doesn't 
 - Vertical irradiance matches a published worked example for a known sun position, to within 2%.
 - The worked price check above is reproduced to within 0.01p.
 - A fixture house with hand-calculated H, documented in `REFERENCE/engine.md`, is reproduced exactly.
-- The benchmark archetype at 18 °C air, built from the same draft values, gives annual space heat within 15% of the HEM `thermostat-17` run (13,648 kWh; see `scripts/benchmark/hem/`).
+- An inline fixture register matching the benchmark archetype (values copied from `scripts/benchmark/draftValues.ts`, not imported), run at 17.8 °C air on the PVGIS weather, gives annual space heat within 10% of the HEM `thermostat-17` run (13,660 kWh; see `scripts/benchmark/hem/`). The decision threshold is 15%; the tighter 10% guards against regressions.
 
 **Register and snapshot checks:**
 - The real register and snapshot files validate.
@@ -332,7 +334,9 @@ Run `/review-pr` on each. PR 1 touches CI and dependencies, so it will be triage
 ## Technical debt introduced
 
 Each item is tracked as a `technical-debt` issue when its code lands:
-- **No thermal mass**, with continuous heating. The benchmark found this doesn't distort annual space heat; intermittent heating with thermal mass is phase 2 work.
+- **No thermal mass**, with continuous heating. Under continuous heating, the benchmark found this doesn't distort annual space heat. It says nothing about intermittent heating, which real homes use; intermittent heating with thermal mass is phase 2 work.
+- **A calibrated temperature that may absorb fabric error.** If default U-values are the real cause of the gap with NEED, phase 2's insulation options will misjudge savings. Splitting the correction needs homes with known fabric (the volunteer homes).
+- **The same calibrated temperature for both setups.** It comes from gas-heated homes; heat pump households often heat for longer, which biases heat pump running cost low.
 - **Independent sampling** of the remaining uncertain rows, apart from the shared fabric factor.
 - **Fixed prices and fixed weather** in phase 1.
 - **An annual average grid carbon factor.**
