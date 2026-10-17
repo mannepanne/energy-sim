@@ -16,7 +16,9 @@ These documents serve as the "source of truth" for the project's original intent
 
 ## What's already here
 
-- **`project-outline.md`** — a stub that Claude fills in during the orientation conversation. This becomes the master specification and source of truth for the project.
+- **`project-outline.md`** — the master outline and source of truth: audience, goals, v1 scope, constraints and open questions.
+- **`home-energy-simulator-spec.md`** — the parameter register and model spec: every input, its default, range and source, and how the hourly engine uses it.
+- **`origin-notes.md`** — where the idea came from and the points agreed while drafting the spec.
 
 ## Other files you might add
 
