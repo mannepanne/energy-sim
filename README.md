@@ -1,76 +1,52 @@
-# Project template for AI-Assisted development
+# energy-sim
 
-My (Magnus Hultberg) battle-tested project template for working with AI coding assistants, refined over 12-18 months of AI-assisted development using Claude Code.
+*Working title.* A free public website where a homeowner in England can compare whole-house energy setups side by side: a gas boiler or a heat pump, with or without solar, on a chosen tariff. Each setup shows its annual cost, carbon and payback as honest ranges, and every number links to its source.
 
-## What is this
+The site gives estimates, not financial advice. Its results are never influenced by commercial relationships.
 
-This template encapsulates patterns and workflows that have worked well for me when building software with AI assistants like Claude Code. It's opinionated, practical, and designed to minimise friction while maximising collaboration quality and consistency of output over time.
+## Status
 
-## Core principles
+Phase 1 of 4 is under way: a headless TypeScript engine for one house type (a 1930s semi in London), comparing a gas boiler with a heat pump. So far the repository has its tooling, CI and a rough first heat-demand estimate. There is no website yet.
 
-**Lifecycle-based documentation** - Documents move through clear stages (SPECIFICATIONS → REFERENCE → ARCHIVE), keeping active context minimal and focused.
+- What the project is: [project outline](./SPECIFICATIONS/ORIGINAL_IDEA/project-outline.md)
+- What phase 1 builds: [phase 1 spec](./SPECIFICATIONS/01-engine-core.md)
+- The first heat-demand estimate: [scripts/benchmark/](./scripts/benchmark/README.md)
 
-**Tests as guardrails** - Tests serve dual purposes: validation as well as directional context for AI driven changes and refinements. They guide how to evolve a build, not just verify it works.
+## Getting started
 
-**Token efficiency** - CLAUDE.md files act as "library indexes" that lazy-load context only when needed. My assumption is that this makes token usage more efficient, and leads to better results.
+You need Node.js 24 (the current LTS; the exact major is in `.nvmrc`).
 
-**Collaboration framework** - Clear behavioral guidelines for working with AI (directness over politeness, evidence-based pushback, systematic decision-making). Collaboration mode support for "product management" style work as well as software development.
-
-**Systematic over ad-hoc** - Consistent patterns (PR reviews, phased implementation structure, testing strategy) that compound over time.
-
-## What's inside
-
-```
-.claude/                    # AI collaboration config (auto-loads)
-├── COLLABORATION/          # Behavioral guidance, PM mode, tech preferences
-├── skills/                 # Automated PR review workflows
-└── project-config.json     # Per-project feature flags (e.g. prReviewMode)
-
-SPECIFICATIONS/             # What are we building
-├── ORIGINAL_IDEA/         # Initial project vision
-└── ARCHIVE/               # Completed phase specs
-
-REFERENCE/                  # How implemented features work
-├── testing-strategy.md
-├── environment-setup.md
-└── troubleshooting.md
+```bash
+npm ci
+npm test
 ```
 
-**Automated reviews are opt-in.** The first time you invoke `/review-pr`, `/review-pr-team`, or `/review-spec` (or the first review-adjacent moment in conversation with Claude), you'll be asked whether to enable the review system for this project. Your answer persists in `.claude/project-config.json`. For throwaway experiments where reviews are overkill, answer `no` once — all `/review-*` skills become no-ops. You can change your mind later by editing the file.
+Other commands:
 
-## If you want to try using this as a template
+| Command | What it does |
+| --- | --- |
+| `npm run typecheck` | Checks the TypeScript types |
+| `npm run lint` | Runs ESLint |
+| `npm run test:coverage` | Runs the tests and enforces the coverage thresholds (95% lines, functions and statements; 90% branches) |
+| `npm run benchmark:rough` | Prints the rough heat-demand estimate for the phase 1 house |
 
-1. **Use this template** (click "Use this template" button on GitHub) or download the zip and rename the folder
-2. **Open Claude in the folder and have a conversation about your project** — the template is designed to be customised through chat, not by editing files yourself
-3. **Let Claude de-templatify the docs** based on what you discussed
-4. **Start building** — break the project into phases, work systematically, one PR at a time
+GitHub Actions runs the type check, lint and tests with coverage on every pull request.
 
-Full walkthrough (with example prompts) in [TEMPLATE-INSTRUCTIONS.md](./TEMPLATE-INSTRUCTIONS.md). It's short — and aimed at non-technical users too.
+## How the repository is organised
 
-## Why did I end up here...
+```
+scripts/benchmark/   Rough heat-demand estimate (benchmark step 1)
+SPECIFICATIONS/      Plans for the current and future phases
+REFERENCE/           How implemented parts work, and decision records
+.claude/             Ways of working with Claude Code
+```
 
-After 12-18 months of LLM-assisted coding, a few things became clear:
+The engine (`src/`) and the parameter register (`data/`) arrive in later phase 1 pull requests.
 
-- **AI assistants are coworkers, not servants** - Best results come from treating them as collaborators with domain expertise
-- **Documentation is leverage** - Good docs enable both AI and humans to pick up work quickly, context matters
-- **Tests guide better than specs alone** - Especially with AI, detailed specifications and ways of working mitigate drift
-- **Simple beats clever** - Patterns that are easy to explain work better than complex optimization
-- **Consistency compounds** - Using the same structure across projects builds muscle memory (yours and the AI's)
+## Data and privacy
 
-## Technology defaults
-
-These are my preferences that I tend to reuse for all projects I dive into. YMMV, so if you try this template you should carefully review this section and make it yours.
-
-TypeScript, Next.js, Cloudflare Workers, Supabase, Vitest - but easily customizable. See `.claude/COLLABORATION/technology-preferences.md` for rationale.
+All outside data (weather, prices, carbon factors) is fetched by scripts at build time and committed as snapshots. The website will run entirely in the visitor's browser, so no server ever holds a visitor's details. See the [decision record](./REFERENCE/decisions/2026-10-17-client-side-build-time-snapshots.md).
 
 ## Credits
 
-Collaboration patterns inspired by [@obra](https://github.com/obra), [@harperreed](https://github.com/harperreed), [OpenAI's Harness Engineering](https://openai.com/index/harness-engineering/), and [steipete/agent-rules](https://github.com/steipete/agent-rules).
-
-## License
-
-MIT - Use freely, adapt as needed, share improvements.
-
----
-
-**Ready to start?** Read [TEMPLATE-INSTRUCTIONS.md](./TEMPLATE-INSTRUCTIONS.md) to get going — it's short and aimed at non-technical users too.
+The repository started from Magnus Hultberg's AI-assisted project template. [TEMPLATE-INSTRUCTIONS.md](./TEMPLATE-INSTRUCTIONS.md) describes how that template works.

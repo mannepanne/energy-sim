@@ -24,9 +24,10 @@ When asked to remember anything, add project memory in this CLAUDE.md (project r
 ## Architecture overview
 
 **Stack:**
-- **Language**: TypeScript (strict), current Node LTS
+- **Language**: TypeScript 6.0 (strict), Node 24 LTS (pinned in `.nvmrc`)
 - **Engine**: pure TypeScript library with no I/O; register validated with Zod (phase 1, not set up yet)
-- **Testing**: Vitest with V8 coverage; GitHub Actions CI (phase 1, not set up yet)
+- **Testing**: Vitest with V8 coverage; ESLint with typescript-eslint; GitHub Actions CI ([ci.yml](./.github/workflows/ci.yml))
+- **Scripts**: TypeScript run with `tsx`, in `scripts/`
 - **Data**: build-time snapshots committed as JSON; no runtime external API calls
 - **Web framework and styling**: TBD in phase 3
 - **Database**: none planned (fully client-side, nothing personal stored)
@@ -38,7 +39,7 @@ When asked to remember anything, add project memory in this CLAUDE.md (project r
 - Ofgem price cap; Octopus public tariff API (phase 2)
 - NESO carbon intensity API (phase 2)
 
-**Current Status:** Planning complete for phase 1. Spec reviewed and revised; implementation not started.
+**Current Status:** Phase 1 under way. Tooling, CI and the rough benchmark calculation ([scripts/benchmark/](./scripts/benchmark/README.md)) are in place; the register and engine are not started.
 
 ## Implementation phases
 
@@ -49,7 +50,7 @@ Development is organised into numbered phases with clear deliverables, testing r
 3. Phase 3: v1 website and launch - form, 2D comparison, hosting, validation gate (spec to be written)
 4. Phase 4: 3D floating-island street - the committed next step after v1 (spec to be written)
 
-**Current phase:** Phase 1, engine core (spec reviewed and revised; ready to start)
+**Current phase:** Phase 1, engine core (PR 1 of 5: tooling and rough benchmark)
 
 ### SPECIFICATIONS/
 - **Implementation phases** (numbered files) - Active work-in-progress
@@ -106,10 +107,12 @@ How-it-works documentation for implemented features:
 
 ## TypeScript configuration
 
-Set up in phase 1 (`feature/phase-1-tooling`). Planned:
-- Strict mode: enabled
-- Target and module settings: chosen at set-up for the current Node LTS
-- Types: Node for scripts; browser types added in phase 3
+Configured in [tsconfig.json](./tsconfig.json):
+- Strict mode, plus `noUncheckedIndexedAccess`
+- ES2024 target, `nodenext` modules, `"type": "module"` in package.json
+- No emit: `tsc` only type-checks. Code runs through `tsx` and Vitest, so imports use `.ts` extensions
+- Types: Node only; browser types are added in phase 3
+- TypeScript stays on 6.0.x because typescript-eslint does not yet support TypeScript 7
 
 ## Testing
 
@@ -119,10 +122,16 @@ Tests serve dual purpose:
 
 **Commands:**
 ```bash
+npm ci                    # Install the exact locked dependencies
 npm test                  # Run all tests
 npm run test:watch        # Watch mode
-npm run test:coverage     # Coverage report
+npm run test:coverage     # Tests with coverage thresholds (as CI runs them)
+npm run typecheck         # TypeScript type check
+npm run lint              # ESLint
+npm run benchmark:rough   # Benchmark step 1: rough heat-demand estimate
 ```
+
+Tests sit next to the code they test (`*.test.ts`), as the phase 1 spec lays out.
 
 **Coverage target:** 100% (enforced minimums: 95% lines/functions/statements, 90% branches)
 
