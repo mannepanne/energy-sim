@@ -6,11 +6,11 @@ The site gives estimates, not financial advice. Its results are never influenced
 
 ## Status
 
-Phase 1 of 4 is under way: a headless TypeScript engine for one house type (a 1930s semi in London), comparing a gas boiler with a heat pump. So far the repository has its tooling, CI and a rough first heat-demand estimate. There is no website yet.
+Phase 1 of 4 is under way: a headless TypeScript engine for one house type (a 1930s semi in London), comparing a gas boiler with a heat pump. So far the repository has its tooling, CI and the benchmark: a rough heat-demand estimate checked against the government's Home Energy Model and against measured gas use. There is no website yet.
 
 - What the project is: [project outline](./SPECIFICATIONS/ORIGINAL_IDEA/project-outline.md)
 - What phase 1 builds: [phase 1 spec](./SPECIFICATIONS/01-engine-core.md)
-- The first heat-demand estimate: [scripts/benchmark/](./scripts/benchmark/README.md)
+- The benchmark and its decision: [scripts/benchmark/](./scripts/benchmark/README.md)
 
 ## Getting started
 
@@ -29,13 +29,15 @@ Other commands:
 | `npm run lint` | Runs Oxlint, including type-aware rules |
 | `npm run test:coverage` | Runs the tests and enforces the coverage thresholds (95% lines, functions and statements; 90% branches) |
 | `npm run benchmark:rough` | Prints the rough heat-demand estimate for the phase 1 house |
+| `npm run benchmark:hem-input` | Writes the Home Energy Model input files for the benchmark |
+| `npm run benchmark:tables` | Prints the HEM and measured-data comparison tables |
 
 GitHub Actions runs the type check, lint and tests with coverage on every pull request.
 
 ## How the repository is organised
 
 ```
-scripts/benchmark/   Rough heat-demand estimate (benchmark step 1)
+scripts/benchmark/   Benchmark: rough estimate, HEM run and measured-data comparison
 SPECIFICATIONS/      Plans for the current and future phases
 REFERENCE/           How implemented parts work, and decision records
 .claude/             Ways of working with Claude Code

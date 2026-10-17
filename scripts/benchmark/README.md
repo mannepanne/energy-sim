@@ -2,13 +2,18 @@
 
 The benchmark tests the project's riskiest assumption: that a simple engine gets a house's heat demand right. The plan is in [SPECIFICATIONS/01-engine-core.md](../../SPECIFICATIONS/01-engine-core.md), section "Benchmark".
 
-This folder holds step 1, a rough calculation. Steps 2–4 (a HEM run or measured data, and the decision) come in the `feature/phase-1-benchmark` PR.
+This folder holds all four steps: a rough calculation (step 1), a run of the government's Home Energy Model in [hem/](./hem/README.md) (step 2), a comparison with measured gas use from NEED (step 3), and the decision (step 4).
+
+**Summary (17 October 2026):**
+- **The method holds up.** HEM, given the same house, needs 15,455 kWh of space heat a year, 19% more than the rough calculation (put the other way, the rough calculation is 15.7% below HEM). Most of the gap comes from HEM's thermostat controlling the felt (operative) temperature rather than the air temperature: at about 17.8 °C of air, HEM is within 5% of the rough figure.
+- **The inputs probably don't.** Real homes like this one use less gas than either model predicts. NEED gives 10,980–15,433 kWh of gas a year, about 7,600–11,400 kWh of space heat, depending on how it is read, against the rough calculation's 13,000.
+- **The decision:** proceed without thermal mass, and calibrate the mean internal temperature to NEED in the register (step 4).
 
 ## Step 1: rough heat-demand calculation
 
 **Result: about 13,000 kWh a year of space heat for the main case, with 100 mm of loft insulation (H about 300 W/K).** The variant with no loft insulation gives about 18,000 kWh (H about 390 W/K).
 
-These numbers set an early expectation. They do not trigger the 15%/30% decision rule, which compares the real engine with an independent reference in step 4.
+These numbers set an early expectation. Step 4 applies the 15%/30% decision rule to them against HEM, and the engine PR repeats that check with the engine itself.
 
 ### What it computes
 
@@ -55,9 +60,9 @@ Walls and ventilation are the largest losses in both cases. The roof matters a g
 
 ### A first sanity check
 
-Ofgem's typical domestic consumption value for a medium gas user is 9,500 kWh a year from 1 July 2026 (down from 11,500). That is all gas use, including hot water and boiler losses, across all house types. At 85% boiler efficiency it is about 8,000 kWh of heat, of which perhaps 2,000 kWh is hot water, leaving about 6,000 kWh of space heat. Sources: [Ofgem TDCV decision, May 2026](https://www.ofgem.gov.uk/sites/default/files/2026-05/Review%20of%20typical%20domestic%20consumption%20values%20decision.pdf) and [Energy UK's explainer](https://www.energy-uk.org.uk/publications/energy-uk-explains-typical-domestic-consumption-values-2/). The 9,500 kWh figure comes from secondary reporting and still needs checking against the Ofgem document.
+Ofgem's typical domestic consumption value for a medium gas user is 9,500 kWh a year from 1 July 2026 (down from 11,500). That is all gas use, including hot water and boiler losses, across all house types. At 85% boiler efficiency it is about 8,000 kWh of heat, of which perhaps 2,000 kWh is hot water, leaving about 6,000 kWh of space heat. (This first guess at hot water, 2,000 kWh, is refined to 1,700 kWh with its working in step 3.) Sources: [Ofgem TDCV decision, May 2026](https://www.ofgem.gov.uk/sites/default/files/2026-05/Review%20of%20typical%20domestic%20consumption%20values%20decision.pdf) and [Energy UK's explainer](https://www.energy-uk.org.uk/publications/energy-uk-explains-typical-domestic-consumption-values-2/). The 9,500 kWh figure was checked against the Ofgem document on 17 October 2026 (its gas table: medium 11,500 kWh before, 9,500 kWh from 1 July 2026).
 
-**Our estimate is roughly two to three times that national average.** Some of the gap is expected: an unfilled-cavity semi from the 1930s uses more than the average home. But the gap is large enough to take seriously. It matches a known pattern: models built on RdSAP's default U-values tend to overstate the heat demand of older homes (the "prebound effect"), and BRE found RdSAP's old solid-wall default was pessimistic by about a quarter. This is exactly the risk the benchmark exists to test. Step 4 should compare against NEED statistics for 1930–49 semi-detached houses, not the national average.
+**Our estimate is roughly two to three times that national average.** Some of the gap is expected: an unfilled-cavity semi from the 1930s uses more than the average home. But the gap is large enough to take seriously. It matches a known pattern: models built on RdSAP's default U-values tend to overstate the heat demand of older homes (the "prebound effect"), and BRE found RdSAP's old solid-wall default was pessimistic by about a quarter. This is exactly the risk the benchmark exists to test. Step 3 below compares against NEED statistics for semi-detached houses of this period, not the national average.
 
 ### Draft values and their status
 
@@ -94,3 +99,58 @@ Each value is marked with the register's statuses. None of these is a register r
 - Continuous heating to one mean internal temperature, with no thermal mass, as in the phase 1 engine.
 - Heathrow's 1991–2020 average, not the PVGIS typical year the engine will use. Heathrow sits about 20 km west of the engine's central London point, so its temperatures may differ slightly.
 - The geometry is a plausible box, not a measured house or an RdSAP dimension set.
+
+## Step 2: HEM run
+
+The full write-up, the agreed comparison rules, the input files and the steps to reproduce the run are in [hem/README.md](./hem/README.md). The comparison rules were committed before HEM was run.
+
+| Run | What it is | HEM air temperature when heating | HEM space heat | Rough calculation (18 °C air) | Rough vs HEM |
+| --- | --- | ---: | ---: | ---: | ---: |
+| `main` | **Pre-registered main case: 100 mm loft insulation, 18 °C thermostat** | 18.80 °C | **15,455 kWh** | 13,032 kWh | **−15.7%** |
+| `no-loft-insulation` | Variant: no loft insulation, 18 °C thermostat | 18.95 °C | 21,441 kWh | 17,987 kWh | −16.1% |
+| `thermostat-17` | Sensitivity, run after the main result: 17 °C operative thermostat (about 17.8 °C air) | 17.79 °C | 13,660 kWh | 13,032 kWh | −4.6% |
+| `thermostat-16` | Sensitivity, run after the main result: 16 °C operative thermostat | 16.78 °C | 11,971 kWh |  |  |
+
+## Step 3: measured gas use (NEED)
+
+NEED links metered gas use to property records for millions of homes. The figures are 2024 gas use, weather-corrected, from DESNZ's [NEED 2026 consumption tables](https://www.gov.uk/government/statistics/national-energy-efficiency-data-framework-need-consumption-data-tables-2026). The numbers and the arithmetic are in `needReference.ts`, with tests.
+
+**NEED has no 1930–49 age band.** Its bands are 1919–1944 and 1945–1964, so 1919–1944 is used. Nor does it break gas use down by house type, age and floor area together, so there are three ways to read it:
+
+| Reading | Gas a year | Space heat (85% boiler) | Space heat (89% boiler) | Rough calculation vs reference |
+| --- | ---: | ---: | ---: | ---: |
+| A: 1919–44 houses, England and Wales, per m² × floor area | 10,980 kWh | 7,600 kWh | 8,100 kWh | +71%, +61% |
+| B: as A, adjusted for London and for semi-detached houses | 13,467 kWh | 9,700 kWh | 10,300 kWh | +34%, +27% |
+| C: London 3-bed semis built 1919–44, median | 15,433 kWh | 11,400 kWh | 12,000 kWh | +14%, +8% |
+
+Space heat = gas × boiler seasonal efficiency − 1,700 kWh of hot water heat. Both conversion values are approximate draft values, with their rationale in `needReference.ts`. Reading A is 122.0 kWh/m² × 90 m²; reading C is the median of 173,006 homes. Run `npm run benchmark:tables` to regenerate both tables; a test checks the README matches.
+
+**Caveats:**
+- **A** corrects for floor area but mixes all house types and regions.
+- **B** multiplies one-way ratios. London has more older homes, so part of the age effect is counted twice.
+- **C** is the closest match by type, age and region, but isn't corrected for size. At A's per-m² rate it implies a house of about 127 m², larger than the 90 m² archetype. It is also the reading that flatters the model most.
+- Cooking on gas, where homes have it, is included in NEED's gas figure and not taken off, so the space heat references are slightly high.
+- The middle half of London 3-bed semis use 11,400–20,000 kWh of gas a year. A single archetype can only be compared with a typical home, not a particular one.
+- None of the three readings was chosen before the data was seen.
+
+**What it means:** HEM and the rough calculation agree with each other, but both are above what comparable homes actually use. That points at the inputs, not the method. The likely causes:
+- real households heat less than the whole house to 18 °C all day;
+- the RdSAP default U-values may be pessimistic for older homes (the "prebound effect" above).
+
+## Step 4: the decision
+
+**Decision (Magnus, 17 October 2026): proceed without thermal mass, define the engine's temperature as air temperature, and calibrate the mean internal temperature to NEED.**
+
+1. **The HEM rule is amended, and the amendment is recorded here as made after seeing the result.**
+   - **As written:** the rule gives a gap of 15.7%, which falls in the 15–30% band ("add a thermal-mass node").
+   - **Why amend:** the gap comes from HEM controlling operative temperature, not from anything thermal mass would fix. Under continuous heating, thermal mass barely changes annual demand.
+   - **The amended rule:** the engine's mean internal temperature means air temperature. The engine is checked against HEM at matching air temperature, which is the `thermostat-17` run (13,660 kWh at 17.79 °C mean air over heating hours, not exactly 18 °C), using the same 15% and 30% thresholds.
+   - **The result:** the rough calculation (at 18 °C air) is 4.6% below that run, so phase 1 proceeds with no thermal mass. The engine PR repeats this check with the engine run at 17.8 °C air, and with a tighter 10% tolerance as a regression guard.
+2. **The register calibrates the mean internal temperature to measured data.**
+   - **What:** the uncertain mean internal temperature row is set so that the archetype's central annual gas use (space heat and hot water, from the engine's own boiler and hot water rows) hits a target fixed now, before the engine exists.
+   - **The target:** 13,200 kWh of gas a year, the midpoint of readings A and C (10,980–15,433 kWh). The full A–C range is the tolerance the result must stay within. The row cites NEED as its source.
+   - **The fabric question:** the gap may partly come from pessimistic RdSAP U-values rather than behaviour. Calibrating the temperature absorbs both, so the row's rationale says so, and the phase 1 spec records it as technical debt. Splitting the correction between temperature and the fabric factor needs evidence this benchmark doesn't have (for example volunteer homes with known fabric), and matters most for phase 2's insulation options.
+   - **An assumption to record in the register PR:** the calibrated temperature comes from gas-heated homes and applies to both setups ("the same household, different kit"). Heat pump households often heat for longer hours, so the row says so, and the phase 1 report lists it as a limitation.
+   - **Why:** it corrects for real households heating less than the whole house all day, without new physics in phase 1. Intermittent heating schedules and thermal mass stay in phase 2.
+3. **The NEED reference is the A–C range, not a single reading,** because none of the readings was chosen in advance.
+
