@@ -39,7 +39,7 @@ When asked to remember anything, add project memory in this CLAUDE.md (project r
 - Ofgem price cap; Octopus public tariff API (phase 2)
 - NESO carbon intensity API (phase 2)
 
-**Current Status:** Phase 1 under way. Tooling, CI and the rough benchmark calculation ([scripts/benchmark/](./scripts/benchmark/README.md)) are in place; the register and engine are not started.
+**Current Status:** Phase 1 under way. Tooling, CI and the benchmark ([scripts/benchmark/](./scripts/benchmark/README.md)) are done: the method agrees with HEM, and the mean internal temperature will be calibrated to measured data. The register and engine are not started.
 
 ## Implementation phases
 
@@ -50,7 +50,7 @@ Development is organised into numbered phases with clear deliverables, testing r
 3. Phase 3: v1 website and launch - form, 2D comparison, hosting, validation gate (spec to be written)
 4. Phase 4: 3D floating-island street - the committed next step after v1 (spec to be written)
 
-**Current phase:** Phase 1, engine core. Tooling and benchmark step 1 are done; benchmark steps 2–4 are next
+**Current phase:** Phase 1, engine core. Tooling and the benchmark are done; the register PR is next
 
 ### SPECIFICATIONS/
 - **Implementation phases** (numbered files) - Active work-in-progress
@@ -129,6 +129,7 @@ npm run test:coverage     # Tests with coverage thresholds (as CI runs them)
 npm run typecheck         # TypeScript type check
 npm run lint              # Oxlint, including type-aware rules
 npm run benchmark:rough   # Benchmark step 1: rough heat-demand estimate
+npm run benchmark:hem-input  # Benchmark step 2: write the HEM input files
 ```
 
 Tests sit next to the code they test (`*.test.ts`), as the phase 1 spec lays out.
