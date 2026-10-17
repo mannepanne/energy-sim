@@ -52,7 +52,7 @@ This is a committed ambition, not a nice-to-have. It is the tool's most shareabl
 
 ## Explicitly out of scope
 
-**For v1, planned for later:**
+**Deferred beyond v1:**
 - The 3D floating-island street (the next phase, see above).
 - Calibration from last year's bills, including the Octopus smart-meter data link.
 - Home batteries, EVs and EV charging, including an on-street charging option for homes without a driveway.
@@ -70,7 +70,7 @@ This is a committed ambition, not a nice-to-have. It is the tool's most shareabl
 
 ## What "good" looks like
 
-- **Right on the decisions:** for a given house, the tool ranks options the way measured data would.
+- **Right on the decisions:** for a given house, the tool ranks options the way measured data would. In v1 that means gas boiler versus heat pump, each with and without solar. Ranking insulation and glazing upgrades against solar comes when those upgrades are added.
 - **Honest numbers:** on real homes with known bills (Magnus's and friends'), uncalibrated estimates land within about ±25% for most homes.
 - **Experts agree:** a retrofit assessor or heat pump installer, and Magnus's EV-industry friend, review the register and broadly sign it off.
 - **Visitors understand it:** someone with no energy knowledge gets a result in about a minute and understands what it tells them.

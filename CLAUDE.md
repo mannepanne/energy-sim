@@ -15,7 +15,7 @@ When asked to remember anything, add project memory in this CLAUDE.md (project r
 
 ## Project overview
 
-**[PROJECT NAME]** - [One sentence description of what this project does]
+**energy-sim** (working title) - A free public website where a homeowner in England compares whole-house energy setups side by side, with cost, carbon and payback shown as honest ranges.
 
 **[Optional: Name inspiration or meaningful context about the project name]**
 
@@ -25,7 +25,7 @@ When asked to remember anything, add project memory in this CLAUDE.md (project r
 3. [Key user action or process step 3]
 4. [Key user action or process step 4]
 
-**Full specification:** [Link to master spec in SPECIFICATIONS/ORIGINAL_IDEA/]
+**Full specification:** [project-outline.md](./SPECIFICATIONS/ORIGINAL_IDEA/project-outline.md) (model and data detail in [home-energy-simulator-spec.md](./SPECIFICATIONS/ORIGINAL_IDEA/home-energy-simulator-spec.md))
 
 ## Architecture overview
 

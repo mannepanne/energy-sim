@@ -1,12 +1,12 @@
-# Home Energy Simulator — Parameter Register & Model Spec
+# Home energy simulator: parameter register and model spec
 
-Oct 17, 2026 · @Magnus Hultberg
+2026-10-17 · Magnus Hultberg
 
-> Exported from the Claude Docs original on 2026-10-17: https://claude.ai/code/artifact/e2644006-20de-4ea0-8655-8d3575f52393
+> This file is the canonical copy. It was exported on 2026-10-17 from Magnus's private Claude Docs original, which other readers can't open: https://claude.ai/code/artifact/e2644006-20de-4ea0-8655-8d3575f52393
 
 ## Purpose and the bar for trust
 
-The simulator lets a UK homeowner compare whole-house setups side by side, so they can see which upgrades save money and carbon for their kind of home, and in what order. A setup is a house plus its kit: gas boiler or heat pump, solar, battery, EV, insulation, glazing, tariff.
+The simulator lets a homeowner in England compare whole-house setups side by side, so they can see which upgrades save money and carbon for their kind of home, and in what order. A setup is a house plus its kit: gas boiler or heat pump, solar, battery, EV, insulation, glazing, tariff.
 
 "Trustworthy" means three testable things:
 
@@ -91,13 +91,13 @@ The register lives as a versioned data file in the repo. The UI reads the same f
 
 ## Register 1: location, weather and solar
 
-One free source covers both weather and solar: the EU's PVGIS service. Its typical-meteorological-year endpoint returns a full hourly year (temperature, irradiance, wind) for any coordinates, and its `seriescalc` endpoint returns [hourly PV output for a given system size and orientation](https://github.com/canarionyc/pyPVGIS). Fetching one typical year per postcode district and caching it keeps the browser fast.
+One free source covers both weather and solar: the EU's PVGIS service. Its typical-meteorological-year endpoint returns a full hourly year (temperature, irradiance, wind) for any coordinates, and its `seriescalc` endpoint returns [hourly PV output for a given system size and orientation](https://joint-research-centre.ec.europa.eu/photovoltaic-geographical-information-system-pvgis/using-pvgis-5/api-non-interactive-service_en). Fetching one typical year per postcode district and caching it keeps the browser fast.
 
 | Parameter | Default | Range | Source | Override | Status |
 | --- | --- | --- | --- | --- | --- |
 | Location | Postcode district centroid | — | User input | Exact postcode | — |
-| Hourly outdoor temperature | PVGIS typical year for location | Mild / typical / cold year | [PVGIS API v5.3 (`tmy`)](https://github.com/canarionyc/pyPVGIS) | — | Sourced |
-| Hourly solar irradiance | PVGIS typical year | As above | [PVGIS API v5.3](https://github.com/canarionyc/pyPVGIS) | — | Sourced |
+| Hourly outdoor temperature | PVGIS typical year for location | Mild / typical / cold year | [PVGIS API v5.3 (`tmy`)](https://joint-research-centre.ec.europa.eu/photovoltaic-geographical-information-system-pvgis/using-pvgis-5/api-non-interactive-service_en) | — | Sourced |
+| Hourly solar irradiance | PVGIS typical year | As above | [PVGIS API v5.3](https://joint-research-centre.ec.europa.eu/photovoltaic-geographical-information-system-pvgis/using-pvgis-5/api-non-interactive-service_en) | — | Sourced |
 | PV output per kWp | PVGIS `seriescalc` with system size, tilt, azimuth | ±10% | [PVGIS hourly service via pvlib docs](https://pvlib-python.readthedocs.io/en/stable/reference/generated/pvlib.iotools.get_pvgis_hourly.html) | Roof pitch, orientation, shading | Sourced |
 | System losses (inverter, cabling, soiling) | 14% | 10–18% | PVGIS default | Installer's figure | Approximate |
 | Design (coldest) outdoor temperature | Regional design value | — | [MCS Heat Load Calculator design conditions](https://heatloadcalculator.mcscertified.com/docs/reference-sources/design-conditions) | — | To verify |
@@ -247,7 +247,7 @@ The model earns trust by being checked against three independent references befo
 
 **Open questions**
 
-- Phase 2 regions: Wales shares England's grant scheme, so it is a small step. Scotland needs its own grant scheme and wall-type tables, but no new physics.
+- Later-phase regions: Wales shares England's grant scheme, so it is a small step. Scotland needs its own grant scheme and wall-type tables, but no new physics.
 - Should we run HEM itself server-side for a "detailed check" mode, alongside the fast browser engine?
 - How do we handle hybrid systems (boiler plus heat pump)? The EoH trial found they [typically met 39% of space heating from the heat pump](https://current-news.co.uk/heat-pumps-proven-to-be-three-times-more-efficient-than-gas-boilers).
 - Is a typical-year Agile profile fair, given how volatile wholesale prices are?
@@ -275,7 +275,7 @@ The model earns trust by being checked against three independent references befo
 - [CIBSE Journal: Home Energy Model architecture](https://www.cibsejournal.com/?p=32373)
 - [EPC Domestic Search API](https://www.api.gov.uk/mhclg/energy-performance-certificates-domestic-buildings-search-api/)
 - [MHCLG blog: EPC open data service](https://dluhcdigital.blog.gov.uk/2024/01/29/changes-to-the-energy-performance-certificates-open-data-service/)
-- [PVGIS API reference](https://github.com/canarionyc/pyPVGIS) and [pvlib PVGIS hourly docs](https://pvlib-python.readthedocs.io/en/stable/reference/generated/pvlib.iotools.get_pvgis_hourly.html)
+- [PVGIS API reference (EU JRC)](https://joint-research-centre.ec.europa.eu/photovoltaic-geographical-information-system-pvgis/using-pvgis-5/api-non-interactive-service_en) and [pvlib PVGIS hourly docs](https://pvlib-python.readthedocs.io/en/stable/reference/generated/pvlib.iotools.get_pvgis_hourly.html)
 - [Octopus Energy API docs](https://developer.octopus.energy/docs/api/) and [octo-api docs](https://octo-api.readthedocs.io/en/stable/api/api.html)
 - [NESO Carbon Intensity API](https://carbonintensity.org.uk/)
 - [Energy Saving Trust: Boiler Upgrade Scheme](https://www.energysavingtrust.org.uk/grants-and-schemes/boiler-upgrade-scheme/)
