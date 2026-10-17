@@ -30,37 +30,32 @@ When asked to remember anything, add project memory in this CLAUDE.md (project r
 ## Architecture overview
 
 **Stack:**
-- **Framework**: [e.g., Next.js 14+, Django, FastAPI, etc.]
-- **Styling**: [e.g., Tailwind CSS, styled-components, etc.]
-- **Database**: [e.g., Supabase, PostgreSQL, MongoDB, etc.]
-- **Email**: [e.g., Resend, SendGrid, etc. - if applicable]
-- **Deployment**: [e.g., Cloudflare Workers, Vercel, AWS, etc.]
-- **Domain**: [e.g., example.com or "TBD"]
+- **Language**: TypeScript (strict), current Node LTS
+- **Engine**: pure TypeScript library with no I/O; register validated with Zod
+- **Testing**: Vitest with V8 coverage; GitHub Actions CI
+- **Data**: build-time snapshots committed as JSON; no runtime external API calls
+- **Web framework and styling**: TBD in phase 3
+- **Database**: none planned (fully client-side, nothing personal stored)
+- **Deployment**: Cloudflare (planned for phase 3)
+- **Domain**: TBD
 
-**Key Integrations:**
-- [External API or service 1]
-- [External API or service 2]
-- [External API or service 3]
+**Key Integrations** (all fetched at build time, never from the browser):
+- PVGIS (EU JRC): hourly typical-year weather and solar
+- Ofgem price cap; Octopus public tariff API (phase 2)
+- NESO carbon intensity API (phase 2)
 
-**Current Status:** [e.g., "Planning complete - ready to begin Phase 1", "In development - Phase 3", "Production ready"]
+**Current Status:** Planning. Phase 1 spec written, awaiting review before implementation.
 
 ## Implementation phases
 
-Development is organised into numbered phases with clear deliverables, testing requirements, and PR workflows.
+Development is organised into numbered phases with clear deliverables, testing requirements, and PR workflows. The full list, with the later work and the non-code tracks, is in [SPECIFICATIONS/CLAUDE.md](./SPECIFICATIONS/CLAUDE.md).
 
-1. [01-phase-name.md](./SPECIFICATIONS/01-phase-name.md) - [Brief description] ([Timeframe])
-2. [02-phase-name.md](./SPECIFICATIONS/02-phase-name.md) - [Brief description] ([Timeframe])
-3. [03-phase-name.md](./SPECIFICATIONS/03-phase-name.md) - [Brief description] ([Timeframe])
-4. [etc...]
+1. [01-engine-core.md](./SPECIFICATIONS/01-engine-core.md) - Register and headless hourly engine for one archetype, with paired ranges and a benchmark (2–3 weeks)
+2. Phase 2: complete v1 model - archetypes, solar, time-of-use tariffs, costs, grants, payback (spec to be written)
+3. Phase 3: v1 website and launch - form, 2D comparison, hosting, validation gate (spec to be written)
+4. Phase 4: 3D floating-island street - the committed next step after v1 (spec to be written)
 
-**Each phase includes:**
-- Clear scope and acceptance criteria
-- Testing strategy (target: 95%+ coverage)
-- Pre-commit checklist (tests, type-checking, manual verification)
-- PR workflow and review requirements
-- Technical considerations and edge cases
-
-**Current phase:** [Phase number and name]
+**Current phase:** Phase 1, engine core (spec awaiting `/review-spec`)
 
 ### SPECIFICATIONS/
 - **Implementation phases** (numbered files) - Active work-in-progress

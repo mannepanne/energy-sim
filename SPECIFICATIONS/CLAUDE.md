@@ -123,22 +123,28 @@ When starting your project, replace the content below this line with your actual
 
 ## Active implementation phases
 
-Development is organised into [X] sequential phases. Each phase includes scope, acceptance criteria, testing strategy, and PR workflow.
+Development runs in four phases. v1 leads with the numbers, and the 3D street follows once the numbers are trusted. Only the current phase has a full spec file; later phases get theirs when they start.
 
-**Current phase:** [Phase number and name]
+**Current phase:** Phase 1, engine core (spec written; awaiting `/review-spec`)
 
-### Phase files (work through in order)
+1. **[01-engine-core.md](./01-engine-core.md)** (2–3 weeks)
+   Repo tooling and CI, the parameter register, and the headless hourly engine for one archetype (a 1930s semi in London). It compares gas with a heat pump on the price cap, with paired uncertainty ranges and a benchmark check. It ends with a report Magnus can check.
 
-1. **[01-phase-name.md](./01-phase-name.md)** - [Timeframe]
-   [Brief description of what this phase builds]
+2. **Phase 2: complete v1 model** (spec to be written)
+   All RdSAP archetypes and the quick-facts inputs, solar PV, Octopus time-of-use tariffs, an hourly grid-carbon profile, capital costs, grants and payback.
 
-2. **[02-phase-name.md](./02-phase-name.md)** - [Timeframe]
-   [Brief description of what this phase builds]
+3. **Phase 3: v1 website and launch** (spec to be written)
+   The input form, the 2D comparison view, "where does this number come from?", the not-advice notice, Cloudflare hosting, cookie-free analytics and an A grade on securityheaders.com. The launch gate is validation against volunteer homes plus the expert review.
 
-3. **[03-phase-name.md](./03-phase-name.md)** - [Timeframe]
-   [Brief description of what this phase builds]
+4. **Phase 4: 3D floating-island street** (spec to be written)
+   This is the committed next step after v1, and the project's main marketing asset. It is a low-poly Three.js diorama, drawn only from engine results.
 
-[Continue numbering phases...]
+**Later, after phase 4:** bill calibration (including the Octopus smart-meter link), home batteries and EVs (including on-street charging), insulation and glazing upgrades as options, all of England, then Wales and Scotland.
+
+**Non-code tracks to start early** (they have long lead times and gate the phase 3 launch):
+- Recruit 10–20 volunteer homes with a year of gas and electricity bills.
+- Find a retrofit assessor or heat pump installer, plus Magnus's EV-industry friend, to review the register.
+- Talk to char.gy about the project, and check the employment contract's IP terms.
 
 ### Supporting documentation
 
