@@ -1,0 +1,162 @@
+# Template updates library
+
+Auto-loaded when working with files in this directory. Migration packets that propagate improvements from this template repo into derivative projects (forks, copies, or projects that were bootstrapped from an earlier version of the template).
+
+## What this folder is for
+
+When a meaningful improvement lands in the template — a new skill, a reworked workflow, a config mechanism, a structural rename — derivative projects often want the same change. They don't share git ancestry with the template, so a cherry-pick won't work. A **migration packet** fills that gap: a self-contained, conceptually-framed brief that the receiving project's Claude can read, compare against local files, and apply with sensible judgement about pre-existing customisations.
+
+Each subfolder below is one such packet, named with a date prefix and a short slug.
+
+## Folder layout
+
+```
+TEMPLATE-UPDATES/
+  CLAUDE.md                ← this file: index + author/apply guide
+  TEMPLATE.md              ← skeleton to copy when authoring a new packet
+  YYYY-MM-slug/            ← one packet per improvement
+    README.md              ← the packet itself
+    (optional supporting files: diffs, before/after snippets, verification scripts)
+```
+
+## Index of packets
+
+### [2026-04-pr-review-triage/](./2026-04-pr-review-triage/)
+**What it rolls out:** The tiered PR review system (smart triage dispatcher + light/standard/team tiers), the `prReviewMode` opt-in flag, and the extracted `review-gate.md` single source of truth.
+
+**When to apply:** If a derivative project still has the older `/review-pr` (no triage) and/or the gate logic duplicated inside `.claude/CLAUDE.md`.
+
+### [2026-04-threat-model-and-safety-harness/](./2026-04-threat-model-and-safety-harness/)
+**What it rolls out:** A documented threat model that calibrates reviewer-agent severity defaults, a coherent set of silence-the-prompts conventions (Tool invocation conventions, allowlist tuning including the pinning-principle ADR, dispatcher Read-then-Write fallback, `WebFetch` granted to spec-review agents only), a PreToolUse safety-harness hook with a 39-fixture test suite, and a PreToolUse SCRATCH-write hook with a 6-fixture (7-test) suite that compensates for an upstream `Write` matcher defect. Bundles PRs #18, #19, #21, #22, #23, #24, #25, #30, #31, #32, #33, #34 plus the standalone silence/threat-model groundwork commits between them.
+
+**When to apply:** After `2026-04-pr-review-triage` has landed (this packet builds on the triage system). Apply if the derivative project still has reviewer agents flagging worst-case findings without a documented threat model, `/review-pr` runs that prompt the user repeatedly, the SCRATCH/ Write prompt is still firing despite allow-list entries, no safety net against destructive commands, or hasn't yet adopted the TEMPLATE-UPDATES system itself. The packet is idempotent — re-applying on a project that already has an earlier shape of it picks up only the new pieces (typically the SCRATCH-write hook, its ADR, the ops doc, and the investigation log).
+
+### [2026-05-post-review-follow-through/](./2026-05-post-review-follow-through/)
+**What it rolls out:** A shared post-review follow-through protocol (`.claude/skills/post-review-follow-through.md`) that re-buckets every review finding into one of three action tiers — handle in this PR, your call, track as GitHub issue. Both `/review-pr` and `/review-pr-team` reference it from Step 4, replacing the old bullet-list summary. Also retires `REFERENCE/technical-debt.md` in favour of GitHub issues with a `technical-debt` label. Covers PRs #43 and #44.
+
+**When to apply:** After `2026-04-pr-review-triage` has landed (the review skill files must exist). Apply if the derivative project's review skills still emit the old-style Step 4 summary (tier / count / recommendation / link), `REFERENCE/technical-debt.md` still exists, or technical debt tracking has no clear protocol. Check whether the local `technical-debt.md` has real entries before deleting it — those need converting to GitHub issues first.
+
+### [2026-05-reduce-github-issue-bias/](./2026-05-reduce-github-issue-bias/)
+**What it rolls out:** Tightens the "Track as issue" tier in the post-review follow-through protocol: work must now be both out of scope *and* non-trivial to become a GitHub Issue. Adds an explicit anti-pattern list (documentation gaps, ABOUT comments, minor code quality fixes should never become issues), a cost-asymmetry note, and replaces a bad worked example. Covers PR #50.
+
+**When to apply:** After `2026-05-post-review-follow-through` has landed. Apply if reviews are still producing GitHub Issues for minor documentation or code quality findings that could be fixed immediately in the PR.
+
+### [2026-05-tighten-post-review-follow-through/](./2026-05-tighten-post-review-follow-through/)
+**What it rolls out:** Three protocol contracts surfaced by empirical downstream use: (1) "Your call" must always carry a default recommendation — no hedging allowed; (2) GitHub Issue bodies now follow a fixed three-section skeleton (Finding / Source / Suggested fix) for consistency across batches; (3) Partial confirmation (e.g. "yes to 1 and 3, skip 2") has an explicit contract — Claude must state which items it is acting on before making changes. Also adds partial-confirmation hints to the Step 2 prompts. Covers PR #55.
+
+**When to apply:** After `2026-05-reduce-github-issue-bias` has landed. Apply if reviews are parking findings in "Your call" without a recommendation, creating GitHub Issues with inconsistent bodies, or handling partial confirmations by reading between the lines rather than following an explicit contract.
+
+### [2026-07-fan-out-review-synthesis/](./2026-07-fan-out-review-synthesis/)
+**What it rolls out:** Removes the multi-round "collaborative discussion" phase from `/review-pr-team` and `/review-spec`. Reviewer agents now fan out in parallel, report findings to the orchestrator, and the orchestrator deduplicates by `file:line` and reconciles severity disagreements itself — recording both positions where the reports don't settle one. Adds a findings contract (`file:line` + severity + evidence) to `.claude/agents/CLAUDE.md`, strips the `## Team Collaboration` section from all seven reviewer agents, and drops the now-unused `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` flag. Covers PR #56.
+
+**When to apply:** After `2026-04-pr-review-triage` has landed (the review skill files must exist). Apply if the derivative project's `/review-pr-team` or `/review-spec` still instruct reviewers to broadcast findings and debate severity — symptoms are reviews that run far longer than the advertised 2–7 minutes and discussion phases with no clear termination. Independent of the follow-through packets; can be applied before or after them. **Must be applied *before* `2026-07-read-only-reviewers`** — that packet's skill edits anchor on the parallel-spawn steps this one introduces. Apply the two back to back, in one sitting.
+
+### [2026-07-read-only-reviewers/](./2026-07-read-only-reviewers/)
+**What it rolls out:** Stops reviewer agents mutating the operator's working tree. Adds a read-only contract to `.claude/agents/CLAUDE.md` inherited by all ten reviewer agents, corrects the step-4 instruction that told five agents to read PR-changed files with the `Read` tool (which reads the working tree, not the PR — the contradiction that drove agents to `git checkout`), codifies `git fetch origin pull/<N>/head` + `git show FETCH_HEAD:<path>` as the correct read, and spawns all `/review-pr` and `/review-pr-team` reviewers with `isolation: "worktree"`. `/review-spec` is deliberately exempt. Covers PR #58.
+
+**When to apply:** Urgently, if the project's reviewer agents still say "Read full file context where needed using the Read tool". The bug it fixes silently moves you off your branch mid-review, so later commits miss the PR — a downstream project lost two commits to it before catching it by hand. Especially urgent if the project runs with permissive tool settings (`bypassPermissions`, `dontAsk`, or a broadened git allowlist), because then nothing prompts before the checkout. **Requires `2026-07-fan-out-review-synthesis` to have landed first.** Two of this packet's three skill edits anchor on the parallel-spawn steps that packet introduces (`review-pr-team` Step 1, `review-spec` Step 2); in a pre-fan-out project those steps still read `Create Agent Team` and there are no `Agent` spawn calls to attach `isolation: "worktree"` to. Apply the two back to back, in one sitting — see the ordering note in that packet.
+
+### [2026-07-untrusted-input-coverage/](./2026-07-untrusted-input-coverage/)
+**What it rolls out:** Closes a coverage gap in the untrusted-input contract. `code-reviewer`, `security-specialist`, `product-reviewer` and `architect-reviewer` all read PR content — including `gh pr view --comments` — without inheriting the contract that tells them to distrust it. Adds the Role-section line to all four, names comments in the contract's instruction text, records that signal-emission is not the scope test (reading PR content is), and documents a fixed order for Role-section inheritance lines (`**Untrusted input:**` then `**Read-only:**`, contiguous, new contracts append) while normalising `triage-reviewer` and `light-reviewer` to it. Covers PR #63.
+
+**When to apply:** **Only if `2026-07-read-only-reviewers` has already landed.** A project that hasn't applied the two 2026-07 packets yet should just apply them in sequence — they fetch from `main` and already contain this fix, so this packet has nothing to add. Urgency is governed by **public vs private**, not contributor count: on a public repo a PR comment is authored by anyone with a GitHub account, so the single-trusted-contributor assumption in the threat-model ADR never covered it. Private solo repos should still apply it — repos change visibility, and the ordering rule cannot be adopted retroactively for free once several packets have landed on divergent Role blocks.
+
+### [2026-09-plain-review-output/](./2026-09-plain-review-output/)
+**What it rolls out:** Plain, digestible output. A single style reference (`.claude/COLLABORATION/writing-style.md`) that defines mannered prose as a mechanism with examples rather than a banned-word list; the short form of the rule in the always-loaded file; an output style contract for reviewer prompts (one to three lines per finding, strengths capped at three sentences) carried in each reviewer's own Output Format; and synthesis templates rewritten to verdict-first, one line per finding, an unresolved-disagreements section, no count block, and a one-screen budget. Covers PR #67.
+
+**When to apply:** **Standalone. No prerequisite packets, and the project need not derive from this template.** The packet routes on what the project has: an always-loaded instruction file (every project, Layer 1), reviewer prompts (Layer 2), synthesis prompts (Layer 3), or this template's exact agents and skills (Layer 4). Apply if review output runs past a screen, findings carry sub-bullets, or chat replies have started to perform rather than state. Where the fixed-order Role block from `2026-07-untrusted-input-coverage` exists, the new pointer line appends as its third item; where it does not, the packet says where the line goes instead.
+
+---
+
+## Authoring a new packet
+
+When a template improvement should be propagated:
+
+1. **Wait until the work has landed on `main`** (merged PRs, not draft branches). Migration packets reference the *final* shape of the change, not work-in-progress.
+2. **Copy [`TEMPLATE.md`](./TEMPLATE.md)** into a new folder named `YYYY-MM-slug/` (e.g. `2026-07-test-coverage-bump/`). The date prefix gives chronological ordering; the slug is short and descriptive.
+3. **Fill in the sections.** The packet is for a Claude in another project — assume it knows nothing about this template's recent history. Lead with *why* before *what*. Link the merged PR(s) as the authoritative source.
+4. **Group the file manifest into three buckets:**
+   - **Copy verbatim** — files that don't exist in the target project and should be added as-is (typically new skills, agents, ADRs).
+   - **Merge carefully** — files that likely exist in the target project but with different content; needs section-level merging, not overwrite.
+   - **Conditional** — files that may or may not be relevant depending on whether the target project uses a related feature.
+5. **Write the apply prompt** — the literal text the user will paste into the receiving project's Claude. Make it self-contained: the receiving Claude won't see this template's CLAUDE.md. It must instruct retrieval via `gh api ... -H 'Accept: application/vnd.github.raw'` (see [Retrieval must be byte-exact](#retrieval-must-be-byte-exact)) and must include a byte-identity check over the "Copy verbatim" files.
+6. **Add an entry to the index above** in this file.
+7. **Run `bash REFERENCE/TEMPLATE-UPDATES/verify-packets.sh` before merging.** A packet's own
+   `## Verification` block must pass against the template itself. If it cannot, the check is
+   wrong — fix the check, not the template.
+
+### Retrieval must be byte-exact
+
+A packet's deliverable is exact wording. `WebFetch` cannot deliver it: it converts the page to markdown and answers a prompt against it *using a small fast model*, so what comes back is that model's answer, not the file's bytes. It also caches per URL for 15 minutes. Asked to reproduce a file verbatim, it may summarise it, truncate it, or decline and return commentary instead — and the result varies between runs, so a spot check that looks clean proves nothing about the next fetch.
+
+Apply prompts must therefore instruct:
+
+```bash
+gh api repos/<owner>/<repo>/contents/<path> -H 'Accept: application/vnd.github.raw'
+```
+
+which returns exact bytes and works against private forks. `curl -fsSL https://raw.githubusercontent.com/<owner>/<repo>/main/<path>` is the equivalent no-auth fallback for public repos. `WebFetch` remains fine for reading a rendered page you only need the *sense* of — it is never right for a file whose contents you are about to write to disk.
+
+### Verification checks must fail loudly
+
+Write checks that **exit non-zero** when they fail. Three idioms silently defeat this, and
+all three have shipped in this repo:
+
+- `grep -q "x" file && echo "OK" || echo "MISSING"` — **always exits 0.** It announces the
+  failure on stdout and returns success, so nobody notices. Prefer a bare `grep -q "x" file`,
+  or `grep -q "x" file || { echo "FAIL: ..."; exit 1; }`.
+- `! grep -q "x" file` — correct as an assertion, but `set -e` **does not abort** on a failing
+  `!`-prefixed pipeline (POSIX exempts them). The harness re-evaluates these separately; just
+  be aware the idiom cannot carry a whole script on its own.
+- Greps scoped too broadly. `grep -rn "technical-debt.md" REFERENCE/` matches the packet
+  README that *describes* retiring `technical-debt.md`. Anchor the pattern (`^\s*"Write\(`)
+  or exclude `--exclude-dir=TEMPLATE-UPDATES`.
+- **Anchor greps over a "Copy verbatim" file.** `grep -q '^\*\*Untrusted input:\*\* inherits'`
+  proves one line survived, not that the file is the file. A paraphrase, a truncation, or a
+  hand-typed reconstruction keeps the anchor strings and loses everything around them, and the
+  check reports green. Verbatim files need a `diff` against re-fetched source — see
+  [Retrieval must be byte-exact](#retrieval-must-be-byte-exact). Anchor greps stay useful for
+  *merge carefully* files, where a diff would false-positive by design.
+
+Test a new check by **breaking the thing it asserts** and confirming it goes red. A check that
+cannot fail is worse than no check: it reports green over a real defect.
+
+## Applying a packet (in a derivative project)
+
+When you (the user) are in a derivative project and want to pull in a packet:
+
+1. Open the packet's `README.md` in this template repo (e.g. via GitHub web or a local clone).
+2. Copy the **apply prompt** from that file into the derivative project's Claude session.
+3. Paste in the file manifest and PR links along with it.
+4. Let the receiving Claude do the comparison and propose edits. It should flag any conflicts with local customisations *before* writing — review those flags first.
+5. Run the **verification steps** at the bottom of the packet to confirm the rollout landed cleanly.
+
+## Conventions
+
+- **Date prefix** uses `YYYY-MM` (not full date). Multiple packets in the same month is fine; sort lexicographically by slug.
+- **British English** throughout, matching the rest of the project's docs.
+- **Evergreen language** — describe what the change *is*, not "the recent triage refactor". A packet read two years from now should still make sense.
+- **Don't archive applied packets** — they remain useful as reference for future derivative projects. If a packet is truly superseded by a later one, add a `**Superseded by:** [link]` line at the top of its README rather than deleting it.
+
+## Packet design principles
+
+Lessons captured from authoring and rolling out packets. Read these before authoring a new one.
+
+### Functional vs documentary dependencies
+
+When a packet has forward-references to a later packet (or to artefacts that don't yet exist when the packet is applied), distinguish two kinds:
+
+- **Functional dependency** — the system breaks without it. Example: `triage-scan-patterns.txt` was conceptually part of the threat-model packet but is referenced by `triage-reviewer.md` from the earlier triage packet; without the patterns file, every triage run hits the fail-closed branch and routes to `team` tier. Functional dependencies must be *pulled forward* into the earlier packet, even though they're conceptually part of the later one.
+- **Documentary dependency** — the reference is cosmetic only. Example: an agent file in an earlier packet that mentions an anchor (e.g. `#untrusted-input-contract`) which lives in a section added by the later packet. The link 404s in markdown previews until the later packet lands, but nothing breaks at runtime. Documentary dependencies should be *left as dead anchors* in the earlier packet and resolved when the later packet lands.
+
+The discipline: pulling forward functional deps is what makes a packet self-contained; pulling forward documentary deps unnecessarily blurs packet boundaries. When in doubt, ask: "Does the system fail-closed or just look ugly without this?" Fail-closed = pull forward. Ugly = leave alone (and document the deferred resolution in the later packet's "What changed" section).
+
+## Pending investigations
+
+Open questions or gaps in the packet system that don't have enough data to act on yet. Revisit when a relevant rollout surfaces a real case rather than writing speculative guidance.
+
+### Settings.json merge guidance for non-trivial-local case
+
+Rollouts 1 and 2 hit derivatives with minimal local `.claude/settings.json` (just `env` and `enabledPlugins`). The "source-as-base, restore local additions" pattern worked cleanly for both. But the packet manifest doesn't address the case where a derivative has substantial existing `permissions.allow` entries or its own `hooks.PreToolUse` block (project-specific paths, custom binaries, a hook scoped to a different tool).
+
+The right guidance probably looks like "cherry-pick per delta-group from source — env, permissions, hooks treated independently — and document the merge in the PR". But the specific shape depends on what actually shows up in a real derivative. When rollout 3 (or later) hits a non-trivial local settings.json, draft the guidance from what genuinely differs and add it to the relevant packet's settings.json merge entry. Until then, this stays an open question.
