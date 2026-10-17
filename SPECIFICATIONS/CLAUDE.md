@@ -125,13 +125,13 @@ When starting your project, replace the content below this line with your actual
 
 Development runs in four phases. v1 leads with the numbers, and the 3D street follows once the numbers are trusted. Only the current phase has a full spec file; later phases get theirs when they start.
 
-**Current phase:** Phase 1, engine core (spec written; awaiting `/review-spec`)
+**Current phase:** Phase 1, engine core (spec reviewed and revised; ready to start)
 
-1. **[01-engine-core.md](./01-engine-core.md)** (2–3 weeks)
-   Repo tooling and CI, the parameter register, and the headless hourly engine for one archetype (a 1930s semi in London). It compares gas with a heat pump on the price cap, with paired uncertainty ranges and a benchmark check. It ends with a report Magnus can check.
+1. **[01-engine-core.md](./01-engine-core.md)** (4–6 weeks)
+   Proves the heat-demand physics and the trust plumbing. A benchmark against HEM or measured data comes first. Then repo tooling and CI, the typed parameter register, and a headless hourly engine for one archetype (a 1930s semi in London), comparing gas with a heat pump on the price cap. Results come with paired uncertainty ranges and a sensitivity table, and the phase ends with a report Magnus and an outside expert can check.
 
 2. **Phase 2: complete v1 model** (spec to be written)
-   All RdSAP archetypes and the quick-facts inputs, solar PV, Octopus time-of-use tariffs, an hourly grid-carbon profile, capital costs, grants and payback.
+   All RdSAP archetypes and the quick-facts inputs; hourly heat pump behaviour (a COP curve against outdoor temperature, flow temperature, fitting to Electrification of Heat data, a "well-installed" option and sizing); Octopus time-of-use tariffs, regional price-cap rates and a shared price-level scenario; an hourly grid-carbon profile; weather variation between years; solar PV; capital costs, grants and payback.
 
 3. **Phase 3: v1 website and launch** (spec to be written)
    The input form, the 2D comparison view, "where does this number come from?", the not-advice notice, Cloudflare hosting, cookie-free analytics and an A grade on securityheaders.com. The launch gate is validation against volunteer homes plus the expert review.
