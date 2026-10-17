@@ -356,3 +356,12 @@ export const HEM_RUNS: [HemRun, ...HemRun[]] = [
     options: { ...mainOptions, thermostatC: 16 },
   },
 ];
+
+/**
+ * The committed input file for a run. Number arrays (such as the hourly cold-water temperatures)
+ * go on one line to keep the files short.
+ */
+export function hemInputFileContents(run: HemRun): string {
+  const json = JSON.stringify(buildHemInput(run.options), null, 2);
+  return `${json.replace(/\[[\d.,\s-]+\]/g, (array) => array.replace(/\s+/g, ''))}\n`;
+}

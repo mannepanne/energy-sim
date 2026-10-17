@@ -5,7 +5,7 @@ The benchmark tests the project's riskiest assumption: that a simple engine gets
 This folder holds all four steps: a rough calculation (step 1), a run of the government's Home Energy Model in [hem/](./hem/README.md) (step 2), a comparison with measured gas use from NEED (step 3), and the decision (step 4).
 
 **Summary (17 October 2026):**
-- **The method holds up.** HEM, given the same house, needs 15,455 kWh of space heat a year, 19% more than the rough calculation (put the other way, the rough calculation is 15.7% below HEM). Nearly all of the gap comes from HEM's thermostat controlling the felt (operative) temperature rather than the air temperature.
+- **The method holds up.** HEM, given the same house, needs 15,455 kWh of space heat a year, 19% more than the rough calculation (put the other way, the rough calculation is 15.7% below HEM). Most of the gap comes from HEM's thermostat controlling the felt (operative) temperature rather than the air temperature.
 - **The inputs probably don't.** Real homes like this one use less gas than either model predicts. NEED implies about 7,600–11,400 kWh of space heat a year, depending on how it is read, against the rough calculation's 13,000.
 - **The decision:** proceed without thermal mass, and calibrate the mean internal temperature to NEED in the register (step 4).
 
@@ -146,8 +146,9 @@ Space heat = gas × boiler seasonal efficiency − 1,700 kWh of hot water heat. 
    - **The amended rule:** the engine's mean internal temperature means air temperature. The engine is checked against HEM at matching air temperature, which is the `thermostat-17` run (13,648 kWh, about 17.8 °C air), using the same 15% and 30% thresholds.
    - **The result:** the rough calculation is within 5% of that run, so phase 1 proceeds with no thermal mass. The engine PR repeats this check with the engine itself.
 2. **The register calibrates the mean internal temperature to measured data.**
-   - **What:** the uncertain mean internal temperature row is set so that the archetype's central space heat falls inside the NEED range. The row cites NEED as its source.
-   - **The range:** 7,600–11,400 kWh, readings A to C in step 3 at 85% boiler efficiency.
+   - **What:** the uncertain mean internal temperature row is set so that the archetype's central annual gas use falls inside the NEED range. The row cites NEED as its source.
+   - **The range:** 10,980–15,430 kWh of gas a year (readings A to C in step 3), compared with the engine's own gas use for space heat and hot water. That way the engine's own boiler-efficiency and hot water rows are used, not the conversion values above. At 85% efficiency it is about 7,600–11,400 kWh of space heat.
+   - **An assumption to record in the register PR:** the calibrated temperature comes from gas-heated homes and applies to both setups ("the same household, different kit"). Heat pump households often heat for longer hours, so the row says so.
    - **Why:** it corrects for real households heating less than the whole house all day, without new physics in phase 1. Intermittent heating schedules and thermal mass stay in phase 2.
 3. **The NEED reference is the A–C range, not a single reading,** because none of the readings was chosen in advance.
 

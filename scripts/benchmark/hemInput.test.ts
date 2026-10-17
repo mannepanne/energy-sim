@@ -1,6 +1,7 @@
 // ABOUT: Tests for the HEM input builder used in benchmark step 2
 // ABOUT: Checks element areas and U-values match the draft archetype, and the run settings are as agreed
 
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { archetype, occupancy, uValues } from './draftValues.ts';
 import {
@@ -10,6 +11,7 @@ import {
   R_SI_UPWARDS,
   buildHemInput,
   constructionResistance,
+  hemInputFileContents,
   type HemBuildingElement,
   type HemInputOptions,
 } from './hemInput.ts';
@@ -105,5 +107,18 @@ describe('HEM_RUNS', () => {
   it('gives every run a unique name', () => {
     const names = HEM_RUNS.map((run) => run.name);
     expect(new Set(names).size).toBe(names.length);
+  });
+});
+
+describe('committed HEM input files', () => {
+  it.each(HEM_RUNS)('$name.input.json matches the draft values', (run) => {
+    const committed = readFileSync(new URL(`./hem/${run.name}.input.json`, import.meta.url), 'utf8');
+    expect(committed, 'Run `npm run benchmark:hem-input`, rerun HEM and update hem/README.md').toBe(
+      hemInputFileContents(run),
+    );
+  });
+
+  it('keeps hourly number arrays on one line', () => {
+    expect(hemInputFileContents(HEM_RUNS[0])).toMatch(/"temperatures": \[10,10,10,/);
   });
 });

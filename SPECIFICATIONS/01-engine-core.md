@@ -164,7 +164,7 @@ L is litres per day (uncertain, from occupancy), the delivery temperature is a f
 - **Geometry:** element areas, storey height, heated volume and ground floor perimeter, each a fixed row with its derivation.
 - **Fabric:** U-values for walls, roof, floor, windows and door, and the air change rate, as fixed rows from the RdSAP 10 England tables; plus the uncertain fabric quality factor.
 - **Gains:** internal gains (uncertain), and g-value, frame factor and shading factor (fixed).
-- **Heating and hot water:** the mean internal temperature (uncertain, calibrated so the archetype's central space heat falls within the NEED range of 7,600–11,400 kWh, with NEED as its source), boiler seasonal efficiency (uncertain), the heat pump SPF (uncertain, see below), hot water litres per day (uncertain), delivery and cold-feed temperatures (fixed), and the cylinder standing loss (fixed).
+- **Heating and hot water:** the mean internal temperature (uncertain, calibrated so the archetype's central annual gas use falls within the NEED range of 10,980–15,430 kWh, with NEED as its source; it applies to both setups, and the row says so), boiler seasonal efficiency (uncertain), the heat pump SPF (uncertain, see below), hot water litres per day (uncertain), delivery and cold-feed temperatures (fixed), and the cylinder standing loss (fixed).
 - **Prices and carbon:** the GB average price cap by Direct Debit for October–December 2026, verified against Ofgem on 2026-10-17, as fixed rows; the gas carbon factor; and the annual grid carbon factor.
 - **Base electricity:** uncertain, cross-checked against Ofgem's typical consumption figure.
 
@@ -181,7 +181,7 @@ The project's riskiest assumption is that a simple hourly engine gets heat deman
 
 **Outcome (17 October 2026).** HEM gave 15,455 kWh at the pre-registered settings, 15.7% above the rough calculation. The gap comes from HEM's thermostat controlling operative temperature. Magnus decided:
 - to amend the rule, recorded as made after seeing the result: the engine's temperature is air temperature, and it is checked against HEM at matching air temperature (within 5%, so proceed with no thermal mass);
-- to calibrate the mean internal temperature row to NEED, because both models are above what comparable homes use (7,600–11,400 kWh of space heat a year).
+- to calibrate the mean internal temperature row to NEED, because both models are above what comparable homes use (10,980–15,430 kWh of gas a year, about 7,600–11,400 kWh of space heat).
 
 The full write-up is in [scripts/benchmark/README.md](../scripts/benchmark/README.md).
 
