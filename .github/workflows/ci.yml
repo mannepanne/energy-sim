@@ -1,0 +1,48 @@
+# ABOUT: Continuous integration for every pull request and every push to main
+# ABOUT: Runs type checking, lint and tests with coverage thresholds on the Node LTS in .nvmrc
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Typecheck, lint and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test with coverage
+        run: npm run test:coverage
+
+      # Added in the phase 1 ranges-and-report PR (see SPECIFICATIONS/01-engine-core.md):
+      # - name: Report drift
+      #   run: npm run report && git diff --exit-code reports/
+      # - name: Bench
+      #   run: npm run bench

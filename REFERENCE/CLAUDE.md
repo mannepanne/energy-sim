@@ -7,12 +7,12 @@ Auto-loaded when working with files in this directory. How-it-works documentatio
 ### [testing-strategy.md](./testing-strategy.md)
 **When to read:** Writing tests, setting up test coverage, or implementing TDD workflow.
 
-Complete testing philosophy, framework setup (Vitest), test categories, coverage requirements, and CI/CD integration.
+Testing philosophy, where tests live (next to the code), Vitest set-up, coverage requirements and exceptions, and the CI checks.
 
 ### [environment-setup.md](./environment-setup.md)
 **When to read:** Setting up local development, configuring secrets, or deploying to production.
 
-Environment variables, API key configuration, third-party service setup (Supabase, Readwise, Perplexity, Resend).
+Node version, installing dependencies, and where secrets will go. Phase 1 needs no API keys.
 
 ### [troubleshooting.md](./troubleshooting.md)
 **When to read:** Debugging issues, fixing deployment problems, or resolving API integration errors.

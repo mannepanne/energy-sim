@@ -115,7 +115,7 @@ Replace this template guidance with your actual phase list when you:
 
 Development runs in four phases. v1 leads with the numbers, and the 3D street follows once the numbers are trusted. Only the current phase has a full spec file; later phases get theirs when they start.
 
-**Current phase:** Phase 1, engine core (spec reviewed and revised; ready to start)
+**Current phase:** Phase 1, engine core. Tooling and benchmark step 1 are done; benchmark steps 2–4 are next
 
 1. **[01-engine-core.md](./01-engine-core.md)** (4–6 weeks)
    Proves the heat-demand physics and the trust plumbing. A benchmark against HEM or measured data comes first. Then repo tooling and CI, the typed parameter register, and a headless hourly engine for one archetype (a 1930s semi in London), comparing gas with a heat pump on the price cap. Results come with paired uncertainty ranges and a sensitivity table, and the phase ends with a report Magnus and an outside expert can check.

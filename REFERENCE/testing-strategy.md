@@ -52,19 +52,20 @@ When tests fail, error messages should explain:
 - **Where** to look (file:line references)
 - **Why** it might have failed
 
-### 4. Test Organization Mirrors Code Structure
+### 4. Tests sit next to the code they test
 
 ```
-src/
-  utils/format.ts
-  api/reader.ts
-
-tests/
-  utils/format.test.ts
-  api/reader.test.ts
+scripts/benchmark/
+  heatDemand.ts
+  heatDemand.test.ts
+src/engine/
+  geometry.ts
+  geometry.test.ts
 ```
 
-Easy to find relevant tests when modifying code.
+Each test file is named after its module with `.test.ts`. Vitest only runs `src/**/*.test.ts` and `scripts/**/*.test.ts` (set in `vitest.config.ts`), so do not create a separate `tests/` folder: tests there would never run.
+
+**Command-line entry points** sit at the top of `scripts/` (for example `scripts/benchmark-rough.ts`). They stay thin, only wiring up file reads and printing, and are excluded from coverage. Their logic lives in tested modules in subfolders.
 
 ### 5. Tests Are Self-Contained
 
@@ -89,11 +90,7 @@ Each test should:
 **Coverage:** Vitest with v8 coverage provider
 
 ### Setup
-```bash
-npm install -D vitest @vitest/coverage-v8
-```
-
-Configuration in `vitest.config.ts`
+Vitest and its coverage provider are already dev dependencies; `npm ci` installs them. Configuration is in `vitest.config.ts`: which test files run, what coverage includes and excludes, and the thresholds.
 
 ---
 
@@ -111,9 +108,9 @@ Test individual functions and utilities in isolation.
 
 **Example:**
 ```typescript
-// tests/utils/slugGeneration.test.ts
+// src/utils/slugGeneration.test.ts
 import { describe, it, expect } from 'vitest';
-import { generateSlug } from '@/utils/slugGeneration';
+import { generateSlug } from './slugGeneration.ts';
 
 describe('generateSlug', () => {
   it('converts title to lowercase with hyphens', () => {
@@ -138,9 +135,9 @@ Test how components work together.
 
 **Example:**
 ```typescript
-// tests/api/reader.test.ts
+// src/api/reader.test.ts
 import { describe, it, expect, vi } from 'vitest';
-import { fetchUnreadItems } from '@/api/reader';
+import { fetchUnreadItems } from './reader.ts';
 
 describe('fetchUnreadItems', () => {
   it('fetches items from Reader API', async () => {
@@ -211,10 +208,10 @@ Mocking core logic defeats the purpose of testing.
 
 ### Mock Implementations
 
-Create reusable mocks in `tests/mocks/`:
+Create reusable mocks next to the code they stand in for, as `*.mock.ts`:
 
 ```typescript
-// tests/mocks/reader.ts
+// src/api/reader.mock.ts
 export function createMockReaderAPI() {
   return {
     fetchUnread: vi.fn(async () => ({ results: [] })),
@@ -237,6 +234,7 @@ export function createMockReaderAPI() {
 **Allowed Exceptions:**
 - Type definition files (no executable code)
 - Configuration files
+- Command-line entry points at the top of `scripts/` (`scripts/*.ts`)
 - Explicitly marked `/* istanbul ignore */` with explanation
 
 ### Coverage Reporting
@@ -255,15 +253,13 @@ Outputs:
 
 ### Pre-Commit
 ```bash
-npm test           # All tests must pass
-npx tsc --noEmit   # Type check must pass
+npm run typecheck       # Type check must pass
+npm run lint            # Lint must pass
+npm run test:coverage   # Tests must pass and meet the coverage thresholds
 ```
 
 ### Pull Request Checks
-1. All tests pass
-2. Coverage maintained or improved
-3. TypeScript compiles
-4. Linting passes
+GitHub Actions (`.github/workflows/ci.yml`) runs the same three commands on every pull request, on the Node version in `.nvmrc`. Report-drift and timing checks are added later in phase 1.
 
 ---
 
