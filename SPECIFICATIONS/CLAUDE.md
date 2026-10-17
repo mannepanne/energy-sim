@@ -4,10 +4,6 @@ Auto-loaded when working with files in this directory. Forward-looking plans for
 
 ---
 
-**⚠️ TEMPLATE GUIDANCE** - This file explains how to use this folder. When starting a new project, update this file to list your actual implementation phases.
-
----
-
 ## Purpose of this folder
 
 The SPECIFICATIONS folder contains **forward-looking plans** for features you're actively building. These are living documents that guide development and evolve as you learn more.
@@ -112,12 +108,6 @@ Replace this template guidance with your actual phase list when you:
 3. Are ready to begin development
 
 **Keep it current** - Update phase status as you progress through development.
-
----
-
-## Template replacement
-
-When starting your project, replace the content below this line with your actual implementation phase list.
 
 ---
 

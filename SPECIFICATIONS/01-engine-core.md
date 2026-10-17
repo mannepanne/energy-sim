@@ -28,10 +28,10 @@ Background: [project-outline.md](./ORIGINAL_IDEA/project-outline.md) (scope and 
 - [ ] **Paired, seeded sampling** for uncertainty bands, and paired comparison of two setups.
 - [ ] **A sensitivity table:** each uncertain row run at its low and high value, ranked by effect.
 - [ ] **A generated report**, `reports/phase-1-london-semi.md`, committed to the repo and checked for drift in CI.
-- [ ] **The two ADRs** (client-side snapshots, register format), written alongside this spec.
+- [x] **The two ADRs** (client-side snapshots, register format), written alongside this spec.
 - [ ] **Tests**, plus `REFERENCE/engine.md` and `REFERENCE/register.md`.
 
-### Out of scope (moved to phase 2 or later)
+### Out of scope (phase 2 or later)
 - The heat pump COP curve versus outdoor temperature, flow temperature, and fitting either to Electrification of Heat data.
 - Time-of-use tariffs, an hourly grid-carbon profile, and regional price-cap rates.
 - Heat pump sizing against a design temperature, and backup heating.
@@ -65,7 +65,7 @@ Background: [project-outline.md](./ORIGINAL_IDEA/project-outline.md) (scope and 
 - **Paired comparison.** Both setups run on the same samples. The engine reports the distribution of the per-sample difference, **gas cost minus heat pump cost** (positive means the heat pump is cheaper), and the share of samples in which the heat pump is cheaper. An exact tie counts as half a win for each.
 - **Stable draws.** Each value comes from its own uniform number, derived by hashing (seed, sample index, row id), then passed through the row's inverse distribution function. Adding or reordering rows therefore never shifts other rows' draws, and "raise SPF, cost falls" holds sample by sample.
 - **Degenerate ranges.** A row whose low equals its high always returns its default. There is no division by zero.
-- **Monte Carlo noise.** At N = 500 the share-of-wins figure carries about ±2 percentage points of noise, so the report rounds it to the nearest 5%.
+- **Monte Carlo noise.** At N = 500 the share-of-wins figure has a standard error of about 2 percentage points, which is roughly ±4.5 points at 95% confidence. The report therefore rounds it to the nearest 5%.
 
 ### What is sampled, and what is fixed
 
@@ -97,7 +97,7 @@ The value fields depend on the row kind:
 
 | Kind | Holds | Required fields |
 | --- | --- | --- |
-| `uncertain` | A scalar with a range | `default`, `low`, `high`, `distribution` (`triangular` or `lognormal`). Lognormal rows give `median` and `sigma` and are clipped at `low`/`high`. |
+| `uncertain` | A scalar with a range | `default`, `low`, `high`, `distribution` (`triangular` or `lognormal`). For a triangular row, `default` is the mode. Lognormal rows also give `median` and `sigma`, `default` must equal `median`, and draws are clipped at `low`/`high`. |
 | `fixed` | A scalar with no range | `value` |
 | `series` | A reference to a snapshot file | `file`, `schema` (the snapshot schema name) and `columns` |
 | `profile` | A short fixed shape, such as a daily pattern | `values` (an array) and `resolution` |
@@ -107,6 +107,7 @@ The value fields depend on the row kind:
 Validation fails with a message naming the row and field when:
 - a required field for the row's kind or status is missing;
 - an `uncertain` row's default lies outside its low–high range, or its low is above its high;
+- a lognormal row's `default` differs from its `median`;
 - two rows share an `id`;
 - a `dependsOn` entry names a missing row, or the dependencies form a cycle;
 - `lastChecked` is not a valid ISO date.
@@ -131,7 +132,7 @@ H is in W/K. Element areas (external walls, roof, ground floor, windows, door) a
 Q_{heat}(t) = \max\big(0,\; H\,(T_{mean} - T_{out}(t)) - G_{solar}(t) - G_{internal}\big)
 ```
 
-**Internal gains.** A constant wattage from occupants, lighting and appliances, as an uncertain row derived SAP-style from floor area and occupancy.
+**Internal gains.** A constant wattage from occupants, lighting and appliances, as an uncertain row derived SAP-style from floor area and occupancy. Constant gains are safe in summer, because the `max(0, …)` clamp means surplus gains never produce negative demand. Seasonal variation can come later if the benchmark shows it matters.
 
 **Solar gains.** Windows are split equally across four orientations (north, east, south and west). Each hour, irradiance on each vertical orientation is computed from the PVGIS horizontal global, beam-normal and diffuse values. The calculation uses solar position and a simple isotropic-sky transposition, which is well documented and testable against published examples. Gains equal window area × g-value × frame factor × shading factor × vertical irradiance. The g-value, frame factor and shading factor are fixed rows from RdSAP.
 
@@ -277,7 +278,7 @@ The engine's tests use small inline fixture registers, so the engine PR doesn't 
 - [ ] CI regenerates the report and fails if it differs from the committed copy.
 
 ### Performance check
-`npm run bench` runs 500 samples × 2 setups outside the coverage run and logs the time taken. CI fails only if it takes longer than 5 seconds, a generous budget that avoids flaky failures on shared runners.
+`npm run bench` runs 500 samples × 2 setups outside the coverage run and logs the time taken. It runs in CI on every PR, and fails only if it takes longer than 5 seconds. That is many times the expected time, so it catches a real slowdown without flaky failures on shared runners.
 
 ### Manual checklist
 - [ ] Magnus reads the report and the numbers look plausible.
@@ -298,8 +299,8 @@ The engine's tests use small inline fixture registers, so the engine PR doesn't 
 ## PR workflow
 
 Phase 1 lands as several PRs:
-1. `feature/phase-1-tooling`: the repo set-up and CI. Alongside it, `scripts/benchmark/` with the rough heat-demand calculation.
-2. `feature/phase-1-benchmark`: the HEM spike or measured-data fallback, with the decision recorded.
+1. `feature/phase-1-tooling`: the repo set-up and CI, plus `scripts/benchmark/` with the rough heat-demand calculation (benchmark step 1).
+2. `feature/phase-1-benchmark`: the HEM spike or measured-data fallback (steps 2–4), started as soon as PR 1 is merged, with the decision recorded before the engine PR.
 3. `feature/phase-1-register`: schemas, loader, id parity, the PVGIS snapshot and the phase 1 rows.
 4. `feature/phase-1-engine`: geometry, solar, demand, supply, and cost and carbon, with the physics tests (on fixture registers).
 5. `feature/phase-1-ranges-report`: sampling, comparison, sensitivity, the report, and the drift and bench checks in CI.

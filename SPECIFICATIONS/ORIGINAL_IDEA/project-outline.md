@@ -83,7 +83,7 @@ This is a committed ambition, not a nice-to-have. It is the tool's most shareabl
 
 - **Side project:** built in Magnus's own time, on low or no hosting cost.
 - **Neutrality is a principle:** results are never influenced by commercial relationships, now or if referrals are added later.
-- **Privacy by design:** postcodes and household details are personal data under UK GDPR. The working assumption is that everything stays in the visitor's browser and nothing personal is stored on a server. This is to be confirmed as an architecture decision.
+- **Privacy by design:** postcodes and household details are personal data under UK GDPR. Everything stays in the visitor's browser and nothing personal is stored on a server, as decided in the [client-side ADR](../../REFERENCE/decisions/2026-10-17-client-side-build-time-snapshots.md).
 - **Data goes stale:** the price cap changes quarterly, and grants and tariffs change too. Each source needs a last-checked date and a scheduled refresh, or the public site becomes misleading.
 - **Not advice:** the site must state clearly that results are estimates and not financial advice.
 - **Employer:** before the project grows or carries any char.gy association, Magnus checks his employment contract for IP terms covering related side projects, and agrees any brand use with char.gy. Until then, the site is brand-neutral.
