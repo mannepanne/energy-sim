@@ -73,6 +73,8 @@ The visualisation only ever reads results; it never computes anything itself, so
 
 ## How the register works
 
+> The row format below is the original idea. It is superseded by the [typed parameter register ADR](../../REFERENCE/decisions/2026-10-17-typed-parameter-register.md), which adds typed row kinds and lets approximate rows carry a rationale instead of a source. Phase 1 values, such as the SPF distribution, are in the [phase 1 spec](../01-engine-core.md).
+
 Every input the engine reads is one row in the register, and nothing is hard-coded elsewhere. Each row carries these fields:
 
 | Field | What it holds | Example |

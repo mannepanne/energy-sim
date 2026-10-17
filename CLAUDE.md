@@ -4,10 +4,6 @@ Navigation index and quick reference for working with this project.
 
 ---
 
-**⚠️ THIS IS A TEMPLATE** - Replace this entire file with your project-specific content when starting a new project. Use the sections below as a guide for what to include.
-
----
-
 ## Rules of engagement
 
 Collaboration principles and ways of working: @.claude/CLAUDE.md
@@ -17,50 +13,43 @@ When asked to remember anything, add project memory in this CLAUDE.md (project r
 
 **energy-sim** (working title) - A free public website where a homeowner in England compares whole-house energy setups side by side, with cost, carbon and payback shown as honest ranges.
 
-**[Optional: Name inspiration or meaningful context about the project name]**
-
 **Core workflow:**
-1. [Key user action or process step 1]
-2. [Key user action or process step 2]
-3. [Key user action or process step 3]
-4. [Key user action or process step 4]
+1. Describe the house: postcode, house type, age band, size, then quick facts (insulation, glazing, heating, occupants)
+2. Pick setups to compare: gas boiler or heat pump, with or without solar, on a chosen tariff
+3. See each setup's annual cost, carbon and payback as ranges, side by side
+4. Open any number to see its source, range and last-checked date
 
 **Full specification:** [project-outline.md](./SPECIFICATIONS/ORIGINAL_IDEA/project-outline.md) (model and data detail in [home-energy-simulator-spec.md](./SPECIFICATIONS/ORIGINAL_IDEA/home-energy-simulator-spec.md))
 
 ## Architecture overview
 
 **Stack:**
-- **Framework**: [e.g., Next.js 14+, Django, FastAPI, etc.]
-- **Styling**: [e.g., Tailwind CSS, styled-components, etc.]
-- **Database**: [e.g., Supabase, PostgreSQL, MongoDB, etc.]
-- **Email**: [e.g., Resend, SendGrid, etc. - if applicable]
-- **Deployment**: [e.g., Cloudflare Workers, Vercel, AWS, etc.]
-- **Domain**: [e.g., example.com or "TBD"]
+- **Language**: TypeScript (strict), current Node LTS
+- **Engine**: pure TypeScript library with no I/O; register validated with Zod (phase 1, not set up yet)
+- **Testing**: Vitest with V8 coverage; GitHub Actions CI (phase 1, not set up yet)
+- **Data**: build-time snapshots committed as JSON; no runtime external API calls
+- **Web framework and styling**: TBD in phase 3
+- **Database**: none planned (fully client-side, nothing personal stored)
+- **Deployment**: Cloudflare (planned for phase 3)
+- **Domain**: TBD
 
-**Key Integrations:**
-- [External API or service 1]
-- [External API or service 2]
-- [External API or service 3]
+**Key Integrations** (all fetched at build time, never from the browser):
+- PVGIS (EU JRC): hourly typical-year weather and solar
+- Ofgem price cap; Octopus public tariff API (phase 2)
+- NESO carbon intensity API (phase 2)
 
-**Current Status:** [e.g., "Planning complete - ready to begin Phase 1", "In development - Phase 3", "Production ready"]
+**Current Status:** Planning complete for phase 1. Spec reviewed and revised; implementation not started.
 
 ## Implementation phases
 
-Development is organised into numbered phases with clear deliverables, testing requirements, and PR workflows.
+Development is organised into numbered phases with clear deliverables, testing requirements, and PR workflows. The full list, with the later work and the non-code tracks, is in [SPECIFICATIONS/CLAUDE.md](./SPECIFICATIONS/CLAUDE.md).
 
-1. [01-phase-name.md](./SPECIFICATIONS/01-phase-name.md) - [Brief description] ([Timeframe])
-2. [02-phase-name.md](./SPECIFICATIONS/02-phase-name.md) - [Brief description] ([Timeframe])
-3. [03-phase-name.md](./SPECIFICATIONS/03-phase-name.md) - [Brief description] ([Timeframe])
-4. [etc...]
+1. [01-engine-core.md](./SPECIFICATIONS/01-engine-core.md) - Benchmark first, then the typed register and headless hourly engine for one archetype, with paired ranges (4–6 weeks)
+2. Phase 2: complete v1 model - archetypes, hourly heat pump COP, time-of-use tariffs, solar, costs, grants, payback (spec to be written)
+3. Phase 3: v1 website and launch - form, 2D comparison, hosting, validation gate (spec to be written)
+4. Phase 4: 3D floating-island street - the committed next step after v1 (spec to be written)
 
-**Each phase includes:**
-- Clear scope and acceptance criteria
-- Testing strategy (target: 95%+ coverage)
-- Pre-commit checklist (tests, type-checking, manual verification)
-- PR workflow and review requirements
-- Technical considerations and edge cases
-
-**Current phase:** [Phase number and name]
+**Current phase:** Phase 1, engine core (spec reviewed and revised; ready to start)
 
 ### SPECIFICATIONS/
 - **Implementation phases** (numbered files) - Active work-in-progress
@@ -73,7 +62,7 @@ How-it-works documentation for implemented features:
 - [environment-setup.md](./REFERENCE/environment-setup.md) - API keys and environment configuration
 - [troubleshooting.md](./REFERENCE/troubleshooting.md) - Common issues and solutions
 - [TEMPLATE-UPDATES/](./REFERENCE/TEMPLATE-UPDATES/) - Migration packets for rolling out template improvements to derivative projects
-- [Add project-specific reference docs as they're created]
+- engine.md and register.md (added in phase 1)
 
 *Note: Keep CLAUDE.md files short (<300 lines). Break details into separate reference files with succinct summaries. CLAUDE.md files work as "library index" to find context when needed, minimising token usage.*
 
@@ -86,7 +75,7 @@ How-it-works documentation for implemented features:
 ```
 
 ### Naming
-- Descriptive names: [Provide project-specific examples]
+- Descriptive names: `heatLossCoefficient`, `meanInternalTemperature`, `RegisterRow`; units in names where ambiguous (`annualHeatKwh`)
 - TypeScript conventions: camelCase (variables), PascalCase (types)
 - Avoid temporal references: no "new", "improved", "old"
 
@@ -117,11 +106,10 @@ How-it-works documentation for implemented features:
 
 ## TypeScript configuration
 
-[Customise based on your project]
-- Target: [e.g., ESNext, ES2022, etc.]
-- Strict mode: [enabled/disabled]
-- Path alias: [e.g., `@/` maps to `./src/`]
-- Special types: [e.g., React, Next.js, Node, etc.]
+Set up in phase 1 (`feature/phase-1-tooling`). Planned:
+- Strict mode: enabled
+- Target and module settings: chosen at set-up for the current Node LTS
+- Types: Node for scripts; browser types added in phase 3
 
 ## Testing
 
@@ -158,15 +146,11 @@ npm run test:coverage     # Coverage report
 
 ## Project-specific notes
 
-[Add any project-specific context, quirks, or important information here]
-
-**Example topics:**
-- Special build considerations
-- Deployment gotchas
-- External service limitations
-- Performance targets
-- Security requirements
-- Compliance considerations
+- **Every engine number comes from the register.** Only physical constants live in code. See the [register ADR](./REFERENCE/decisions/2026-10-17-typed-parameter-register.md).
+- **No runtime external calls and no personal data on a server.** PVGIS forbids browser calls; data is snapshotted at build time. See the [client-side ADR](./REFERENCE/decisions/2026-10-17-client-side-build-time-snapshots.md).
+- **Neutrality:** results are never influenced by commercial relationships.
+- **Not advice:** the site gives estimates, not financial advice, and must say so.
+- **Brand-neutral** until Magnus has agreed any char.gy involvement with his employer.
 
 ---
 
