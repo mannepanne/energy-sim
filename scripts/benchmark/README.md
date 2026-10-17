@@ -2,7 +2,12 @@
 
 The benchmark tests the project's riskiest assumption: that a simple engine gets a house's heat demand right. The plan is in [SPECIFICATIONS/01-engine-core.md](../../SPECIFICATIONS/01-engine-core.md), section "Benchmark".
 
-This folder holds step 1, a rough calculation. Steps 2–4 (a HEM run or measured data, and the decision) come in the `feature/phase-1-benchmark` PR.
+This folder holds all four steps: a rough calculation (step 1), a run of the government's Home Energy Model in [hem/](./hem/README.md) (step 2), a comparison with measured gas use from NEED (step 3), and the decision (step 4).
+
+**Summary (17 October 2026):**
+- **The method holds up.** HEM, given the same house, needs 15,455 kWh of space heat a year, 19% more than the rough calculation (put the other way, the rough calculation is 15.7% below HEM). Nearly all of the gap comes from HEM's thermostat controlling the felt (operative) temperature rather than the air temperature.
+- **The inputs probably don't.** Real homes like this one use less gas than either model predicts. NEED implies about 7,600–11,400 kWh of space heat a year, depending on how it is read, against the rough calculation's 13,000.
+- **The decision** is recorded in step 4.
 
 ## Step 1: rough heat-demand calculation
 
@@ -55,9 +60,9 @@ Walls and ventilation are the largest losses in both cases. The roof matters a g
 
 ### A first sanity check
 
-Ofgem's typical domestic consumption value for a medium gas user is 9,500 kWh a year from 1 July 2026 (down from 11,500). That is all gas use, including hot water and boiler losses, across all house types. At 85% boiler efficiency it is about 8,000 kWh of heat, of which perhaps 2,000 kWh is hot water, leaving about 6,000 kWh of space heat. Sources: [Ofgem TDCV decision, May 2026](https://www.ofgem.gov.uk/sites/default/files/2026-05/Review%20of%20typical%20domestic%20consumption%20values%20decision.pdf) and [Energy UK's explainer](https://www.energy-uk.org.uk/publications/energy-uk-explains-typical-domestic-consumption-values-2/). The 9,500 kWh figure comes from secondary reporting and still needs checking against the Ofgem document.
+Ofgem's typical domestic consumption value for a medium gas user is 9,500 kWh a year from 1 July 2026 (down from 11,500). That is all gas use, including hot water and boiler losses, across all house types. At 85% boiler efficiency it is about 8,000 kWh of heat, of which perhaps 2,000 kWh is hot water, leaving about 6,000 kWh of space heat. Sources: [Ofgem TDCV decision, May 2026](https://www.ofgem.gov.uk/sites/default/files/2026-05/Review%20of%20typical%20domestic%20consumption%20values%20decision.pdf) and [Energy UK's explainer](https://www.energy-uk.org.uk/publications/energy-uk-explains-typical-domestic-consumption-values-2/). The 9,500 kWh figure was checked against the Ofgem document on 17 October 2026 (its gas table: medium 11,500 kWh before, 9,500 kWh from 1 July 2026).
 
-**Our estimate is roughly two to three times that national average.** Some of the gap is expected: an unfilled-cavity semi from the 1930s uses more than the average home. But the gap is large enough to take seriously. It matches a known pattern: models built on RdSAP's default U-values tend to overstate the heat demand of older homes (the "prebound effect"), and BRE found RdSAP's old solid-wall default was pessimistic by about a quarter. This is exactly the risk the benchmark exists to test. Step 4 should compare against NEED statistics for 1930–49 semi-detached houses, not the national average.
+**Our estimate is roughly two to three times that national average.** Some of the gap is expected: an unfilled-cavity semi from the 1930s uses more than the average home. But the gap is large enough to take seriously. It matches a known pattern: models built on RdSAP's default U-values tend to overstate the heat demand of older homes (the "prebound effect"), and BRE found RdSAP's old solid-wall default was pessimistic by about a quarter. This is exactly the risk the benchmark exists to test. Step 3 below compares against NEED statistics for semi-detached houses of this period, not the national average.
 
 ### Draft values and their status
 
@@ -94,3 +99,44 @@ Each value is marked with the register's statuses. None of these is a register r
 - Continuous heating to one mean internal temperature, with no thermal mass, as in the phase 1 engine.
 - Heathrow's 1991–2020 average, not the PVGIS typical year the engine will use. Heathrow sits about 20 km west of the engine's central London point, so its temperatures may differ slightly.
 - The geometry is a plausible box, not a measured house or an RdSAP dimension set.
+
+## Step 2: HEM run
+
+The full write-up, the agreed comparison rules, the input files and the steps to reproduce the run are in [hem/README.md](./hem/README.md). The comparison rules were committed before HEM was run.
+
+| | HEM space heat | Rough calculation | Rough vs HEM |
+| --- | ---: | ---: | ---: |
+| **Main case, 18 °C thermostat (the pre-registered answer)** | **15,455 kWh** | 13,032 kWh | **−15.7%** |
+| No loft insulation, 18 °C thermostat | 21,441 kWh | 17,987 kWh | −16.1% |
+| Main case, 17 °C thermostat (about 18 °C air; run afterwards to explain the gap) | 13,648 kWh | 13,032 kWh | −4.5% |
+
+## Step 3: measured gas use (NEED)
+
+NEED links metered gas use to property records for millions of homes. The figures are 2024 gas use, weather-corrected, from DESNZ's [NEED 2026 consumption tables](https://www.gov.uk/government/statistics/national-energy-efficiency-data-framework-need-consumption-data-tables-2026). The numbers and the arithmetic are in `needReference.ts`, with tests.
+
+**NEED has no 1930–49 age band.** Its bands are 1919–1944 and 1945–1964, so 1919–1944 is used. Nor does it break gas use down by house type, age and floor area together, so there are three ways to read it:
+
+| Reading | Gas a year | Space heat (85% boiler) | Space heat (89% boiler) | Rough calculation vs reference |
+| --- | ---: | ---: | ---: | ---: |
+| A: 1919–44 houses, England and Wales, 122.0 kWh/m² × 90 m² | 10,980 kWh | 7,600 kWh | 8,100 kWh | +71% (85%), +61% (89%) |
+| B: as A, scaled by London's and semi-detached houses' per-m² ratios | 13,470 kWh | 9,700 kWh | 10,300 kWh | +34%, +27% |
+| C: London 3-bed semis built 1919–44, median of 173,006 homes | 15,430 kWh | 11,400 kWh | 12,000 kWh | +14%, +8% |
+
+Space heat = gas × boiler seasonal efficiency − 1,700 kWh of hot water heat. Both conversion values are approximate draft values, with their rationale in `needReference.ts`.
+
+**Caveats:**
+- **A** corrects for floor area but mixes all house types and regions.
+- **B** multiplies one-way ratios. London has more older homes, so part of the age effect is counted twice.
+- **C** is the closest match by type, age and region, but isn't corrected for size. At A's per-m² rate it implies a house of about 127 m², larger than the 90 m² archetype. It is also the reading that flatters the model most.
+- Cooking on gas, where homes have it, is included in NEED's gas figure and not taken off, so the space heat references are slightly high.
+- The middle half of London 3-bed semis use 11,400–20,000 kWh of gas a year. A single archetype can only be compared with a typical home, not a particular one.
+- None of the three readings was chosen before the data was seen.
+
+**What it means:** HEM and the rough calculation agree with each other, but both are above what comparable homes actually use. That points at the inputs, not the method. The likely causes:
+- real households heat less than the whole house to 18 °C all day;
+- the RdSAP default U-values may be pessimistic for older homes (the "prebound effect" above).
+
+## Step 4: the decision
+
+*To be recorded with Magnus's sign-off.*
+

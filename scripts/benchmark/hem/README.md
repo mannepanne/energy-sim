@@ -14,3 +14,55 @@ This section was written and committed before HEM was run on the archetype. It f
 - **Weather:** the PVGIS typical meteorological year for central London (51.507, −0.128), as an EPW file. The phase 1 engine uses the same PVGIS source.
 - **HEM version:** the Rust implementation `communitiesuk/epb-home-energy-model` at commit `77590b6181ef0a6dba4f9e792864e919ccd29a78` (version 1.0.0-alpha-7). Its README calls it functionally incomplete compared with the Python reference, so its result carries that caveat.
 - **Time box:** two working days, starting 17 October 2026, 14:48.
+
+## How to reproduce the run
+
+1. Install Rust with [rustup](https://rustup.rs), then clone and build HEM at the commit above:
+   ```bash
+   git clone https://github.com/communitiesuk/epb-home-energy-model.git
+   cd epb-home-energy-model && git checkout 77590b6181ef0a6dba4f9e792864e919ccd29a78
+   cargo build --release --features="clap indicatif"
+   ```
+2. Download the weather file: `https://re.jrc.ec.europa.eu/api/v5_3/tmy?lat=51.507&lon=-0.128&outputformat=epw`. The file used on 17 October 2026 had SHA-256 `2de55c5ec68e3af0c7eaa727d0a690b169afcc1db92e1a72141879b770a735ae`. PVGIS may change its typical year between versions, so a different hash means slightly different weather.
+3. Regenerate the input files with `npm run benchmark:hem-input` (they are committed in this folder), then run each one:
+   ```bash
+   target/release/hem path/to/main.input.json -e path/to/london_tmy.epw --heat-balance
+   ```
+4. Read "Space heat demand" (kWh/m²) in the `__core__results_summary.csv` output, and multiply by 90 m².
+
+## Results (17 October 2026)
+
+| Run | What it is | HEM space heat | Rough calculation | Rough vs HEM |
+| --- | --- | ---: | ---: | ---: |
+| `main` | **Pre-registered answer:** 100 mm loft insulation, 18 °C thermostat | **15,455 kWh** | 13,032 kWh | **−15.7%** |
+| `no-loft-insulation` | Variant: no loft insulation, 18 °C thermostat | 21,441 kWh | 17,987 kWh | −16.1% |
+| `thermostat-17` | Sensitivity, run after seeing the main result: 17 °C | 13,648 kWh | 13,032 kWh | −4.5% |
+| `thermostat-16` | Sensitivity, run after seeing the main result: 16 °C | 11,946 kWh | | |
+
+HEM's own heat transfer coefficient for the main case is 303 W/K, against the rough calculation's 302 W/K, so the two describe the same house. Over the year, HEM's ventilation heat loss works out at about 0.89 air changes an hour, against the draft 1.0.
+
+### Why HEM comes out higher
+
+**HEM's thermostat controls operative temperature, not air temperature.** Operative temperature is roughly the average of the air and the room surfaces. In a poorly insulated house the walls and windows are cold, so HEM heats the air to about 18.8 °C, on average over heating hours, to make the room feel like 18 °C. The rough calculation and the phase 1 engine treat 18 °C as the air temperature.
+
+At a 17 °C thermostat, HEM's air averages 17.8 °C over heating hours, close to the rough calculation's 18 °C. HEM then gives 13,648 kWh, within 5% of the rough figure. Each 1 °C on the thermostat changes HEM's answer by about 1,700 kWh (11%).
+
+So the gap is mostly about what "18 °C" means, not a flaw in the method. This sensitivity was run after the main result was known, so it explains the gap but does not replace the pre-registered answer.
+
+### Annual heat balance for the main case (HEM, kWh)
+
+| Gains | | Losses | |
+| --- | ---: | --- | ---: |
+| Space heating | 15,455 | Walls, roof and door | 11,124 |
+| Solar | 4,761 | Ventilation and infiltration | 5,433 |
+| Internal | 3,945 | Windows | 4,738 |
+| | | Ground floor | 2,792 |
+
+Solar gains are about 540 W on average over the year, but only about 300 W in the hours when heating runs. The rough calculation's 250 W heating-season figure is in line with that.
+
+### Limitations of this run
+
+- The Rust port is version 1.0.0-alpha-7 and is described by its authors as functionally incomplete. The Python reference was not run.
+- Hot water is switched off (a small cylinder with no draw-offs), so this compares space heat only.
+- Thermal bridges are left out, as in the rough calculation. A real house of this age would add some heat loss.
+- HEM models ventilation, ground heat flow and thermal mass its own way, so those differences are part of the result.
