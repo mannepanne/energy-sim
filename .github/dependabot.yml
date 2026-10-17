@@ -16,10 +16,11 @@ updates:
     schedule:
       interval: weekly
     groups:
+      # oxlint-tsgolint is built against one TypeScript version, so the two move together.
+      # See REFERENCE/decisions/2026-10-17-typescript-7-with-oxlint.md.
+      typescript:
+        patterns: [typescript, oxlint-tsgolint]
       dev-dependencies:
         dependency-type: development
         update-types: [minor, patch]
-    ignore:
-      # typescript-eslint supports TypeScript below 6.1 only; see the TypeScript note in CLAUDE.md.
-      - dependency-name: typescript
-        update-types: [version-update:semver-major, version-update:semver-minor]
+        exclude-patterns: [typescript, oxlint-tsgolint]

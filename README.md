@@ -26,7 +26,7 @@ Other commands:
 | Command | What it does |
 | --- | --- |
 | `npm run typecheck` | Checks the TypeScript types |
-| `npm run lint` | Runs ESLint |
+| `npm run lint` | Runs Oxlint, including type-aware rules |
 | `npm run test:coverage` | Runs the tests and enforces the coverage thresholds (95% lines, functions and statements; 90% branches) |
 | `npm run benchmark:rough` | Prints the rough heat-demand estimate for the phase 1 house |
 

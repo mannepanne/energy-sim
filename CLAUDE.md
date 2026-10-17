@@ -24,9 +24,9 @@ When asked to remember anything, add project memory in this CLAUDE.md (project r
 ## Architecture overview
 
 **Stack:**
-- **Language**: TypeScript 6.0 (strict), Node 24 LTS (pinned in `.nvmrc`)
+- **Language**: TypeScript 7 (strict), Node 24 LTS (pinned in `.nvmrc`)
 - **Engine**: pure TypeScript library with no I/O; register validated with Zod (phase 1, not set up yet)
-- **Testing**: Vitest with V8 coverage; ESLint with typescript-eslint; GitHub Actions CI ([ci.yml](./.github/workflows/ci.yml))
+- **Testing**: Vitest with V8 coverage; Oxlint with type-aware rules; GitHub Actions CI ([ci.yml](./.github/workflows/ci.yml))
 - **Scripts**: TypeScript run with `tsx`, in `scripts/`
 - **Data**: build-time snapshots committed as JSON; no runtime external API calls
 - **Web framework and styling**: TBD in phase 3
@@ -112,7 +112,7 @@ Configured in [tsconfig.json](./tsconfig.json):
 - ES2024 target, `nodenext` modules, `"type": "module"` in package.json
 - No emit: `tsc` only type-checks. Code runs through `tsx` and Vitest, so imports use `.ts` extensions
 - Types: Node only; browser types are added in phase 3
-- TypeScript stays on 6.0.x because typescript-eslint does not yet support TypeScript 7
+- TypeScript is pinned to an exact version and upgraded together with `oxlint-tsgolint` (see the [TypeScript 7 and Oxlint ADR](./REFERENCE/decisions/2026-10-17-typescript-7-with-oxlint.md))
 
 ## Testing
 
@@ -127,7 +127,7 @@ npm test                  # Run all tests
 npm run test:watch        # Watch mode
 npm run test:coverage     # Tests with coverage thresholds (as CI runs them)
 npm run typecheck         # TypeScript type check
-npm run lint              # ESLint
+npm run lint              # Oxlint, including type-aware rules
 npm run benchmark:rough   # Benchmark step 1: rough heat-demand estimate
 ```
 
