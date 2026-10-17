@@ -11,9 +11,9 @@ export default defineConfig({
       include: ['src/**/*.ts', 'scripts/**/*.ts'],
       exclude: [
         '**/*.test.ts',
-        // Thin command-line entry points: they only read files and print.
-        // The logic they call lives in tested modules.
-        'scripts/benchmark/rough-heat-demand.ts',
+        // Command-line entry points sit at the top of scripts/ and stay thin: they wire up
+        // file reads and printing. The logic they call lives in tested modules in subfolders.
+        'scripts/*.ts',
       ],
       reporter: ['text', 'html'],
       thresholds: {

@@ -1,0 +1,25 @@
+# ABOUT: Dependabot keeps the GitHub Actions pins and npm dev dependencies current
+# ABOUT: Weekly grouped pull requests, each reviewed like any other change
+
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ['*']
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      dev-dependencies:
+        dependency-type: development
+        update-types: [minor, patch]
+    ignore:
+      # typescript-eslint supports TypeScript below 6.1 only; see the TypeScript note in CLAUDE.md.
+      - dependency-name: typescript
+        update-types: [version-update:semver-major, version-update:semver-minor]

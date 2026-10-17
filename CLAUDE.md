@@ -50,7 +50,7 @@ Development is organised into numbered phases with clear deliverables, testing r
 3. Phase 3: v1 website and launch - form, 2D comparison, hosting, validation gate (spec to be written)
 4. Phase 4: 3D floating-island street - the committed next step after v1 (spec to be written)
 
-**Current phase:** Phase 1, engine core (PR 1 of 5: tooling and rough benchmark)
+**Current phase:** Phase 1, engine core. Tooling and benchmark step 1 are done; benchmark steps 2–4 are next
 
 ### SPECIFICATIONS/
 - **Implementation phases** (numbered files) - Active work-in-progress

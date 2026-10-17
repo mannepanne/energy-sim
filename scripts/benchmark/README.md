@@ -6,7 +6,7 @@ This folder holds step 1, a rough calculation. Steps 2–4 (a HEM run or measure
 
 ## Step 1: rough heat-demand calculation
 
-**Result: about 13,000 kWh a year of space heat with 100 mm of loft insulation, and about 18,000 kWh with none.** The heat loss coefficient H is about 300 W/K and 390 W/K for those two cases.
+**Result: about 13,000 kWh a year of space heat for the main case, with 100 mm of loft insulation (H about 300 W/K).** The variant with no loft insulation gives about 18,000 kWh (H about 390 W/K).
 
 These numbers set an early expectation. They do not trigger the 15%/30% decision rule, which compares the real engine with an independent reference in step 4.
 
@@ -27,29 +27,31 @@ This is a monthly degree-day method. It is not the hourly method the phase 1 eng
 npm run benchmark:rough
 ```
 
-The calculation lives in `heatDemand.ts` and `roughEstimate.ts`, and both are tested. The draft inputs, each with its status and a source or rationale, are in `draftValues.ts`.
+The command runs `scripts/benchmark-rough.ts`, which prints the results tables below. The calculation lives in `heatDemand.ts` and `roughEstimate.ts` in this folder, and both are tested. The draft inputs, each with its status and a source or rationale, are in `draftValues.ts`.
+
+A test checks that this README contains the script's current output. If a draft value changes, the test fails until the tables below are replaced with a fresh run.
 
 ### Result (17 October 2026)
 
-| Element | Area (m²) | U (W/m²K) | U × A (W/K), no loft insulation | U × A (W/K), 100 mm loft insulation |
+| Element | Area (m²) | U (W/m²K) | U × A (W/K), 100 mm loft insulation (main case) | U × A (W/K), no loft insulation (variant) |
 | --- | ---: | ---: | ---: | ---: |
 | External walls (unfilled cavity) | 80.3 | 1.50 | 120.4 | 120.4 |
 | Windows (double glazed) | 17.9 | 2.80 | 50.0 | 50.0 |
 | Door | 1.9 | 3.00 | 5.6 | 5.6 |
-| Roof | 45.0 | 2.30 or 0.40 | 103.5 | 18.0 |
+| Roof | 45.0 | 0.40 or 2.30 | 18.0 | 103.5 |
 | Ground floor (suspended timber) | 45.0 | 0.75 | 33.8 | 33.8 |
 | Ventilation (1.0 ach × 225 m³) | | | 74.3 | 74.3 |
-| **H** | | | **387** | **302** |
+| **H** | | | **302** | **387** |
 
-| | No loft insulation | 100 mm loft insulation |
+| | 100 mm loft insulation (main case) | no loft insulation (variant) |
 | --- | ---: | ---: |
 | Gains (450 W internal + 250 W solar) | 700 W | 700 W |
 | Mean internal temperature | 18 °C | 18 °C |
-| Balance point | 16.2 °C | 15.7 °C |
-| Degree days at that balance point | 1,934 K·day | 1,798 K·day |
-| **Annual space heat** | **18,000 kWh** | **13,000 kWh** |
+| Balance point | 15.7 °C | 16.2 °C |
+| Degree days at that balance point | 1,798 K·day | 1,934 K·day |
+| **Annual space heat** | **13,000 kWh** | **18,000 kWh** |
 
-Walls and ventilation are the largest losses in both cases. The roof matters a great deal: the spec says "loft insulation in line with its age band", and RdSAP's default for this age band is no insulation. Most real 1930s semis have had some loft insulation added. **Which one the archetype uses is a decision for Magnus** before the register rows are written.
+Walls and ventilation are the largest losses in both cases. The roof matters a great deal. RdSAP's default for this age band is no loft insulation, but most real 1930s semis have had some added. **Decision (Magnus, 17 October 2026): the archetype's main case has 100 mm of loft insulation, and "no loft insulation" is kept as a variant.**
 
 ### A first sanity check
 
@@ -62,7 +64,7 @@ Ofgem's typical domestic consumption value for a medium gas user is 9,500 kWh a 
 Each value is marked with the register's statuses. None of these is a register row yet; the real rows come in the `feature/phase-1-register` PR.
 
 - **sourced**: checked against the named source while writing this.
-- **to-verify**: recalled from the named source, not yet checked line by line.
+- **to-verify**: taken from the named source, not yet checked line by line. RdSAP values cite the [RdSAP 10 specification](https://bregroup.com/documents/d/bre-group/rdsap-10-specification-10-06-2025) (BRE, June 2025); the Hitchin constant cites [CIBSE TM41](https://www.cibse.org/knowledge-research/knowledge-portal/technical-memorandum-41-degree-days-theory-and-application-2006-pdf/).
 - **approximate**: an estimate, with the reason given.
 
 | Value | Draft | Status | Source or rationale |
@@ -77,8 +79,8 @@ Each value is marked with the register's statuses. None of these is a register r
 | Window U-value | 2.8 W/m²K | approximate | Retrofitted PVC double glazing of unknown date. RdSAP gives about 3.1 before 2002 and about 2.0 after. |
 | Door U-value | 3.0 W/m²K | to-verify | RdSAP default for an external door. |
 | Floor U-value | 0.75 W/m²K | approximate | Uninsulated suspended timber floor, perimeter ÷ area about 0.44. The register row will store the BS EN ISO 13370 working. |
-| Roof U-value, no insulation | 2.3 W/m²K | to-verify | RdSAP default for age bands A–D when loft insulation is unknown. |
-| Roof U-value, 100 mm | 0.40 W/m²K | to-verify | RdSAP value for 100 mm of insulation at the joists. |
+| Roof U-value, main case | 0.40 W/m²K | to-verify | RdSAP value for 100 mm of insulation at the joists. |
+| Roof U-value, variant | 2.3 W/m²K | to-verify | RdSAP default for age bands A–D when loft insulation is unknown (treated as none). |
 | Air change rate | 1.0 ach | approximate | Older house with a suspended floor, a chimney and some draughtproofing. |
 | Mean internal temperature | 18 °C | approximate | Whole-house mean under continuous heating, between SAP's living-area and rest-of-house temperatures. |
 | Internal gains | 450 W | approximate | SAP-style sum for about 2.5 occupants in 90 m². |

@@ -1,7 +1,11 @@
 // ABOUT: Rough annual heat-demand calculation for benchmark step 1 (no hourly engine)
 // ABOUT: Heat loss coefficient H, monthly degree days (Hitchin formula) and annual space heat
 
-/** Heat capacity of air, in Wh per m³ per K. A physical constant. */
+/**
+ * Heat capacity of air, in Wh per m³ per K. A physical constant.
+ * Defined here on purpose rather than imported from the engine: the benchmark is an independent
+ * cross-check of the engine, so it shares no code with it.
+ */
 export const AIR_HEAT_CAPACITY_WH_PER_M3K = 0.33;
 
 const HOURS_PER_DAY = 24;

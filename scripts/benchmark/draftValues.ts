@@ -1,26 +1,50 @@
 // ABOUT: Draft input values for the benchmark step 1 archetype: a 1930s semi in London
-// ABOUT: Each value carries its status and a source or rationale, ahead of the real register
+// ABOUT: Each value carries a register-style status with a source or a rationale
 
 /**
- * Status follows the register's vocabulary:
- * - sourced: checked against the named source while writing this file;
- * - to-verify: recalled from the named source but not yet checked line by line;
- * - approximate: an engineering estimate, with the reason in `note`.
+ * Provenance follows the register's rules:
+ * - sourced: checked against `source` while writing this file;
+ * - to-verify: taken from `source` but not yet checked line by line;
+ * - approximate: an engineering estimate, explained in `rationale` (a source is optional).
  */
-export type DraftStatus = 'sourced' | 'to-verify' | 'approximate';
-
-export interface DraftValue {
-  value: number;
-  unit: string;
-  status: DraftStatus;
-  note: string;
+export interface DraftSource {
+  title: string;
+  url: string;
 }
 
-const draft = (value: number, unit: string, status: DraftStatus, note: string): DraftValue => ({
+export type DraftValue = {
+  value: number;
+  unit: string;
+} & (
+  | { status: 'sourced' | 'to-verify'; source: DraftSource; rationale?: string }
+  | { status: 'approximate'; rationale: string; source?: DraftSource }
+);
+
+export type DraftStatus = DraftValue['status'];
+
+const RDSAP_10: DraftSource = {
+  title: 'RdSAP 10 specification (BRE, June 2025)',
+  url: 'https://bregroup.com/documents/d/bre-group/rdsap-10-specification-10-06-2025',
+};
+
+const CIBSE_TM41: DraftSource = {
+  title: 'CIBSE TM41: Degree days: theory and application (2006)',
+  url: 'https://www.cibse.org/knowledge-research/knowledge-portal/technical-memorandum-41-degree-days-theory-and-application-2006-pdf/',
+};
+
+const approximate = (value: number, unit: string, rationale: string): DraftValue => ({
   value,
   unit,
-  status,
-  note,
+  status: 'approximate',
+  rationale,
+});
+
+const toVerify = (value: number, unit: string, source: DraftSource, rationale: string): DraftValue => ({
+  value,
+  unit,
+  status: 'to-verify',
+  source,
+  rationale,
 });
 
 const totalFloorAreaM2 = 90;
@@ -32,119 +56,90 @@ const doorAreaM2 = 1.85;
 const grossWallAreaM2 = exposedPerimeterM * storeyHeightM * storeys;
 
 export const archetype = {
-  totalFloorAreaM2: draft(
-    totalFloorAreaM2,
-    'm²',
-    'approximate',
-    'The spec archetype is "about 90 m²". Two storeys of 45 m².',
-  ),
-  storeyHeightM: draft(
+  totalFloorAreaM2: approximate(totalFloorAreaM2, 'm²', 'The spec archetype is "about 90 m²". Two storeys of 45 m².'),
+  storeyHeightM: approximate(
     storeyHeightM,
     'm',
-    'approximate',
     'Typical room height for the period, used for both wall height and heated volume. RdSAP adds a floor void for upper storeys; ignored here.',
   ),
-  exposedPerimeterM: draft(
+  exposedPerimeterM: approximate(
     exposedPerimeterM,
     'm',
-    'approximate',
     'A 45 m² footprint of about 6.5 m × 7 m: front, back and one side wall. The party wall is excluded (no heat loss).',
   ),
-  heatedVolumeM3: draft(
-    totalFloorAreaM2 * storeyHeightM,
-    'm³',
-    'approximate',
-    'Floor area × storey height.',
-  ),
-  windowAreaM2: draft(
+  heatedVolumeM3: approximate(totalFloorAreaM2 * storeyHeightM, 'm³', 'Floor area × storey height.'),
+  windowAreaM2: toVerify(
     windowAreaM2,
     'm²',
-    'to-verify',
-    'RdSAP window-area formula for houses in age bands A–C: 0.122 × floor area + 6.875. Check against the RdSAP 10 table.',
+    RDSAP_10,
+    'RdSAP window-area formula for houses in age bands A–C: 0.122 × floor area + 6.875.',
   ),
-  doorAreaM2: draft(doorAreaM2, 'm²', 'to-verify', 'RdSAP standard area for one external door.'),
-  netWallAreaM2: draft(
+  doorAreaM2: toVerify(doorAreaM2, 'm²', RDSAP_10, 'RdSAP standard area for one external door.'),
+  netWallAreaM2: approximate(
     grossWallAreaM2 - windowAreaM2 - doorAreaM2,
     'm²',
-    'approximate',
     'Exposed perimeter × two storey heights, less window and door area.',
   ),
-  roofAreaM2: draft(totalFloorAreaM2 / storeys, 'm²', 'approximate', 'Loft floor equals the footprint.'),
-  groundFloorAreaM2: draft(totalFloorAreaM2 / storeys, 'm²', 'approximate', 'Equals the footprint.'),
-} as const;
+  roofAreaM2: approximate(totalFloorAreaM2 / storeys, 'm²', 'Loft floor equals the footprint.'),
+  groundFloorAreaM2: approximate(totalFloorAreaM2 / storeys, 'm²', 'Equals the footprint.'),
+} satisfies Record<string, DraftValue>;
 
 export const uValues = {
-  wall: draft(
-    1.5,
-    'W/m²K',
-    'to-verify',
-    'RdSAP England default for an unfilled cavity wall, age bands A–E. Check against the RdSAP 10 wall table.',
-  ),
-  window: draft(
+  wall: toVerify(1.5, 'W/m²K', RDSAP_10, 'England default for an unfilled cavity wall, age bands A–E.'),
+  window: approximate(
     2.8,
     'W/m²K',
-    'approximate',
     'Retrofitted PVC double glazing of unknown date. RdSAP gives about 3.1 before 2002 and about 2.0 after; 2.8 leans to the older stock.',
   ),
-  door: draft(3.0, 'W/m²K', 'to-verify', 'RdSAP default for an external door.'),
-  floor: draft(
+  door: toVerify(3.0, 'W/m²K', RDSAP_10, 'Default for an external door.'),
+  floor: approximate(
     0.75,
     'W/m²K',
-    'approximate',
     'Uninsulated suspended timber floor with perimeter ÷ area of about 0.44. RdSAP computes this with BS EN ISO 13370; the real row will store that working.',
   ),
-  roofAgeBandDefault: draft(
-    2.3,
-    'W/m²K',
-    'to-verify',
-    'RdSAP default for a pitched roof in age bands A–D when loft insulation is unknown (treated as none).',
-  ),
-  roofHundredMillimetres: draft(
+  roof: toVerify(
     0.4,
     'W/m²K',
-    'to-verify',
-    'RdSAP U-value for 100 mm of loft insulation at the joists. A common topped-up state in the real stock.',
+    RDSAP_10,
+    'Main case: 100 mm of loft insulation at the joists. Most 1930s semis have had some loft insulation added.',
   ),
-} as const;
+  roofNoInsulation: toVerify(
+    2.3,
+    'W/m²K',
+    RDSAP_10,
+    'Variant: the default for a pitched roof in age bands A–D when loft insulation is unknown (treated as none).',
+  ),
+} satisfies Record<string, DraftValue>;
 
 export const ventilation = {
-  airChangesPerHour: draft(
+  airChangesPerHour: approximate(
     1.0,
     'ach',
-    'approximate',
     'Older house with a suspended floor, an open or blocked chimney and some draughtproofing. SAP-style infiltration for this type is about 0.8–1.2.',
   ),
-} as const;
+} satisfies Record<string, DraftValue>;
 
 export const occupancy = {
-  meanInternalTemperatureC: draft(
+  meanInternalTemperatureC: approximate(
     18,
     '°C',
-    'approximate',
     'Whole-house mean under continuous heating, between SAP living-area (21 °C) and rest-of-house temperatures. Uncertain in the real register.',
   ),
-  internalGainsW: draft(
+  internalGainsW: approximate(
     450,
     'W',
-    'approximate',
     'SAP-style sum for about 2.5 occupants in 90 m²: metabolic, lighting, appliances, cooking and water heating, less evaporation losses.',
   ),
-  solarGainsW: draft(
+  solarGainsW: approximate(
     250,
     'W',
-    'approximate',
     'Heating-season mean: about 18 m² of glazing × g 0.63 × frame 0.7 × shading 0.77 × about 40 W/m² mean vertical irradiance.',
   ),
-} as const;
+} satisfies Record<string, DraftValue>;
 
 export const degreeDayMethod = {
-  hitchinK: draft(
-    0.71,
-    '1/K',
-    'to-verify',
-    'Hitchin (1983) spread constant for UK monthly data, as used in CIBSE TM41. Check the TM41 value.',
-  ),
-} as const;
+  hitchinK: toVerify(0.71, '1/K', CIBSE_TM41, 'Hitchin (1983) spread constant for UK monthly data.'),
+} satisfies Record<string, DraftValue>;
 
 /**
  * Heathrow monthly mean temperature, 1991–2020: the mean of the 30 monthly (tmax + tmin) ÷ 2 values
@@ -152,12 +147,11 @@ export const degreeDayMethod = {
  * Days are for a non-leap year.
  */
 export const londonClimate = {
+  status: 'sourced' satisfies DraftStatus,
   source: {
-    title: 'Met Office historic station data: Heathrow (London Airport)',
+    title: 'Met Office historic station data: Heathrow (London Airport), downloaded 2026-10-17',
     url: 'https://www.metoffice.gov.uk/pub/data/weather/uk/climate/stationdata/heathrowdata.txt',
-    checked: '2026-10-17',
-  },
-  status: 'sourced' as DraftStatus,
+  } satisfies DraftSource,
   months: [
     { meanTemperatureC: 5.55, days: 31 },
     { meanTemperatureC: 5.82, days: 28 },

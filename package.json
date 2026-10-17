@@ -13,7 +13,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "benchmark:rough": "tsx scripts/benchmark/rough-heat-demand.ts"
+    "benchmark:rough": "tsx scripts/benchmark-rough.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

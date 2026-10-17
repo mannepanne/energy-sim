@@ -19,8 +19,8 @@ Background: [project-outline.md](./ORIGINAL_IDEA/project-outline.md) (scope and 
 ## Scope and deliverables
 
 ### In scope
-- [ ] **Benchmark spike, first:** a rough heat-demand calculation for the archetype and an attempt to run HEM. It runs alongside the tooling work, so a bad result can reshape the engine before it is built.
-- [ ] **Repository tooling:** TypeScript (strict), Vitest with coverage, linting, and a GitHub Actions workflow for type checking, lint, tests and report drift.
+- [ ] **Benchmark spike, first:** a rough heat-demand calculation for the archetype and an attempt to run HEM. It runs alongside the tooling work, so a bad result can reshape the engine before it is built. *(Step 1, the rough calculation, is done: see [scripts/benchmark/](../scripts/benchmark/README.md).)*
+- [ ] **Repository tooling:** TypeScript (strict), Vitest with coverage, linting, and a GitHub Actions workflow for type checking, lint, tests and report drift. *(Done except the report-drift step, which lands with the report.)*
 - [ ] **The register schema**, with typed row kinds, and the single register data file validated against it.
 - [ ] **Register rows** for everything phase 1 uses (see "Register contents"), each with a source or a stated rationale.
 - [ ] **A build-time PVGIS snapshot** for London, with its own validated schema.
@@ -158,7 +158,7 @@ L is litres per day (uncertain, from occupancy), the delivery temperature is a f
 
 ### Register contents for phase 1
 
-**The archetype: a semi-detached house built 1930–49, two storeys, about 90 m², cavity walls as built (unfilled), loft insulation in line with its age band, double glazing retrofitted.** Wall construction moves results a lot. Solid-wall and filled-cavity variants come with phase 2's archetypes.
+**The archetype: a semi-detached house built 1930–49, two storeys, about 90 m², cavity walls as built (unfilled), 100 mm of loft insulation, double glazing retrofitted.** A variant with no loft insulation (RdSAP's default for the age band) is kept for comparison. Magnus chose 100 mm as the main case on 17 October 2026, because most real 1930s semis have had loft insulation added. Wall construction moves results a lot. Solid-wall and filled-cavity variants come with phase 2's archetypes.
 
 - **Location and weather:** a `series` row for the PVGIS v5.3 typical year at London (51.507, −0.128). A fixed outdoor-temperature offset row (default 0 K) lets tests build a "colder year".
 - **Geometry:** element areas, storey height, heated volume and ground floor perimeter, each a fixed row with its derivation.
