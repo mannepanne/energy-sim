@@ -64,6 +64,8 @@ Ofgem's typical domestic consumption value for a medium gas user is 9,500 kWh a 
 
 **Our estimate is roughly two to three times that national average.** Some of the gap is expected: an unfilled-cavity semi from the 1930s uses more than the average home. But the gap is large enough to take seriously. It matches a known pattern: models built on RdSAP's default U-values tend to overstate the heat demand of older homes (the "prebound effect"), and BRE found RdSAP's old solid-wall default was pessimistic by about a quarter. This is exactly the risk the benchmark exists to test. Step 3 below compares against NEED statistics for semi-detached houses of this period, not the national average.
 
+**The register has since moved on from these draft values.** Phase 2 derives the geometry, computes the ground floor by ISO 13370 (RdSAP 10 gives band C a solid floor: 0.66 W/m²K, not the suspended 0.75 here), adds thermal bridging and a cavity party wall, and fills the cavity by default. The benchmark keeps its draft values, because they are what HEM was run with. See [register.md](../../REFERENCE/register.md#the-rows).
+
 ### Draft values and their status
 
 Each value is marked with the register's statuses. The register rows in [`data/register.json`](../../data/register.json) carry the same values (see [register.md](../../REFERENCE/register.md)).

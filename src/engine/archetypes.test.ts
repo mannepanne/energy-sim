@@ -75,7 +75,7 @@ describe('the archetypes', () => {
       floorAreaM2: 90,
       occupants: 3,
       loft: 'about100mm',
-      walls: 'asBuilt',
+      walls: 'cavityFilled',
       glazing: 'olderDouble',
     });
   });
@@ -88,6 +88,8 @@ describe('the archetypes', () => {
 
   it('reject a house whose answers or inputs do not fit', () => {
     const semi = defaultHouse(access, 'semi1930s');
+    expect(defaultHouse(access, 'midTerracePre1900').walls).toBe('asBuilt');
+    expect(defaultHouse(access, 'midTerrace2010s').walls).toBe('asBuilt');
     expect(() => checkHouse(access, { ...semi, walls: 'solidWallInsulated' })).toThrow(
       'Wall answer "solidWallInsulated" does not fit archetype "semi1930s"; it offers asBuilt, cavityFilled',
     );

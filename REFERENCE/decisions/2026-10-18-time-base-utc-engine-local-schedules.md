@@ -1,7 +1,7 @@
 # ADR: UTC engine hours, with schedules and tariffs in UK local time
 
 **Date:** 2026-10-18
-**Status:** Proposed in the phase 2 archetypes PR; awaiting Magnus's confirmation before merge
+**Status:** Active (confirmed by Magnus on 18 October 2026)
 **Supersedes:** N/A
 
 ---

@@ -86,7 +86,7 @@ Cross-row rules (duplicates, dependencies) run only once every row is valid on i
 
 ## The rows
 
-**Archetypes.** Ten house types, each keyed to one RdSAP age band (see the [phase 2 spec](../SPECIFICATIONS/02-complete-v1-model.md), "House types and geometry"). The 1930s semi is the phase 1 house: about 90 m², two storeys, unfilled cavity walls, 100 mm of loft insulation and double glazing installed before 2002.
+**Archetypes.** Ten house types, each keyed to one RdSAP age band (see the [phase 2 spec](../SPECIFICATIONS/02-complete-v1-model.md), "House types and geometry"). The 1930s semi is the phase 1 house: about 90 m², two storeys, 100 mm of loft insulation and double glazing installed before 2002. Its cavity walls are filled by default (phase 1 had them unfilled; the `asBuilt` answer gives that house).
 
 | Section | Rows |
 | --- | --- |
@@ -95,7 +95,7 @@ Cross-row rules (duplicates, dependencies) run only once every row is valid on i
 | geometry | The door area (1.85 m²) |
 | fabric | U-values from RdSAP 10: walls by band, construction and wall answer (Table 6 and §5.7–5.8), party walls by construction (Table 15), windows by glazing answer (Table 24), doors by band (Table 26), roofs by loft answer (Table 16); the curtain resistance (SAP 10.2 §3.2); thermal bridging by band (Table 21); the ISO 13370 ground floor parameters (§5.12); the air change rate by band (approximate); the uncertain fabric quality factor (0.75–1.15) |
 | gains | Internal gains per m² (fixed) and per occupant (uncertain, 75–140 W); their correlation with hot water per occupant (0.5); g⊥ by glazing answer (Table 24), SAP's 0.9 for non-normal incidence, the frame factor (0.7) and solar access factor (0.77); ground reflectance (0.2) |
-| heating | Mean internal temperature (14.6 °C, calibrated, see below); boiler seasonal efficiency (0.80–0.89); heat pump SPF (lognormal, median 2.8, sigma 0.145, clipped to 2.0–4.0, including hot water) |
+| heating | Mean internal temperature (16.3 °C, calibrated, see below); boiler seasonal efficiency (0.80–0.89); heat pump SPF (lognormal, median 2.8, sigma 0.145, clipped to 2.0–4.0, including hot water) |
 | hotWater | Litres a day: 36 per household plus 25 per occupant (uncertain, 17–35); delivery and cold-feed temperatures; cylinder standing loss (heat pump setup only) |
 | prices | Ofgem price cap, GB average by Direct Debit, 1 October–31 December 2026, checked on 17 October 2026 |
 | carbon | Natural gas factor (gross CV; to verify); grid electricity factor 0.14396 kgCO₂e/kWh (DESNZ 2026 set, electricity consumed, including transmission and distribution losses) |
@@ -125,11 +125,11 @@ The benchmark found that the method agrees with HEM, but that both models predic
 - **What the row means:** a whole-house **air** temperature under continuous heating. It applies to both setups ("the same household, different kit") and to every archetype. It may absorb fabric error as well as heating behaviour. The row's rationale states all three points, and cites NEED as its source.
 - **The target:** the 1930s semi's central annual gas use is 13,200 kWh. That is space heat plus hot water, divided by the boiler efficiency, with no cylinder loss for the combi. 13,200 kWh is the midpoint of NEED's readings A and C. The result must stay within those readings, 10,980–15,433 kWh. The target was fixed before the engine existed.
 - **The method:** solve for the temperature at which the hourly engine's central gas use for the 1930s semi equals the target, on the PVGIS year, with its derived geometry and every other row at its default. `npm run calibrate` prints the solved values; they are copied into the row by hand, rounded to 0.1 °C.
-- **The value: 14.6 °C** (solved 14.58 °C on 18 October 2026), giving 13,235 kWh of central gas use. The low and high (13.4 and 15.6 °C) are the temperatures that reproduce readings A and C by the same method. They describe uncertainty about the typical home, not the spread between households.
+- **The value: 16.3 °C** (solved 16.26 °C on 18 October 2026), giving 13,277 kWh of central gas use. The low and high (15.0 and 17.4 °C) are the temperatures that reproduce readings A and C by the same method. They describe uncertainty about the typical home, not the spread between households.
 - **The drift check:** `scripts/calibration/meanInternalTemperature.test.ts` re-solves the temperature on the real register and snapshot. It fails if the row's default, low or high is more than 0.1 °C from the solved value, or if central gas use is more than 150 kWh from the target. So a change to any row the gas setup reads, including the window and weather rows, is caught once it moves the result by more than that.
 - **History:**
   - The register PR set a provisional 16.0 °C (14.8–17.1) with the benchmark's rough monthly method. The hourly re-solve replaced it with 15.7 °C (14.5–16.8), and the rough-method solver was removed.
-  - The phase 2 archetypes PR re-solved it on the continuous engine with derived geometry and the checked RdSAP fabric, giving 14.6 °C (13.4–15.6). The heat loss coefficient rose from 302 to 341 W/K: thermal bridging adds 29 W/K, the cavity party wall 9 W/K. Without thermal bridging the solve would give 15.2 °C.
+  - The phase 2 archetypes PR re-solved it on the continuous engine with derived geometry and the checked RdSAP fabric. With the cavity as built, the heat loss coefficient rose from 302 to 341 W/K (thermal bridging adds 29 W/K, the cavity party wall 9 W/K) and the solve gave 14.6 °C. Magnus then made a filled cavity the default for bands C–G (18 October 2026), which brings H to 274 W/K and the solve to 16.3 °C (15.0–17.4). Without thermal bridging it would be 17.2 °C.
   - The heating schedules PR replaces this row with a calibrated setpoint.
 
 ## The PVGIS snapshot

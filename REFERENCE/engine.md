@@ -191,7 +191,7 @@ At a fabric quality factor of 0.9, H = 220.5 W/K. With a party wall U of 0.25 an
 - party wall 7.036 × 5.25 = 36.94 m², volume 45 × 5.25 = 236.25 m³;
 - solid floor: B = 90 ÷ 19.83 = 4.539, dt = 0.565, U = 3 × ln(π × 4.539 ÷ 0.565 + 1) ÷ (π × 4.539 + 0.565) = 0.66.
 
-H = 341 W/K: fabric 234 (walls 126.6, party wall 9.2, windows 45.0, door 5.6, roof 18.0, floor 29.7), thermal bridging 0.15 × 194.1 m² = 29.1, ventilation 0.33 × 1.0 × 236.25 = 78.0.
+With its default filled cavity walls (U 0.7), H = 274 W/K: fabric 166.5 (walls 59.1, party wall 9.2, windows 45.0, door 5.6, roof 18.0, floor 29.7), thermal bridging 0.15 × 194.1 m² = 29.1, ventilation 0.33 × 1.0 × 236.25 = 78.0. With the cavity as built (U 1.5), H = 341 W/K.
 
 **The pre-1900 mid-terrace** (87 m², two storeys, aspect 2.0, two party walls, room height 2.7 m, band A):
 - footprint 43.5 m²: width 4.664 m, depth 9.327 m;
@@ -210,12 +210,12 @@ At the same floor area, a mid-terrace has less exposed wall than an end-terrace,
 
 ## The 1930s semi's central results
 
-With every row at its default (14.6 °C, 100 mm of loft insulation, 3 occupants), on the London typical year:
+With every row at its default (16.3 °C, filled cavity walls, 100 mm of loft insulation, 3 occupants), on the London typical year:
 
 | | Space heat | Hot water | Gas | Electricity | Cost | Carbon |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Gas boiler | 9,368 kWh | 1,882 kWh | 13,235 kWh | 2,500 kWh | £2,021 | 2,781 kg |
-| Heat pump | 9,368 kWh | 2,429 kWh | 0 | 6,713 kWh | £1,967 | 966 kg |
+| Gas boiler | 9,404 kWh | 1,882 kWh | 13,277 kWh | 2,500 kWh | £2,025 | 2,789 kg |
+| Heat pump | 9,404 kWh | 2,429 kWh | 0 | 6,726 kWh | £1,970 | 968 kg |
 
 These are central values only, measured on 18 October 2026 and not pinned by a test: rerun the engine if a price, SPF, carbon or base-use row changes. The ranges, the paired comparison and the sensitivity table are in the [phase 1 report](../reports/phase-1-london-semi.md). The heat pump's small cost margin sits inside a known low bias on heat pump cost: one calibrated temperature applies to both setups ([#15](https://github.com/mannepanne/energy-sim/issues/15)). Gas use matches the calibration target (see [register.md](./register.md#the-mean-internal-temperature-calibration)).
 
@@ -223,12 +223,12 @@ These are central values only, measured on 18 October 2026 and not pinned by a t
 
 `npm run archetypes` prints each archetype's central and sampled (200 samples, seed 1) gas use and running costs on the price cap, next to its two pre-registered NEED readings, its gap and the flag. The readings, the rule and the reasons for them are in [scripts/archetypes/README.md](../scripts/archetypes/README.md), committed before any archetype was run. The logic is in `scripts/archetypes/table.ts`.
 
-On 18 October 2026, eight archetypes sat inside or near their interval:
-- the end-terrace was 8% above it and the 1983–90 detached house 3% below;
-- the 2007–11 semi was 19% below;
-- the 2012 onwards mid-terrace was 28% below, so it is **flagged**.
+On 18 October 2026, with the default answers Magnus chose (filled cavity walls for bands C–G), nine archetypes sat inside or within 13% of their interval:
+- the bungalow was 2% above it and the 1967–75 mid-terrace 3% above;
+- the 2007–11 semi was 1% below and the 2012 onwards mid-terrace 13% below;
+- the pre-1900 end-terrace was 39% above, so it is **flagged**.
 
-The newer houses' modelled gas use is below what NEED measures for them. Every archetype uses the same behaviour rows, calibrated on the 1930s semi alone, so these gaps are evidence on [#14](https://github.com/mannepanne/energy-sim/issues/14), not targets. The phase 2 report will carry the table, at 200 samples.
+The end-terrace's solid brick walls (U 1.7, as built) cover more exposed wall than any other archetype for its floor area, which RdSAP's solid wall U-value may overstate. With unfilled cavities as the default, the first table instead flagged the 2012 onwards mid-terrace (28% below). Every archetype uses the same behaviour rows, calibrated on the 1930s semi alone, so these gaps are evidence on [#14](https://github.com/mannepanne/energy-sim/issues/14), not targets. The phase 2 report will carry the table, at 200 samples.
 
 ## Time base
 

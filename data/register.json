@@ -590,7 +590,7 @@
       "label": "Default wall insulation answer of each archetype",
       "unit": "answer",
       "status": "approximate",
-      "rationale": "\"As built\" for every archetype: solid walls are mostly uninsulated, and the cavity archetypes keep phase 1's unfilled cavity, so the 1930s semi stays the phase 1 house. Many older cavity walls have since been filled; that is the \"cavity filled\" answer, not the default.",
+      "rationale": "\"Cavity filled\" for the cavity archetypes built before 1991 (bands C–G), because most cavity walls in England have since been filled. \"As built\" for the solid brick archetypes, whose walls are mostly uninsulated, and for bands K and L, which were insulated as built. Decided by Magnus on 18 October 2026 after the first archetype table had run with unfilled cavities, so the choice was made with both results in view (see scripts/archetypes/README.md).",
       "lastChecked": "2026-10-18",
       "refreshCadence": "static",
       "overridable": false,
@@ -608,27 +608,27 @@
         },
         {
           "key": "semi1930s",
-          "value": "asBuilt"
+          "value": "cavityFilled"
         },
         {
           "key": "semi1950s",
-          "value": "asBuilt"
+          "value": "cavityFilled"
         },
         {
           "key": "bungalow1950s",
-          "value": "asBuilt"
+          "value": "cavityFilled"
         },
         {
           "key": "midTerrace1970s",
-          "value": "asBuilt"
+          "value": "cavityFilled"
         },
         {
           "key": "detached1970s",
-          "value": "asBuilt"
+          "value": "cavityFilled"
         },
         {
           "key": "detached1980s",
-          "value": "asBuilt"
+          "value": "cavityFilled"
         },
         {
           "key": "semi2000s",
@@ -1706,7 +1706,7 @@
         "title": "DESNZ National Energy Efficiency Data-Framework (NEED) 2026 consumption data tables",
         "url": "https://www.gov.uk/government/statistics/national-energy-efficiency-data-framework-need-consumption-data-tables-2026"
       },
-      "rationale": "An air temperature, not an operative one. Calibrated so the 1930s semi's central annual gas use (space heat plus hot water, divided by heating.boilerSeasonalEfficiency, with hot water from the hotWater rows and no cylinder loss for the combi) is 13,200 kWh, the midpoint of NEED's readings for comparable homes; the result must stay within their 10,980–15,433 kWh range. The target was fixed on 17 October 2026, before the engine existed. 14.6 °C solves that target with the hourly engine on the PVGIS typical year, with the archetype's derived geometry and every other row at its default (npm run calibrate; solved 14.58 °C on 18 October 2026, rounded to 0.1 °C). The low and high (13.4 and 15.6 °C) are the temperatures that reproduce NEED's readings A (10,980 kWh) and C (15,433 kWh) by the same method: they describe uncertainty about the typical home, not the spread between households. Phase 1 solved 15.7 °C; the phase 2 geometry and RdSAP 10 fabric (thermal bridging, a cavity party wall, a solid ground floor, curtains on windows, SAP's internal gains and hot water) raise the heat loss coefficient from 302 to 341 W/K, so less temperature is needed. The calibration may absorb fabric error from pessimistic RdSAP U-values as well as heating behaviour. It comes from gas-heated homes and applies to every archetype and to both setups, gas and heat pump ('the same household, different kit'); heat pump households often heat for longer, which biases the heat pump's running cost low.",
+      "rationale": "An air temperature, not an operative one. Calibrated so the 1930s semi's central annual gas use (space heat plus hot water, divided by heating.boilerSeasonalEfficiency, with hot water from the hotWater rows and no cylinder loss for the combi) is 13,200 kWh, the midpoint of NEED's readings for comparable homes; the result must stay within their 10,980–15,433 kWh range. The target was fixed on 17 October 2026, before the engine existed. 16.3 °C solves that target with the hourly engine on the PVGIS typical year, with the archetype's derived geometry, its default answers (filled cavity walls, 100 mm of loft insulation) and every other row at its default (npm run calibrate; solved 16.26 °C on 18 October 2026, rounded to 0.1 °C). The low and high (15.0 and 17.4 °C) are the temperatures that reproduce NEED's readings A (10,980 kWh) and C (15,433 kWh) by the same method: they describe uncertainty about the typical home, not the spread between households. Phase 1 solved 15.7 °C for the same house with unfilled cavity walls. Phase 2 fills the cavity by default (wall U 0.7, not 1.5) and adds RdSAP 10 thermal bridging, a cavity party wall, a solid ground floor, curtains on windows, and SAP's internal gains and hot water; the heat loss coefficient goes from 302 to 274 W/K, so more temperature is needed. The calibration may absorb fabric error from pessimistic RdSAP U-values as well as heating behaviour. It comes from gas-heated homes and applies to every archetype and to both setups, gas and heat pump ('the same household, different kit'); heat pump households often heat for longer, which biases the heat pump's running cost low.",
       "lastChecked": "2026-10-18",
       "refreshCadence": "static",
       "overridable": true,
@@ -1751,9 +1751,9 @@
         "hotWater.deliveryTemperature",
         "hotWater.coldFeedTemperature"
       ],
-      "default": 14.6,
-      "low": 13.4,
-      "high": 15.6,
+      "default": 16.3,
+      "low": 15.0,
+      "high": 17.4,
       "distribution": "triangular"
     },
     {

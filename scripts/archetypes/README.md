@@ -33,3 +33,9 @@ This section, and the readings in [`needReadings.ts`](./needReadings.ts), were c
 | Mid-terrace, 2012–21 | Mid terrace, 2012 onwards | 3 | 3,553 | 8,734 | 86 × 74.37 = 6,396 |
 
 Reading T is larger than reading S for every archetype: London homes use more gas than the national per-m² rate suggests, and NEED's medians are not corrected for size.
+
+## After the first run (18 October 2026)
+
+- **The first table** had every archetype's walls as built, so the cavity archetypes were unfilled, as in phase 1. The 2012 onwards mid-terrace was flagged (28% below its interval), and the 2007–11 semi was 19% below.
+- **A change made after seeing that result:** the spec asks for each archetype's most common answers. Most older cavity walls in England have been filled, so filled cavities were offered as the default for bands C–G. Magnus chose them, with both tables in view. The behaviour rows were then re-solved on the 1930s semi alone, as before. The readings and the flag rule above did not change.
+- **The table with the chosen defaults** (`npm run archetypes`): the pre-1900 end-terrace is flagged (39% above its interval); every other archetype is inside its interval or within 13% of it.

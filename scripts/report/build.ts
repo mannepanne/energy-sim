@@ -3,7 +3,7 @@
 
 import { compare, centralOutsideBand, runPaired, type Band, type Comparison, type Metric, type PairedRun } from '../../src/engine/compare.ts';
 import { heatLoss } from '../../src/engine/geometry.ts';
-import { defaultHouse, REFERENCE_ARCHETYPE, type House } from '../../src/engine/archetypes.ts';
+import { defaultHouse, REFERENCE_ARCHETYPE, type GlazingAnswer, type House, type LoftAnswer, type WallAnswer } from '../../src/engine/archetypes.ts';
 import { readInputs, uncertainDraws } from '../../src/engine/inputs.ts';
 import type { SamplingPlan } from '../../src/engine/sampling.ts';
 import { sensitivity, type SensitivityRow } from '../../src/engine/sensitivity.ts';
@@ -146,12 +146,20 @@ export function pricePeriod(access: RegisterAccessor): string {
   return access.fixed('prices.electricityUnitRate').label.split(', ').at(-1)!;
 }
 
+const WALL_WORDS: Record<WallAnswer, string> = { asBuilt: 'cavity walls as built (unfilled)', cavityFilled: 'filled cavity walls', solidWallInsulated: 'insulated solid walls' };
+const LOFT_WORDS: Record<LoftAnswer, string> = { none: 'no loft insulation', about100mm: 'about 100 mm of loft insulation', '270mmOrMore': '270 mm or more of loft insulation' };
+const GLAZING_WORDS: Record<GlazingAnswer, string> = {
+  single: 'single glazing',
+  olderDouble: 'double glazing installed before 2002',
+  newerDouble: 'double glazing installed in 2002 or later',
+};
+
 function houseSection(access: RegisterAccessor): string {
   const inputs = readInputs(access);
   return [
     '## The house',
     '',
-    `A semi-detached house built 1930–49, in London: ${plainValue(inputs.house.floorAreaM2)} m² over two storeys, unfilled cavity walls, 100 mm of loft insulation and double glazing installed before 2002, with ${inputs.house.occupants} occupants. This is the main case; the variant with no loft insulation has a short section of its own below.`,
+    `A semi-detached house built 1930–49, in London: ${plainValue(inputs.house.floorAreaM2)} m² over two storeys, ${WALL_WORDS[inputs.house.walls]}, ${LOFT_WORDS[inputs.house.loft]} and ${GLAZING_WORDS[inputs.house.glazing]}, with ${inputs.house.occupants} occupants. This is the main case; the variant with no loft insulation has a short section of its own below.`,
     '',
     `- Geometry, derived from the floor area and the footprint shape: ${plainValue(Math.round(inputs.exposedPerimeterM * 10) / 10)} m of exposed perimeter, ${plainValue(Math.round(inputs.externalWallAreaM2))} m² of external wall and ${plainValue(Math.round(inputs.windowAreaM2 * 10) / 10)} m² of windows. The ground floor U-value is ${inputs.groundFloorUValue} W/m²K (BS EN ISO 13370, as RdSAP 10 applies it).`,
     `- Heat loss coefficient (central): ${wholeNumber(heatLoss(inputs).totalWPerK)} W/K, including a party wall and thermal bridging.`,

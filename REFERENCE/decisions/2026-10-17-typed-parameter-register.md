@@ -84,7 +84,7 @@ Every fact about houses, energy, prices or behaviour stays in the register, with
 
 ## Amendment (18 October 2026): archetype tables, categorical values, correlations and derived geometry
 
-**Status:** proposed in the phase 2 archetypes PR; awaiting Magnus's confirmation before merge.
+**Status:** Active. Confirmed by Magnus on 18 October 2026, with the decisions below.
 
 **Decision:**
 - **Two new row kinds:**
@@ -122,13 +122,12 @@ Every fact about houses, energy, prices or behaviour stays in the register, with
 - A table's completeness is checked by tests, not by the schema, because only the engine knows which keys it reads.
 - Uncertain table cells are supported and tested, but no cell in the register is uncertain yet.
 
-**Decisions inside this amendment for Magnus to confirm:**
-- **RdSAP's thermal bridging is included** (`fabric.thermalBridging`, Table 21: y × the exposed area).
-- **The cavity archetypes' party walls use RdSAP's "unable to determine" value, 0.25 W/m²K** (Table 15).
-
-  Together with the derived geometry, a solid ground floor and curtains on windows, these raise the 1930s semi's heat loss coefficient from 302 to 341 W/K. Thermal bridging alone is 29 W/K. The calibrated temperature falls from 15.7 to 14.6 °C. Without thermal bridging it would be 15.2 °C.
+**Decisions confirmed by Magnus (18 October 2026):**
+- **RdSAP's thermal bridging is included** (`fabric.thermalBridging`, Table 21: y × the exposed area). For the 1930s semi it is 29 W/K.
+- **The cavity archetypes' party walls use RdSAP's "unable to determine" value, 0.25 W/m²K** (Table 15). For the 1930s semi it is 9 W/K.
+- **Cavity walls are filled by default for bands C–G**, because most older cavity walls in England have been filled. Magnus chose this after the first archetype table had run with unfilled cavities, with both tables in view. With it, the 1930s semi's heat loss coefficient is 274 W/K (302 in phase 1), and the calibrated temperature is 16.3 °C (15.7 in phase 1). Without thermal bridging it would be 17.2 °C.
 - **RdSAP 10 has no default window-area formula**, because it measures windows on site. The archetypes use RdSAP 2012 Table S4 instead.
-- **The 1930s semi keeps phase 1's 90 m² and unfilled cavity**, so its calibration target and NEED readings stay those of phase 1. The other archetypes use English Housing Survey floor areas.
+- **The 1930s semi keeps phase 1's 90 m²**, so its calibration target and NEED readings stay those of phase 1. The other archetypes use English Housing Survey floor areas.
 
 ---
 
