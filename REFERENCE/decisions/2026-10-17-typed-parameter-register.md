@@ -8,7 +8,7 @@
 
 ## Decision
 
-Every input the engine uses lives in one data file, `data/register.json`. Each row is one parameter, of one of four typed kinds: `uncertain`, `fixed`, `series` or `profile`. A Zod schema validates the file on load. The schema enforces provenance on every row: either a source or, for `approximate` rows, a written rationale. It also enforces integrity rules: unique ids, valid ranges, valid dependencies and ISO dates. The engine reads parameters only through a typed accessor. Only physical constants, unit conversions and method settings live in code (see the amendment below).
+Every input the engine uses lives in one data file, `data/register.json`. Each row is one parameter, of one of four typed kinds: `uncertain`, `fixed`, `series` or `profile` (two more, `table` and `correlation`, are added by the amendment below). A Zod schema validates the file on load. The schema enforces provenance on every row: either a source or, for `approximate` rows, a written rationale. It also enforces integrity rules: unique ids, valid ranges, valid dependencies and ISO dates. The engine reads parameters only through a typed accessor. Only physical constants, unit conversions and method settings live in code (see the amendment below).
 
 ## Context
 
@@ -81,6 +81,54 @@ The first draft used one flat row shape with `default`/`low`/`high`, and require
 Every fact about houses, energy, prices or behaviour stays in the register, with its source and date.
 
 **Why:** a method setting has no source to cite and no range to sample. Putting it in the register would break the register's rule that each row is a sourced fact. Each method setting sits next to the code that uses it, with a comment saying what it is.
+
+## Amendment (18 October 2026): archetype tables, categorical values, correlations and derived geometry
+
+**Status:** proposed in the phase 2 archetypes PR; awaiting Magnus's confirmation before merge.
+
+**Decision:**
+- **Two new row kinds:**
+  - **`table`** holds values keyed by a string, such as an archetype, an RdSAP age band, a construction or a quick-facts answer. Its `keyedBy` field says what the keys are. Cells are an array of `{ key, value }`, so a duplicate key is caught (a JSON object would silently keep the last one).
+  - **`correlation`** holds one correlation coefficient between two named uncertain rows, for the Gaussian copula.
+- **A table cell may be fixed or uncertain.** A fixed cell holds a number or a string. An uncertain cell has the same fields and checks as an uncertain row. It is sampled with the hash key `rowId|key`, so adding cells never moves other draws. Keys may not contain `|`.
+- **Categorical facts are string cells.** House type, construction, ground floor construction and the default quick-facts answers are examples. The engine checks each one against its list of allowed values and throws on an unknown one.
+- **Element areas and heated volume leave the register.** The engine derives them from floor area, storeys, footprint shape and party walls. The ground floor U-value is computed in the engine by BS EN ISO 13370 from register parameters. The derived rows, `fabric.roofUValueNoLoftInsulation`, `gains.internalGains` and `hotWater.litresPerDay` are removed. The parity test keeps them out.
+- **Schema additions:**
+  - the sections `archetypes`, `solar`, `costs` and `tariffs`;
+  - an `hour-of-week` profile resolution of 168 values, starting Monday 00:00 local time.
+- **The accessor** reads cells with `cell`, `cellNumber` and `cellString`. Each throws an error naming the row and the key if the key is missing, the cell is uncertain where a fixed one is asked for, or the type is wrong.
+- **Parity:** a test checks that every archetype-keyed table holds exactly the `ARCHETYPE_KEYS` union, and that every band-keyed table holds exactly the bands the archetypes use.
+- **Correlation rules:**
+  - the value lies strictly between −1 and 1, in normal-score space;
+  - both named rows exist, are uncertain rows, and appear in `dependsOn`;
+  - a row may be in one correlation only.
+
+  The first row named is the anchor and keeps its own draw.
+
+**Why:**
+- **Tables keep one fact per row.** Ten archetypes, eight age bands and three quick-facts questions would otherwise need hundreds of scalar rows, each repeating the same source. One table row cites RdSAP 10 Table 6 once, with every cell from that table.
+- **String keys and the `rowId|key` hash keep draws stable**, as the phase 1 rule requires for rows.
+- **Deriving geometry settles the phase 3 override question.** A visitor's floor area now flows through to every area and to the volume, because nothing derived is stored.
+- **A separate correlation kind makes the pairs visible and checkable.** It does not hide correlation inside a row's own fields.
+
+**Alternatives considered:**
+- **Scalar rows named by key** (such as `fabric.wallUValue.C.cavity.asBuilt`): rejected, because it gives hundreds of ids, repeats every source, and leaves no place to check that a table is complete.
+- **Cells as a JSON object keyed by name:** rejected, because a duplicate key would be lost silently.
+- **Correlation as a field on an uncertain row:** rejected, because a pair belongs to neither row, and checking "one pair per row" across rows is harder.
+- **Keeping derived geometry rows and recomputing them in a script:** rejected, because overrides would not flow through, and the stored rows could drift from their inputs.
+
+**Trade-offs accepted:**
+- The schema now has six kinds.
+- A table's completeness is checked by tests, not by the schema, because only the engine knows which keys it reads.
+- Uncertain table cells are supported and tested, but no cell in the register is uncertain yet.
+
+**Decisions inside this amendment for Magnus to confirm:**
+- **RdSAP's thermal bridging is included** (`fabric.thermalBridging`, Table 21: y × the exposed area).
+- **The cavity archetypes' party walls use RdSAP's "unable to determine" value, 0.25 W/m²K** (Table 15).
+
+  Together with the derived geometry, a solid ground floor and curtains on windows, these raise the 1930s semi's heat loss coefficient from 302 to 341 W/K. Thermal bridging alone is 29 W/K. The calibrated temperature falls from 15.7 to 14.6 °C. Without thermal bridging it would be 15.2 °C.
+- **RdSAP 10 has no default window-area formula**, because it measures windows on site. The archetypes use RdSAP 2012 Table S4 instead.
+- **The 1930s semi keeps phase 1's 90 m² and unfilled cavity**, so its calibration target and NEED readings stay those of phase 1. The other archetypes use English Housing Survey floor areas.
 
 ---
 
