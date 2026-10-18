@@ -1,9 +1,10 @@
-# ABOUT: Dependabot keeps the GitHub Actions pins and npm dev dependencies current
+# ABOUT: Dependabot keeps the GitHub Actions pins and the npm dependencies current
 # ABOUT: Weekly grouped pull requests, each reviewed like any other change
 
-# Every update waits until the release is 14 days old. Most hijacked or broken releases are caught
-# and pulled within days, so the wait lets others find problems first. Security updates are not
-# delayed: GitHub's cooldown applies to version updates only.
+# Every version update waits until the release is 14 days old. Most hijacked or broken releases are
+# caught and pulled within days, so the wait lets others find problems first. Security updates
+# (switched on in the repository settings) are not delayed: GitHub's cooldown applies to version
+# updates only. See REFERENCE/decisions/2026-10-18-fourteen-day-dependency-wait.md.
 
 version: 2
 updates:
