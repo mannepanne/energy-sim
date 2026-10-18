@@ -125,6 +125,7 @@ Development runs in four phases. v1 leads with the numbers, and the 3D street fo
 
 3. **Phase 3: v1 website and launch** (spec to be written)
    The input form, the 2D comparison view, "where does this number come from?", the not-advice notice, Cloudflare hosting, cookie-free analytics and an A grade on securityheaders.com. The launch gate is validation against volunteer homes plus the expert review.
+   **To decide in the phase 3 spec: how user overrides flow to derived rows.** Heated volume and the wall, roof and floor areas are stored in the register, computed from floor area and window area. So `geometry.totalFloorArea` and `geometry.windowArea` are marked not overridable until overrides recompute (or the engine derives) the rows that depend on them. See [register.md](../REFERENCE/register.md#overrides).
 
 4. **Phase 4: 3D floating-island street** (spec to be written)
    This is the committed next step after v1, and the project's main marketing asset. It is a low-poly Three.js diorama, drawn only from engine results.

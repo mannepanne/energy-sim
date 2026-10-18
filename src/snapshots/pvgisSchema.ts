@@ -2,7 +2,7 @@
 // ABOUT: Rejects a missing column, the wrong row count, out-of-order hours and a leap day, with clear messages
 
 import { z } from 'zod';
-import { isoDateSchema, sourceSchema } from '../register/schema.ts';
+import { httpsUrlSchema, isoDateSchema, sourceSchema } from '../register/schema.ts';
 
 export const HOURS_PER_TYPICAL_YEAR = 8760;
 
@@ -51,7 +51,7 @@ export const pvgisSnapshotSchema = z.strictObject({
   schema: z.literal('pvgis-tmy'),
   source: sourceSchema,
   attribution: z.string().min(1),
-  requestUrl: z.url(),
+  requestUrl: httpsUrlSchema,
   fetchedOn: isoDateSchema,
   responseSha256: z.string().regex(/^[0-9a-f]{64}$/),
   location: z.strictObject({

@@ -11,6 +11,7 @@ import { pvgisSnapshotSchema } from '../snapshots/pvgisSchema.ts';
 const readJson = (path: string): unknown => JSON.parse(readFileSync(new URL(path, import.meta.url), 'utf8')) as unknown;
 const register = loadRegister(readJson('../../data/register.json'));
 const access = createAccessor(register);
+const value = (id: Parameters<typeof access.fixed>[0]): number => access.fixed(id).value;
 
 describe('data/register.json', () => {
   it('validates against the register schema', () => {
@@ -29,6 +30,21 @@ describe('data/register.json', () => {
     for (const column of series.columns) expect(Object.keys(snapshot.hours)).toContain(column);
   });
 
+  it('stores derived geometry rows that agree with the rows they are derived from', () => {
+    const storeys = 2; // the archetype is two storeys; this check only re-derives the stored rows
+    const floorArea = value('geometry.totalFloorArea');
+    expect(value('geometry.heatedVolume')).toBeCloseTo(floorArea * value('geometry.storeyHeight'), 6);
+    expect(value('geometry.windowArea')).toBeCloseTo(0.122 * floorArea + 6.875, 6);
+    expect(value('geometry.externalWallArea')).toBeCloseTo(
+      value('geometry.exposedPerimeter') * value('geometry.storeyHeight') * storeys -
+        value('geometry.windowArea') -
+        value('geometry.doorArea'),
+      6,
+    );
+    expect(value('geometry.roofArea')).toBeCloseTo(floorArea / storeys, 6);
+    expect(value('geometry.groundFloorArea')).toBeCloseTo(floorArea / storeys, 6);
+  });
+
   it('records the calibration on the mean internal temperature row', () => {
     const row = access.uncertain('heating.meanInternalTemperature');
     expect(row.source?.title).toContain('NEED');
@@ -38,6 +54,7 @@ describe('data/register.json', () => {
     expect(row.rationale).toContain('fabric error');
     expect(row.dependsOn).toContain('heating.boilerSeasonalEfficiency');
     expect(row.dependsOn).toContain('hotWater.litresPerDay');
+    expect(row.dependsOn).toContain('fabric.qualityFactor');
   });
 
   it('fits the SPF row to its target shares above 3.0 and 3.5', () => {

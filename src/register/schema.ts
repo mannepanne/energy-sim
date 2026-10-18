@@ -37,9 +37,12 @@ export function isIsoDate(text: string): boolean {
 
 export const isoDateSchema = z.string().refine(isIsoDate, { message: 'must be a valid ISO date (YYYY-MM-DD)' });
 
+/** Only https links, since the site will render sources as links. */
+export const httpsUrlSchema = z.url({ protocol: /^https$/ });
+
 export const sourceSchema = z.strictObject({
   title: z.string().min(1),
-  url: z.url(),
+  url: httpsUrlSchema,
 });
 
 const refreshCadenceSchema = z.union([z.enum(['quarterly', 'yearly', 'static']), z.number().int().positive()]);
@@ -79,7 +82,7 @@ const fixedRowSchema = z.strictObject({
 const seriesRowSchema = z.strictObject({
   ...baseFields,
   kind: z.literal('series'),
-  file: z.string().min(1),
+  file: z.string().regex(/^data\/snapshots\/[a-z0-9-]+\.json$/, { message: 'must be a file in data/snapshots/, such as data/snapshots/name.json' }),
   schema: z.enum(SNAPSHOT_SCHEMAS),
   columns: z.array(z.string().min(1)).min(1),
 });
@@ -132,6 +135,8 @@ export const registerRowSchema = z
   .discriminatedUnion('kind', [uncertainRowSchema, fixedRowSchema, seriesRowSchema, profileRowSchema])
   .superRefine((row, ctx) => {
     const issues = [...provenanceIssues(row)];
+    const prefix = row.id.split('.')[0];
+    if (prefix !== row.section) issues.push({ field: 'id', message: `must start with its section ("${row.section}.")` });
     if (row.kind === 'uncertain') issues.push(...uncertainIssues(row));
     if (row.kind === 'profile') issues.push(...profileIssues(row));
     for (const issue of issues) ctx.addIssue({ code: 'custom', path: [issue.field], message: issue.message });

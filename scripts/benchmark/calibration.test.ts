@@ -1,5 +1,5 @@
 // ABOUT: Checks that the register's provisional mean internal temperature still hits the NEED gas target
-// ABOUT: Fails if a boiler, hot water, fabric or geometry row drifts away from the calibration
+// ABOUT: Fails if a geometry, fabric, internal gains, boiler or hot water row drifts away from the calibration
 
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';

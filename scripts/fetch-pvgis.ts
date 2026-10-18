@@ -10,7 +10,7 @@ const LONGITUDE = -0.128;
 const OUTPUT = new URL('../data/snapshots/pvgis-tmy-london.json', import.meta.url);
 
 const requestUrl = tmyRequestUrl(LATITUDE, LONGITUDE);
-const response = await fetch(requestUrl);
+const response = await fetch(requestUrl, { signal: AbortSignal.timeout(60_000) });
 if (!response.ok) throw new Error(`PVGIS returned ${response.status} ${response.statusText} for ${requestUrl}`);
 const body = await response.text();
 

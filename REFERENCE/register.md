@@ -61,7 +61,10 @@ Unknown fields are rejected, so a typo such as `defualt` fails.
 - a profile has the wrong number of values;
 - two rows share an id;
 - a `dependsOn` entry names a missing row, or the dependencies form a cycle;
-- `lastChecked` is not a real calendar date (2026-02-30 fails).
+- `lastChecked` is not a real calendar date (2026-02-30 fails);
+- an id does not start with its section (`fabric.wallUValue` must have `section: "fabric"`);
+- a source link is not `https`;
+- a series row's `file` is not a JSON file in `data/snapshots/`.
 
 Cross-row rules (duplicates, dependencies) run only once every row is valid on its own.
 
@@ -72,7 +75,7 @@ Cross-row rules (duplicates, dependencies) run only once every row is valid on i
 1. Add the row to `data/register.json`, with a source or a rationale, and set `lastChecked` to the day you checked it.
 2. Add its id to `ROW_IDS` in `src/register/ids.ts`. The parity test fails until the two match.
 3. Fill in `dependsOn` with the rows its value was derived from.
-4. If you change a geometry, fabric, gains, boiler or hot water row, run the tests: the calibration test fails if the mean internal temperature no longer hits its target, and the row then needs re-solving (see below).
+4. If you change a geometry, fabric, internal gains, boiler or hot water row, run the tests: the calibration test fails if the mean internal temperature no longer hits its target, and the row then needs re-solving (see below). If you change floor area, storey height, perimeter, window or door area, update the derived geometry rows too; a test re-derives them.
 
 ## The phase 1 rows
 
@@ -92,6 +95,10 @@ The rows describe one archetype: a 1930–49 semi in London, about 90 m², two s
 
 Rows still marked `to-verify` mostly cite the RdSAP 10 specification and need a line-by-line check. The ground floor U-value (0.75) is approximate: the BS EN ISO 13370 working RdSAP specifies is still to be done and recorded in the row.
 
+## Overrides
+
+Rows marked `overridable` are the ones a visitor will be able to replace with their own figure in phase 3. Floor area and window area are **not overridable yet**. Heated volume and the wall, roof and floor areas are stored rows computed from them, so an override would not flow through. How overrides reach derived rows is a phase 3 decision: either recompute the derived rows, or have the engine derive them. It is noted in [SPECIFICATIONS/CLAUDE.md](../SPECIFICATIONS/CLAUDE.md) under phase 3.
+
 ## The mean internal temperature calibration
 
 The benchmark found that the method agrees with HEM, but that both models predict more gas than comparable homes use. The [calibration ADR](./decisions/2026-10-17-air-temperature-calibrated-to-need.md) therefore calibrates `heating.meanInternalTemperature` to measured gas use.
@@ -100,7 +107,7 @@ The benchmark found that the method agrees with HEM, but that both models predic
 - **The target:** the archetype's central annual gas use is 13,200 kWh. That is space heat plus hot water, divided by the boiler efficiency, with no cylinder loss for the combi. 13,200 kWh is the midpoint of NEED's readings A and C. The result must stay within those readings, 10,980–15,433 kWh. The target was fixed before the engine existed.
 - **The method:** solve for the temperature at which gas use equals the target, using every other row at its default.
 - **Provisional value: 16.0 °C.** `scripts/benchmark/calibration.ts` solves it with the benchmark's rough monthly method on the register's own rows. It uses Heathrow's 1991–2020 degree days and a constant 250 W of solar gains. The low and high (14.8 and 17.1 °C) are the temperatures that reproduce readings A and C by the same method. They describe uncertainty about the typical home, not the spread between households.
-- **Final value:** the engine PR re-solves the temperature with the hourly engine on the PVGIS year, and replaces the provisional values. `calibration.test.ts` checks that the provisional value still matches the register, so drift in the boiler or hot water rows is caught.
+- **Final value:** the engine PR re-solves the temperature with the hourly engine on the PVGIS year, and replaces the provisional values. `calibration.test.ts` checks that the provisional value still matches the register, so drift in the geometry, fabric, internal gains, boiler or hot water rows is caught. The window g-value, frame factor and solar access rows are not covered, because the provisional solve uses a constant 250 W of solar gains.
 
 ## The PVGIS snapshot
 
