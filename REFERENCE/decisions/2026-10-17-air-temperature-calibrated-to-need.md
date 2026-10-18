@@ -72,6 +72,6 @@ The phase 1 benchmark (see [scripts/benchmark/README.md](../../scripts/benchmark
 ## References
 
 - [Benchmark write-up](../../scripts/benchmark/README.md) and [HEM run](../../scripts/benchmark/hem/README.md)
-- [Phase 1 spec](../../SPECIFICATIONS/01-engine-core.md), "Benchmark" and "Technical debt introduced"
+- [Phase 1 spec](../../SPECIFICATIONS/ARCHIVE/01-engine-core.md), "Benchmark" and "Technical debt introduced"
 - [NEED 2026 consumption data tables (DESNZ)](https://www.gov.uk/government/statistics/national-energy-efficiency-data-framework-need-consumption-data-tables-2026)
 - [Typed parameter register ADR](./2026-10-17-typed-parameter-register.md)

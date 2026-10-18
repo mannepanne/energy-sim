@@ -1,6 +1,6 @@
 # HEM benchmark run
 
-This folder holds benchmark step 2: a run of the government's Home Energy Model (HEM) for the phase 1 archetype. The plan is in [SPECIFICATIONS/01-engine-core.md](../../../SPECIFICATIONS/01-engine-core.md), section "Benchmark".
+This folder holds benchmark step 2: a run of the government's Home Energy Model (HEM) for the phase 1 archetype. The plan is in [SPECIFICATIONS/ARCHIVE/01-engine-core.md](../../../SPECIFICATIONS/ARCHIVE/01-engine-core.md), section "Benchmark".
 
 ## Agreed before the run (17 October 2026)
 

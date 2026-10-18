@@ -12,20 +12,20 @@ This phase proves two things before anything else is built. First, that a simple
 
 What phase 1 deliberately does **not** test is hourly heat pump behaviour. On a flat tariff, only the heat pump's seasonal efficiency affects the result, so the COP curve, flow temperature and time-of-use tariffs move to phase 2, where they change the answer.
 
-Background: [project-outline.md](./ORIGINAL_IDEA/project-outline.md) (scope and goals) and [home-energy-simulator-spec.md](./ORIGINAL_IDEA/home-energy-simulator-spec.md) (model and register detail). Decisions: [client-side snapshots ADR](../REFERENCE/decisions/2026-10-17-client-side-build-time-snapshots.md) and [register format ADR](../REFERENCE/decisions/2026-10-17-typed-parameter-register.md).
+Background: [project-outline.md](../ORIGINAL_IDEA/project-outline.md) (scope and goals) and [home-energy-simulator-spec.md](../ORIGINAL_IDEA/home-energy-simulator-spec.md) (model and register detail). Decisions: [client-side snapshots ADR](../../REFERENCE/decisions/2026-10-17-client-side-build-time-snapshots.md) and [register format ADR](../../REFERENCE/decisions/2026-10-17-typed-parameter-register.md).
 
 ---
 
 ## Scope and deliverables
 
 ### In scope
-- [x] **Benchmark spike, first:** a rough heat-demand calculation for the archetype and an attempt to run HEM. It runs alongside the tooling work, so a bad result can reshape the engine before it is built. *(Done: see [scripts/benchmark/](../scripts/benchmark/README.md) and the outcome under "Benchmark".)*
+- [x] **Benchmark spike, first:** a rough heat-demand calculation for the archetype and an attempt to run HEM. It runs alongside the tooling work, so a bad result can reshape the engine before it is built. *(Done: see [scripts/benchmark/](../../scripts/benchmark/README.md) and the outcome under "Benchmark".)*
 - [x] **Repository tooling:** TypeScript (strict), Vitest with coverage, linting, and a GitHub Actions workflow for type checking, lint, tests and report drift. *(Done; the report-drift and bench steps landed with the report.)*
-- [x] **The register schema**, with typed row kinds, and the single register data file validated against it. *(Done: see [register.md](../REFERENCE/register.md).)*
+- [x] **The register schema**, with typed row kinds, and the single register data file validated against it. *(Done: see [register.md](../../REFERENCE/register.md).)*
 - [x] **Register rows** for everything phase 1 uses (see "Register contents"), each with a source or a stated rationale. *(Done. The engine PR re-solved the mean internal temperature hourly, to 15.7 °C. Still open, and tracked as `technical-debt` issues: the ground floor U-value working, the 2026 gas carbon factor, the line-by-line check of the RdSAP rows, and the MCS heat loss cross-check.)*
-- [x] **A build-time PVGIS snapshot** for London, with its own validated schema. *(Done: see the PVGIS section of [register.md](../REFERENCE/register.md#the-pvgis-snapshot).)*
-- [x] **The hourly engine:** geometry and heat loss, internal and solar gains, space heat at a mean internal temperature, hot water, heat supply, cost and carbon, over 8,760 hours. The engine PR also re-solves the mean internal temperature hourly on the PVGIS year, then removes or repoints the provisional solver in `scripts/benchmark/calibration.ts` so only one calibration path remains. *(Done: see [engine.md](../REFERENCE/engine.md). The HEM check gives 12,847 kWh, 6.0% below HEM. The temperature re-solves to 15.7 °C (14.5–16.8) in `scripts/calibration/`, and the provisional solver is removed.)*
-- [x] **Paired, seeded sampling** for uncertainty bands, and paired comparison of two setups. *(Done: see [engine.md](../REFERENCE/engine.md#ranges-the-paired-comparison-and-sensitivity).)*
+- [x] **A build-time PVGIS snapshot** for London, with its own validated schema. *(Done: see the PVGIS section of [register.md](../../REFERENCE/register.md#the-pvgis-snapshot).)*
+- [x] **The hourly engine:** geometry and heat loss, internal and solar gains, space heat at a mean internal temperature, hot water, heat supply, cost and carbon, over 8,760 hours. The engine PR also re-solves the mean internal temperature hourly on the PVGIS year, then removes or repoints the provisional solver in `scripts/benchmark/calibration.ts` so only one calibration path remains. *(Done: see [engine.md](../../REFERENCE/engine.md). The HEM check gives 12,847 kWh, 6.0% below HEM. The temperature re-solves to 15.7 °C (14.5–16.8) in `scripts/calibration/`, and the provisional solver is removed.)*
+- [x] **Paired, seeded sampling** for uncertainty bands, and paired comparison of two setups. *(Done: see [engine.md](../../REFERENCE/engine.md#ranges-the-paired-comparison-and-sensitivity).)*
 - [x] **A sensitivity table:** each uncertain row run at its low and high value, ranked by effect.
 - [x] **A generated report**, `reports/phase-1-london-semi.md`, committed to the repo and checked for drift in CI.
 - [x] **The two ADRs** (client-side snapshots, register format), written alongside this spec.
@@ -44,10 +44,10 @@ Background: [project-outline.md](./ORIGINAL_IDEA/project-outline.md) (scope and 
 - [x] The benchmark result is recorded, with the decision it triggers (see "Benchmark"), before the engine PR is merged.
 - [x] `npm run report` regenerates the report from the register and snapshot alone, with no network access, and produces byte-identical output on a second run.
 - [x] The report shows, for both setups: annual heat demand, kWh by fuel, running cost and carbon, each as a central value plus a 10th–90th percentile range and the median. It also shows the paired difference (gas minus heat pump), the share of samples in which the heat pump is cheaper, the sensitivity table, the benchmark result, the data dates, the seed and sample count, and the limitations, including that one calibrated mean internal temperature applies to both setups.
-- [x] Every non-constant number the engine uses comes from a register row, enforced as described under "Register integrity". *(Done: the engine reads every input through the typed accessor, and the id parity test holds. Method settings, such as the report's seed and sample count, may live in code; Magnus amended the [register ADR](../REFERENCE/decisions/2026-10-17-typed-parameter-register.md) on 18 October 2026.)*
+- [x] Every non-constant number the engine uses comes from a register row, enforced as described under "Register integrity". *(Done: the engine reads every input through the typed accessor, and the id parity test holds. Method settings, such as the report's seed and sample count, may live in code; Magnus amended the [register ADR](../../REFERENCE/decisions/2026-10-17-typed-parameter-register.md) on 18 October 2026.)*
 - [x] The register fails validation, with a message naming the row and field, for every rule under "Register integrity".
 - [x] All physics, register and sampling tests pass. Coverage is 95%+ for lines, functions and statements and 90%+ for branches, type checking passes, and CI is green.
-- [ ] Magnus has read the report. Sending it to an outside reviewer is optional and does not block the phase.
+- [x] Magnus has read the report. Sending it to an outside reviewer is optional and does not block the phase. *(Magnus closed the phase on 18 October 2026.)*
 
 ---
 
@@ -57,9 +57,9 @@ Background: [project-outline.md](./ORIGINAL_IDEA/project-outline.md) (scope and 
 
 **The engine is a pure library.** A dependency-light TypeScript module with no I/O. The register loader validates an already-parsed object; file reads happen only in `scripts/`. The same engine and loader then run unchanged in tests, the report script and the phase 3 browser app. Keeping the engine separate from the UI also means the 3D street can read results but never change them.
 
-**Data snapshots are taken at build time, and the site is fully client-side.** PVGIS [forbids browser calls](https://joint-research-centre.ec.europa.eu/photovoltaic-geographical-information-system-pvgis/using-pvgis-5/api-non-interactive-service_en), so external data is fetched by scripts and committed. This is the privacy decision: no server ever holds a visitor's details. See the [ADR](../REFERENCE/decisions/2026-10-17-client-side-build-time-snapshots.md).
+**Data snapshots are taken at build time, and the site is fully client-side.** PVGIS [forbids browser calls](https://joint-research-centre.ec.europa.eu/photovoltaic-geographical-information-system-pvgis/using-pvgis-5/api-non-interactive-service_en), so external data is fetched by scripts and committed. This is the privacy decision: no server ever holds a visitor's details. See the [ADR](../../REFERENCE/decisions/2026-10-17-client-side-build-time-snapshots.md).
 
-**The register is one file of typed rows.** See the [ADR](../REFERENCE/decisions/2026-10-17-typed-parameter-register.md) and "Register schema" below.
+**The register is one file of typed rows.** See the [ADR](../../REFERENCE/decisions/2026-10-17-typed-parameter-register.md) and "Register schema" below.
 
 **Uncertainty comes from paired, seeded sampling.** The engine draws N joint samples (default 500), each taking a value for every *uncertain* row, and runs the full year for each. The central result is the run with every row at its default. The band is the 10th–90th percentile of the samples, and the median is reported too. Skewed distributions can put the central value outside the band, and the report then says so plainly.
 - **Paired comparison.** Both setups run on the same samples. The engine reports the distribution of the per-sample difference, **gas cost minus heat pump cost** (positive means the heat pump is cheaper), and the share of samples in which the heat pump is cheaper. An exact tie counts as half a win for each.
@@ -183,9 +183,9 @@ The project's riskiest assumption is that a simple hourly engine gets heat deman
 - to amend the rule, recorded as made after seeing the result: the engine's temperature is air temperature, and it is checked against HEM at matching air temperature (the rough calculation is 4.6% below HEM's run at about 17.8 °C air, so proceed with no thermal mass);
 - to calibrate the mean internal temperature row to NEED, because both models are above what comparable homes use (10,980–15,433 kWh of gas a year, about 7,600–11,400 kWh of space heat). The target is fixed now at 13,200 kWh of gas, the midpoint, so it can't be chosen after seeing engine output.
 
-The decisions are recorded in the [benchmark calibration ADR](../REFERENCE/decisions/2026-10-17-air-temperature-calibrated-to-need.md).
+The decisions are recorded in the [benchmark calibration ADR](../../REFERENCE/decisions/2026-10-17-air-temperature-calibrated-to-need.md).
 
-The full write-up is in [scripts/benchmark/README.md](../scripts/benchmark/README.md).
+The full write-up is in [scripts/benchmark/README.md](../../scripts/benchmark/README.md).
 
 ### Technology choices
 
@@ -296,7 +296,7 @@ The engine's tests use small inline fixture registers, so the engine PR doesn't 
 `npm run bench` runs 500 samples × 2 setups outside the coverage run and logs the time taken. It runs in CI on every PR, and fails only if it takes longer than 5 seconds. That is many times the expected time, so it catches a real slowdown without flaky failures on shared runners.
 
 ### Manual checklist
-- [ ] Magnus reads the report and the numbers look plausible.
+- [x] Magnus reads the report and the numbers look plausible. *(Phase closed by Magnus on 18 October 2026.)*
 - [ ] Optional, not blocking: if the report goes to an outside reviewer, their comments are noted in the PR.
 - [x] Changing one register value (for example, the SPF median to 3.2) moves the result in the expected direction. *(Checked on 18 October 2026 on the real register, seed 1, 500 samples: central heat pump cost falls from £1,958 to £1,821, and the heat pump is cheaper in 89% of samples instead of 64%.)*
 
@@ -304,10 +304,10 @@ The engine's tests use small inline fixture registers, so the engine PR doesn't 
 
 ## Pre-commit checklist
 
-- [ ] Tests pass (`npm test`), type checking passes (`npm run typecheck`), and coverage meets targets (`npm run test:coverage`).
-- [ ] The report regenerates offline with no diff (`npm run report`).
-- [ ] The docs are updated: `REFERENCE/engine.md`, `REFERENCE/register.md`, the indexes and root `CLAUDE.md`.
-- [ ] There is no debug output and there are no secrets. Phase 1 needs no API keys.
+- [x] Tests pass (`npm test`), type checking passes (`npm run typecheck`), and coverage meets targets (`npm run test:coverage`).
+- [x] The report regenerates offline with no diff (`npm run report`).
+- [x] The docs are updated: `REFERENCE/engine.md`, `REFERENCE/register.md`, the indexes and root `CLAUDE.md`.
+- [x] There is no debug output and there are no secrets. Phase 1 needs no API keys.
 
 ---
 
@@ -352,7 +352,7 @@ Each item is tracked as a `technical-debt` issue when its code lands:
 
 ## Related documentation
 
-- [Project outline](./ORIGINAL_IDEA/project-outline.md) and [model and register spec](./ORIGINAL_IDEA/home-energy-simulator-spec.md)
-- [ADR: client-side, build-time snapshots](../REFERENCE/decisions/2026-10-17-client-side-build-time-snapshots.md)
-- [ADR: typed parameter register](../REFERENCE/decisions/2026-10-17-typed-parameter-register.md)
-- [testing-strategy.md](../REFERENCE/testing-strategy.md)
+- [Project outline](../ORIGINAL_IDEA/project-outline.md) and [model and register spec](../ORIGINAL_IDEA/home-energy-simulator-spec.md)
+- [ADR: client-side, build-time snapshots](../../REFERENCE/decisions/2026-10-17-client-side-build-time-snapshots.md)
+- [ADR: typed parameter register](../../REFERENCE/decisions/2026-10-17-typed-parameter-register.md)
+- [testing-strategy.md](../../REFERENCE/testing-strategy.md)

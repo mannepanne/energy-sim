@@ -38,4 +38,4 @@ When a later phase adds a secret (for example, Cloudflare deployment credentials
 
 ## Continuous integration
 
-GitHub Actions runs `.github/workflows/ci.yml` on every pull request and every push to `main`. It needs no secrets: it reads the repository with a read-only token and runs the type check, lint and tests with coverage.
+GitHub Actions runs `.github/workflows/ci.yml` on every pull request and every push to `main`. It needs no secrets: it reads the repository with a read-only token and runs the type check, lint, tests with coverage, the report drift check (`npm run report` must leave `reports/` unchanged) and the bench (500 samples × 2 setups, failing above 5 seconds). Details are in [testing-strategy.md](./testing-strategy.md#cicd-integration).

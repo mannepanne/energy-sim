@@ -86,6 +86,6 @@ Every fact about houses, energy, prices or behaviour stays in the register, with
 
 ## References
 
-- [Phase 1 spec](../../SPECIFICATIONS/01-engine-core.md), "Register schema" and "Register integrity"
+- [Phase 1 spec](../../SPECIFICATIONS/ARCHIVE/01-engine-core.md), "Register schema" and "Register integrity"
 - [Model and register spec](../../SPECIFICATIONS/ORIGINAL_IDEA/home-energy-simulator-spec.md), "How the register works"
 - [Zod documentation](https://zod.dev/)
