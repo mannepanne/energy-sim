@@ -174,6 +174,11 @@ describe('loadRegister', () => {
     });
   });
 
+  it('fails when validUntil is not a date or comes before lastChecked', () => {
+    expectProblem([fixedRow({ validUntil: '2026-02-30' })], 'fabric.fixed', 'validUntil', 'valid ISO date');
+    expectProblem([fixedRow({ lastChecked: '2026-10-17', validUntil: '2026-10-16' })], 'fabric.fixed', 'validUntil', 'must not be before lastChecked');
+  });
+
   it('fails when the id does not start with its section', () => {
     expectProblem([fixedRow({ id: 'geometry.fixed' })], 'geometry.fixed', 'id', 'must start with its section ("fabric.")');
   });
@@ -243,6 +248,12 @@ describe('staleness', () => {
     expect(dueDate({ lastChecked: '2026-10-17', refreshCadence: 'yearly' })).toBe('2027-10-17');
     expect(dueDate({ lastChecked: '2027-01-31', refreshCadence: 1 })).toBe('2027-02-28');
     expect(dueDate({ lastChecked: '2000-01-01', refreshCadence: 'static' })).toBeUndefined();
+  });
+
+  it('falls due on validUntil when that comes before the cadence date', () => {
+    expect(dueDate({ lastChecked: '2026-10-17', refreshCadence: 'quarterly', validUntil: '2026-12-31' })).toBe('2026-12-31');
+    expect(dueDate({ lastChecked: '2026-10-17', refreshCadence: 1, validUntil: '2026-12-31' })).toBe('2026-11-17');
+    expect(dueDate({ lastChecked: '2026-10-17', refreshCadence: 'static', validUntil: '2030-01-01' })).toBe('2030-01-01');
   });
 
   it('lists rows past their due date, and never static rows', () => {

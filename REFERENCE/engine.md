@@ -19,6 +19,9 @@ What phase 1 builds and why is in the [phase 1 spec](../SPECIFICATIONS/01-engine
 | `supply.ts` | Fuel for heat (÷ efficiency or SPF), and the cost of a kWh of heat |
 | `costCarbon.ts` | Annual cost and carbon |
 | `simulate.ts` | `simulate(inputs, preparedWeather, setup)`: one house, one setup, one year |
+| `sampling.ts` | Seeded, stable draws: `drawSamples(rows, plan)`, `sampleOverrides(access, plan)` and the inverse distribution functions |
+| `compare.ts` | `runPaired(access, weather, plan)` runs both setups on the same samples; `compare(run)` gives the bands, the paired difference and the share of wins |
+| `sensitivity.ts` | `sensitivity(access, weather)`: each uncertain row at its low and its high, ranked by its effect on the cost difference |
 | `testing/fixtureRegister.ts` | Test support: builds inline fixture registers, starting from the fixture house below |
 
 ## Running the engine
@@ -144,7 +147,48 @@ With every row at its default (15.7 °C, the main case), on the London typical y
 | Gas boiler | 9,461 kWh | 1,695 kWh | 13,124 kWh | 2,500 kWh | £2,012 | 2,761 kg |
 | Heat pump | 9,461 kWh | 2,243 kWh | 0 | 6,680 kWh | £1,958 | 962 kg |
 
-These are central values only, measured on 18 October 2026 and not pinned by a test: rerun the engine if a price, SPF, carbon or base-use row changes. Ranges, the paired comparison and the sensitivity table come with the phase 1 report. The heat pump's small cost margin sits inside a known low bias on heat pump cost: one calibrated temperature applies to both setups ([#15](https://github.com/mannepanne/energy-sim/issues/15)). Gas use matches the calibration target (see [register.md](./register.md#the-mean-internal-temperature-calibration)).
+These are central values only, measured on 18 October 2026 and not pinned by a test: rerun the engine if a price, SPF, carbon or base-use row changes. The ranges, the paired comparison and the sensitivity table are in the [phase 1 report](../reports/phase-1-london-semi.md). The heat pump's small cost margin sits inside a known low bias on heat pump cost: one calibrated temperature applies to both setups ([#15](https://github.com/mannepanne/energy-sim/issues/15)). Gas use matches the calibration target (see [register.md](./register.md#the-mean-internal-temperature-calibration)).
+
+## Ranges, the paired comparison and sensitivity
+
+The engine turns register ranges into result ranges by sampling. The [phase 1 report](../reports/phase-1-london-semi.md) shows the results.
+
+```typescript
+const weather = prepareWeather(weatherFromSnapshot(snapshot), readInputs(access)); // once
+const run = runPaired(access, weather, { seed: 1, count: 500 }); // optional fourth argument: 'noLoftInsulation'
+const comparison = compare(run); // bands for each setup, the paired difference and the share of wins
+const table = sensitivity(access, weather);
+```
+
+### Sampling
+
+- **What is sampled:** the seven uncertain rows in `UNCERTAIN_ROW_IDS`. Every other row is fixed. The fabric quality factor is one shared multiplier, so fabric uncertainty is not averaged away; the other rows are drawn independently ([#20](https://github.com/mannepanne/energy-sim/issues/20)).
+- **Stable draws:** each value comes from its own uniform number, `u = (hash32("seed|sample|rowId") + 0.5) ÷ 2³²`, so u is never 0 or 1. `hash32` is FNV-1a followed by the murmur3 finaliser, in plain TypeScript, so it runs in the browser too. Because a draw depends only on (seed, sample, row id), adding or reordering rows never moves another row's draws. A test pins some hash values, so a change to the hash fails loudly.
+- **Inverse distribution functions:** a triangular row uses its default as the mode. A lognormal row gives `median × exp(sigma × Φ⁻¹(u))`, clipped to its low and high, with Φ⁻¹ from Acklam's approximation (relative error below 1.2 × 10⁻⁹). A row whose low equals its high always returns its default.
+- **Memory:** `runPaired` keeps only the annual totals for each sample (space heat, hot water, gas, electricity, cost, carbon) in one `Float64Array` per metric. Each full result holds about 350 KB of hourly arrays, so these are dropped straight away.
+- **Speed:** 500 samples × 2 setups take about 0.6 seconds. `npm run bench` times it, and CI fails above 5 seconds.
+
+### Summaries
+
+- **Central** is the run with every row at its default. **Median** and **P10–P90** come from the samples, by linear interpolation between ranked values (Hyndman and Fan's type 7, the default in R and NumPy). The triangular modes are not medians, so the central value can differ from the median, and can even fall outside the band. The report says so when it does.
+- **The paired difference** is gas minus heat pump, sample by sample, for cost and for carbon. Positive means the heat pump is cheaper or emits less.
+- **The share of wins** is the share of samples in which the heat pump costs less. An exact tie counts as half. At 500 samples the 95% margin is about ±4 percentage points, so the report rounds the share to 5% and states the margin.
+
+### Sensitivity
+
+`sensitivity` runs each uncertain row at its low and then its high value, with every other row at its default, for both setups. Rows are ranked by the swing in the cost difference (gas minus heat pump), largest first. Swings within £0.000001 count as a tie and are ordered by row id, so floating-point noise never decides the order. Base electricity use, for example, moves both costs equally and drops out of the difference. A lognormal row's low and high are its clip limits (for the SPF, about its 1st and 99th percentiles), so its row shows an extreme spread.
+
+## The report
+
+`npm run report` writes `reports/phase-1-london-semi.md` from the register and the PVGIS snapshot. The logic is in `scripts/report/build.ts` (`buildReport(register, snapshot, plan)`), and number formatting in `scripts/report/format.ts`.
+
+- **Offline and byte-identical.** It reads only committed files, never the clock or the locale, and writes `\n` line endings. Formatting groups thousands by hand and writes minus as U+2212, so the output does not depend on the machine.
+- **Rounding:** costs to £10, energy to 100 kWh, carbon to 10 kg and shares to 5%.
+- **Method settings:** seed 1 and 500 samples (`REPORT_PLAN`). They are settings of the method, not facts about the house, so they live in code rather than the register.
+- **Data dates:** the register's status counts and check dates, the snapshot's fetch date, and every row that needs refreshing with the date it falls due (see `dueDate` in [register.md](./register.md#integrity-rules)). No "today" is used, so the committed report never goes stale by itself. `npm run report` prints overdue rows as console warnings instead.
+- **The no-loft variant** gets a short section with its own paired run on the same samples. `sensitivity` also takes an optional variant.
+- **CI** regenerates the report and fails if it differs from the committed copy. After changing a register row, run `npm run report` and commit the result.
+- **Unescaped text.** Register and snapshot strings, such as labels and the PVGIS attribution, go into the Markdown as they are. That is safe for committed data. If phase 3 renders them as HTML, they must go through an escaping renderer.
 
 ## Known simplifications
 
@@ -154,4 +198,5 @@ The phase 1 spec lists these as technical debt:
 - fixed prices, fixed weather and an annual average grid carbon factor;
 - one SPF for the year, no heat pump capacity limit and no backup heater;
 - no boiler auxiliary electricity;
-- constant internal gains, and windows split equally over four orientations.
+- constant internal gains, and windows split equally over four orientations;
+- uncertain rows other than the fabric quality factor are sampled independently ([#20](https://github.com/mannepanne/energy-sim/issues/20)).

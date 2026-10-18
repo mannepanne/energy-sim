@@ -6,7 +6,7 @@ The site gives estimates, not financial advice. Its results are never influenced
 
 ## Status
 
-Phase 1 of 4 is under way: a headless TypeScript engine for one house type (a 1930s semi in London), comparing a gas boiler with a heat pump. So far the repository has its tooling, CI, the benchmark (a rough heat-demand estimate checked against the government's Home Energy Model and against measured gas use), the parameter register that holds every number the engine uses, and the hourly engine itself. Uncertainty ranges and the phase 1 report are next. There is no website yet.
+Phase 1 of 4 is under way: a headless TypeScript engine for one house type (a 1930s semi in London), comparing a gas boiler with a heat pump. So far the repository has its tooling, CI, the benchmark (a rough heat-demand estimate checked against the government's Home Energy Model and against measured gas use), the parameter register that holds every number the engine uses, the hourly engine, and seeded uncertainty ranges with a paired comparison and a sensitivity table. The results are in the [phase 1 report](./reports/phase-1-london-semi.md). There is no website yet.
 
 - What the project is: [project outline](./SPECIFICATIONS/ORIGINAL_IDEA/project-outline.md)
 - What phase 1 builds: [phase 1 spec](./SPECIFICATIONS/01-engine-core.md)
@@ -35,18 +35,22 @@ Other commands:
 | `npm run benchmark:tables` | Prints the HEM and measured-data comparison tables |
 | `npm run fetch:pvgis` | Re-fetches the PVGIS weather snapshot for London (needs network access; commit the result) |
 | `npm run calibrate` | Solves the mean internal temperature for the measured-gas target with the hourly engine |
+| `npm run report` | Writes the phase 1 report, `reports/phase-1-london-semi.md` (offline; commit the result) |
+| `npm run bench` | Times 500 samples × 2 setups, and fails above 5 seconds |
 
-GitHub Actions runs the type check, lint and tests with coverage on every pull request.
+GitHub Actions runs the type check, lint, tests with coverage, the report drift check and the bench on every pull request.
 
 ## How the repository is organised
 
 ```
 data/                The parameter register and committed data snapshots
 src/register/        Register schema, loader and typed accessor
-src/engine/          The hourly engine: heat loss, solar gains, demand, supply, cost and carbon
+src/engine/          The hourly engine, plus sampling, the paired comparison and sensitivity
 src/snapshots/       Schemas for the data snapshots
-scripts/             Build-time scripts: the PVGIS fetch, the calibration and the benchmark
+scripts/             Build-time scripts: the PVGIS fetch, the calibration, the report, the bench and the benchmark
+scripts/report/      Builds the phase 1 report
 scripts/benchmark/   Benchmark: rough estimate, HEM run and measured-data comparison
+reports/             Generated reports, committed and checked for drift in CI
 SPECIFICATIONS/      Plans for the current and future phases
 REFERENCE/           How implemented parts work, and decision records
 .claude/             Ways of working with Claude Code

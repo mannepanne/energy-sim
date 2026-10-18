@@ -1,5 +1,5 @@
 # ABOUT: Continuous integration for every pull request and every push to main
-# ABOUT: Runs type checking, lint and tests with coverage thresholds on the Node LTS in .nvmrc
+# ABOUT: Runs type checking, lint, tests with coverage, the report drift check and the bench on the Node LTS in .nvmrc
 
 name: CI
 
@@ -41,8 +41,18 @@ jobs:
       - name: Test with coverage
         run: npm run test:coverage
 
-      # Added in the phase 1 ranges-and-report PR (see SPECIFICATIONS/01-engine-core.md):
-      # - name: Report drift
-      #   run: npm run report && git diff --exit-code reports/
-      # - name: Bench
-      #   run: npm run bench
+      # Regenerates the report offline and fails if it differs from the committed copy,
+      # including a report that was never committed.
+      - name: Report drift
+        run: |
+          npm run report
+          git diff --exit-code reports/
+          if [ -n "$(git status --porcelain reports/)" ]; then
+            git status --porcelain reports/
+            echo "reports/ has uncommitted files: run npm run report and commit the result"
+            exit 1
+          fi
+
+      # 500 samples × 2 setups, outside the coverage run; fails only above 5 seconds.
+      - name: Bench
+        run: npm run bench

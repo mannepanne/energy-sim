@@ -57,6 +57,8 @@ const baseFields = {
   rationale: z.string().min(1).optional(),
   lastChecked: isoDateSchema,
   refreshCadence: refreshCadenceSchema,
+  /** The last day the value applies, such as the end of a price cap period. The row falls due then at the latest. */
+  validUntil: isoDateSchema.optional(),
   overridable: z.boolean(),
   overrideHint: z.string().min(1).nullable(),
   dependsOn: z.array(z.string().min(1)),
@@ -137,6 +139,9 @@ export const registerRowSchema = z
     const issues = [...provenanceIssues(row)];
     const prefix = row.id.split('.')[0];
     if (prefix !== row.section) issues.push({ field: 'id', message: `must start with its section ("${row.section}.")` });
+    if (row.validUntil !== undefined && row.validUntil < row.lastChecked) {
+      issues.push({ field: 'validUntil', message: `(${row.validUntil}) must not be before lastChecked (${row.lastChecked})` });
+    }
     if (row.kind === 'uncertain') issues.push(...uncertainIssues(row));
     if (row.kind === 'profile') issues.push(...profileIssues(row));
     for (const issue of issues) ctx.addIssue({ code: 'custom', path: [issue.field], message: issue.message });

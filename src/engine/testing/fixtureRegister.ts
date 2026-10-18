@@ -5,9 +5,10 @@ import { createAccessor, type RegisterAccessor } from '../../register/access.ts'
 import { ROW_IDS, type RowId } from '../../register/ids.ts';
 import { loadRegister } from '../../register/load.ts';
 import type { Register } from '../../register/schema.ts';
-import { UNCERTAIN_ROW_IDS } from '../inputs.ts';
+import { UNCERTAIN_ROW_IDS, type UncertainRowId } from '../inputs.ts';
 
 const UNCERTAIN_IDS: ReadonlySet<RowId> = new Set<RowId>(UNCERTAIN_ROW_IDS);
+const isUncertain = (id: RowId): id is UncertainRowId => UNCERTAIN_IDS.has(id);
 
 const SERIES_ID: RowId = 'weather.pvgisTypicalYearLondon';
 
@@ -60,7 +61,24 @@ export const FIXTURE_HOUSE: Readonly<Record<Exclude<RowId, typeof SERIES_ID>, nu
 
 export type FixtureValues = Partial<typeof FIXTURE_HOUSE>;
 
-function row(id: RowId, value: number | undefined): Record<string, unknown> {
+/** A range for an uncertain fixture row: triangular with its value as the mode, or lognormal when `sigma` is given. */
+export interface FixtureRange {
+  low: number;
+  high: number;
+  sigma?: number;
+}
+
+export type FixtureRanges = Partial<Record<UncertainRowId, FixtureRange>>;
+
+function uncertainFields(value: number | undefined, range: FixtureRange | undefined): Record<string, unknown> {
+  if (!range) return { default: value, low: value, high: value, distribution: 'triangular' };
+  const { low, high, sigma } = range;
+  return sigma === undefined
+    ? { default: value, low, high, distribution: 'triangular' }
+    : { default: value, low, high, distribution: 'lognormal', median: value, sigma };
+}
+
+function row(id: RowId, value: number | undefined, ranges: FixtureRanges): Record<string, unknown> {
   const section = id.split('.')[0];
   const base = {
     id,
@@ -78,16 +96,19 @@ function row(id: RowId, value: number | undefined): Record<string, unknown> {
   if (id === SERIES_ID) {
     return { ...base, kind: 'series', file: 'data/snapshots/pvgis-tmy-london.json', schema: 'pvgis-tmy', columns: ['T2m'] };
   }
-  if (UNCERTAIN_IDS.has(id)) return { ...base, kind: 'uncertain', default: value, low: value, high: value, distribution: 'triangular' };
+  if (isUncertain(id)) return { ...base, kind: 'uncertain', ...uncertainFields(value, ranges[id]) };
   return { ...base, kind: 'fixed', value };
 }
 
-/** A validated register holding every row id: the fixture house, with `values` replacing any of its numbers. */
-export function fixtureRegister(values: FixtureValues = {}): Register {
+/**
+ * A validated register holding every row id: the fixture house, with `values` replacing any of its numbers.
+ * Uncertain rows have no range (low = high = default) unless `ranges` gives one.
+ */
+export function fixtureRegister(values: FixtureValues = {}, ranges: FixtureRanges = {}): Register {
   const merged: Record<string, number> = { ...FIXTURE_HOUSE, ...values };
-  return loadRegister({ rows: ROW_IDS.map((id) => row(id, merged[id])) });
+  return loadRegister({ rows: ROW_IDS.map((id) => row(id, merged[id], ranges)) });
 }
 
-export function fixtureAccessor(values: FixtureValues = {}): RegisterAccessor {
-  return createAccessor(fixtureRegister(values));
+export function fixtureAccessor(values: FixtureValues = {}, ranges: FixtureRanges = {}): RegisterAccessor {
+  return createAccessor(fixtureRegister(values, ranges));
 }
