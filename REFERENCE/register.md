@@ -16,7 +16,7 @@ Every number the engine uses comes from one file, [`data/register.json`](../data
 | `src/register/access.ts` | `createAccessor(register)`: typed reads that throw on an unknown id or the wrong kind |
 | `src/snapshots/pvgisSchema.ts` | The snapshot schema and `loadPvgisSnapshot(parsed)` |
 | `scripts/fetch-pvgis.ts`, `scripts/pvgis/trim.ts` | Fetch, trim and write the PVGIS snapshot |
-| `scripts/benchmark/calibration.ts` | The provisional calibration of the mean internal temperature |
+| `scripts/calibration/meanInternalTemperature.ts`, `scripts/calibrate.ts` | The calibration of the mean internal temperature (`npm run calibrate`) |
 
 ## Reading the register
 
@@ -75,7 +75,7 @@ Cross-row rules (duplicates, dependencies) run only once every row is valid on i
 1. Add the row to `data/register.json`, with a source or a rationale, and set `lastChecked` to the day you checked it.
 2. Add its id to `ROW_IDS` in `src/register/ids.ts`. The parity test fails until the two match.
 3. Fill in `dependsOn` with the rows its value was derived from.
-4. If you change a geometry, fabric, internal gains, boiler or hot water row, run the tests: the calibration test fails if the mean internal temperature no longer hits its target, and the row then needs re-solving (see below). If you change floor area, storey height, perimeter, window or door area, update the derived geometry rows too; a test re-derives them.
+4. If you change a row the engine reads for the gas setup (weather, geometry, fabric, gains, boiler or hot water), run the tests: the calibration test fails if the mean internal temperature no longer hits its target, and the row then needs re-solving with `npm run calibrate` (see below). If you change floor area, storey height, perimeter, window or door area, update the derived geometry rows too; a test re-derives them.
 
 ## The phase 1 rows
 
@@ -83,11 +83,11 @@ The rows describe one archetype: a 1930–49 semi in London, about 90 m², two s
 
 | Section | Rows |
 | --- | --- |
-| weather | The PVGIS typical year (series); an outdoor-temperature offset (0 K, for tests) |
+| weather | The PVGIS typical year (series); an outdoor-temperature offset (0 K, for tests); the minute past each hour that the irradiance values describe (10) |
 | geometry | Floor area, storey height, heated volume, exposed perimeter, window, door, wall, roof and ground floor areas |
 | fabric | U-values for walls, party wall (0), windows, door, roof (main case and no-insulation variant) and ground floor; air change rate; the uncertain fabric quality factor (0.75–1.15) |
-| gains | Internal gains (uncertain, 350–550 W); window g-value, frame factor and solar access factor |
-| heating | Mean internal temperature (calibrated, see below); boiler seasonal efficiency (0.80–0.89); heat pump SPF (lognormal, median 2.8, sigma 0.145, clipped to 2.0–4.0, including hot water) |
+| gains | Internal gains (uncertain, 350–550 W); window g-value, frame factor and solar access factor; ground reflectance (0.2) |
+| heating | Mean internal temperature (15.7 °C, calibrated, see below); boiler seasonal efficiency (0.80–0.89); heat pump SPF (lognormal, median 2.8, sigma 0.145, clipped to 2.0–4.0, including hot water) |
 | hotWater | Litres a day (uncertain, 70–140); delivery and cold-feed temperatures; cylinder standing loss (heat pump setup only) |
 | prices | Ofgem price cap, GB average by Direct Debit, 1 October–31 December 2026, checked on 17 October 2026 |
 | carbon | Natural gas factor (gross CV; to verify); grid electricity factor 0.14396 kgCO₂e/kWh (DESNZ 2026 set, electricity consumed, including transmission and distribution losses) |
@@ -105,9 +105,10 @@ The benchmark found that the method agrees with HEM, but that both models predic
 
 - **What the row means:** a whole-house **air** temperature under continuous heating. It applies to both setups ("the same household, different kit"). It may absorb fabric error as well as heating behaviour. The row's rationale states all three points, and cites NEED as its source.
 - **The target:** the archetype's central annual gas use is 13,200 kWh. That is space heat plus hot water, divided by the boiler efficiency, with no cylinder loss for the combi. 13,200 kWh is the midpoint of NEED's readings A and C. The result must stay within those readings, 10,980–15,433 kWh. The target was fixed before the engine existed.
-- **The method:** solve for the temperature at which gas use equals the target, using every other row at its default.
-- **Provisional value: 16.0 °C.** `scripts/benchmark/calibration.ts` solves it with the benchmark's rough monthly method on the register's own rows. It uses Heathrow's 1991–2020 degree days and a constant 250 W of solar gains. The low and high (14.8 and 17.1 °C) are the temperatures that reproduce readings A and C by the same method. They describe uncertainty about the typical home, not the spread between households.
-- **Final value:** the engine PR re-solves the temperature with the hourly engine on the PVGIS year, and replaces the provisional values. `calibration.test.ts` checks that the provisional value still matches the register, so drift in the geometry, fabric, internal gains, boiler or hot water rows is caught. The window g-value, frame factor and solar access rows are not covered, because the provisional solve uses a constant 250 W of solar gains.
+- **The method:** solve for the temperature at which the hourly engine's central gas use equals the target, on the PVGIS year, with every other row at its default. `npm run calibrate` prints the solved values; they are copied into the row by hand, rounded to 0.1 °C.
+- **The value: 15.7 °C** (solved 15.74 °C on 18 October 2026), giving 13,124 kWh of central gas use. The low and high (14.5 and 16.8 °C) are the temperatures that reproduce readings A and C by the same method. They describe uncertainty about the typical home, not the spread between households.
+- **The drift check:** `scripts/calibration/meanInternalTemperature.test.ts` re-solves the temperature on the real register and snapshot. It fails if the row's default, low or high is more than 0.1 °C from the solved value, or if central gas use is more than 150 kWh from the target. So a change to any row the gas setup reads, including the window and weather rows, is caught once it moves the result by more than that.
+- **History:** the register PR set a provisional 16.0 °C (14.8–17.1) with the benchmark's rough monthly method, which used Heathrow degree days and a constant 250 W of solar gains. The hourly re-solve replaced it, and the rough-method solver was removed, so only one calibration path remains.
 
 ## The PVGIS snapshot
 

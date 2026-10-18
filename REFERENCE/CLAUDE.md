@@ -14,6 +14,11 @@ Testing philosophy, where tests live (next to the code), Vitest set-up, coverage
 
 Row kinds and fields, the integrity rules and their messages, the typed accessor, the phase 1 rows, the mean internal temperature calibration, and the PVGIS snapshot format.
 
+### [engine.md](./engine.md)
+**When to read:** Changing the physics, reading engine results, adding an engine input, or checking how a number is calculated.
+
+The hourly engine's files and API, the heat loss, space heat, solar, hot water, supply, cost and carbon formulas, the hand-calculated fixture house, and the checks against Duffie and Beckman and HEM.
+
 ### [environment-setup.md](./environment-setup.md)
 **When to read:** Setting up local development, configuring secrets, or deploying to production.
 

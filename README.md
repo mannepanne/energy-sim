@@ -6,12 +6,13 @@ The site gives estimates, not financial advice. Its results are never influenced
 
 ## Status
 
-Phase 1 of 4 is under way: a headless TypeScript engine for one house type (a 1930s semi in London), comparing a gas boiler with a heat pump. So far the repository has its tooling, CI, the benchmark (a rough heat-demand estimate checked against the government's Home Energy Model and against measured gas use), and the parameter register that holds every number the engine will use. The engine itself is next. There is no website yet.
+Phase 1 of 4 is under way: a headless TypeScript engine for one house type (a 1930s semi in London), comparing a gas boiler with a heat pump. So far the repository has its tooling, CI, the benchmark (a rough heat-demand estimate checked against the government's Home Energy Model and against measured gas use), the parameter register that holds every number the engine uses, and the hourly engine itself. Uncertainty ranges and the phase 1 report are next. There is no website yet.
 
 - What the project is: [project outline](./SPECIFICATIONS/ORIGINAL_IDEA/project-outline.md)
 - What phase 1 builds: [phase 1 spec](./SPECIFICATIONS/01-engine-core.md)
 - The benchmark and its decision: [scripts/benchmark/](./scripts/benchmark/README.md)
 - The parameter register: [REFERENCE/register.md](./REFERENCE/register.md)
+- How the engine works: [REFERENCE/engine.md](./REFERENCE/engine.md)
 
 ## Getting started
 
@@ -33,6 +34,7 @@ Other commands:
 | `npm run benchmark:hem-input` | Writes the Home Energy Model input files for the benchmark |
 | `npm run benchmark:tables` | Prints the HEM and measured-data comparison tables |
 | `npm run fetch:pvgis` | Re-fetches the PVGIS weather snapshot for London (needs network access; commit the result) |
+| `npm run calibrate` | Solves the mean internal temperature for the measured-gas target with the hourly engine |
 
 GitHub Actions runs the type check, lint and tests with coverage on every pull request.
 
@@ -41,15 +43,14 @@ GitHub Actions runs the type check, lint and tests with coverage on every pull r
 ```
 data/                The parameter register and committed data snapshots
 src/register/        Register schema, loader and typed accessor
+src/engine/          The hourly engine: heat loss, solar gains, demand, supply, cost and carbon
 src/snapshots/       Schemas for the data snapshots
-scripts/             Build-time scripts: the PVGIS fetch and the benchmark
+scripts/             Build-time scripts: the PVGIS fetch, the calibration and the benchmark
 scripts/benchmark/   Benchmark: rough estimate, HEM run and measured-data comparison
 SPECIFICATIONS/      Plans for the current and future phases
 REFERENCE/           How implemented parts work, and decision records
 .claude/             Ways of working with Claude Code
 ```
-
-The engine (`src/engine/`) arrives in the next phase 1 pull request.
 
 ## Data and privacy
 

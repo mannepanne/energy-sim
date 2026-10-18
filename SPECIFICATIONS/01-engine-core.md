@@ -24,12 +24,12 @@ Background: [project-outline.md](./ORIGINAL_IDEA/project-outline.md) (scope and 
 - [x] **The register schema**, with typed row kinds, and the single register data file validated against it. *(Done: see [register.md](../REFERENCE/register.md).)*
 - [x] **Register rows** for everything phase 1 uses (see "Register contents"), each with a source or a stated rationale. *(Done, with a provisional mean internal temperature that the engine PR re-solves. Still open, and tracked as `technical-debt` issues: the ground floor U-value working, the 2026 gas carbon factor, the line-by-line check of the RdSAP rows, and the MCS heat loss cross-check.)*
 - [x] **A build-time PVGIS snapshot** for London, with its own validated schema. *(Done: see the PVGIS section of [register.md](../REFERENCE/register.md#the-pvgis-snapshot).)*
-- [ ] **The hourly engine:** geometry and heat loss, internal and solar gains, space heat at a mean internal temperature, hot water, heat supply, cost and carbon, over 8,760 hours. The engine PR also re-solves the mean internal temperature hourly on the PVGIS year, then removes or repoints the provisional solver in `scripts/benchmark/calibration.ts` so only one calibration path remains.
+- [x] **The hourly engine:** geometry and heat loss, internal and solar gains, space heat at a mean internal temperature, hot water, heat supply, cost and carbon, over 8,760 hours. The engine PR also re-solves the mean internal temperature hourly on the PVGIS year, then removes or repoints the provisional solver in `scripts/benchmark/calibration.ts` so only one calibration path remains. *(Done: see [engine.md](../REFERENCE/engine.md). The HEM check gives 12,847 kWh, 6.0% below HEM. The temperature re-solves to 15.7 °C (14.5–16.8) in `scripts/calibration/`, and the provisional solver is removed.)*
 - [ ] **Paired, seeded sampling** for uncertainty bands, and paired comparison of two setups.
 - [ ] **A sensitivity table:** each uncertain row run at its low and high value, ranked by effect.
 - [ ] **A generated report**, `reports/phase-1-london-semi.md`, committed to the repo and checked for drift in CI.
 - [x] **The two ADRs** (client-side snapshots, register format), written alongside this spec.
-- [ ] **Tests**, plus `REFERENCE/engine.md` and `REFERENCE/register.md`.
+- [ ] **Tests**, plus `REFERENCE/engine.md` and `REFERENCE/register.md`. *(Physics tests, `engine.md` and `register.md` done; the sampling tests come with PR 5.)*
 
 ### Out of scope (phase 2 or later)
 - The heat pump COP curve versus outdoor temperature, flow temperature, and fitting either to Electrification of Heat data.
@@ -218,12 +218,15 @@ src/
   │   └── *.test.ts
   ├── engine/
   │   ├── constants.ts              # physical constants only
+  │   ├── inputs.ts                 # reads every input through the accessor
+  │   ├── weather.ts                # snapshot to typed arrays; precomputed wall irradiance
   │   ├── geometry.ts               # areas, volume, H
   │   ├── solar.ts                  # solar position, vertical irradiance, gains
   │   ├── demand.ts                 # space heat and hot water, hourly
   │   ├── supply.ts                 # boiler and heat pump
   │   ├── costCarbon.ts             # tariffs and carbon
   │   ├── simulate.ts               # one house, one setup, one year
+  │   ├── testing/fixtureRegister.ts  # inline fixture registers for tests
   │   ├── sampling.ts               # hashed, seeded draws; inverse distribution functions
   │   ├── compare.ts                # paired comparison and share of wins
   │   ├── sensitivity.ts            # one-row-at-a-time table
@@ -233,8 +236,9 @@ scripts/
   ├── fetch-pvgis.ts                # writes the snapshot
   ├── pvgis/trim.ts                 # trims and validates the PVGIS response
   ├── report.ts                     # reads files, runs the engine, writes the report
+  ├── calibrate.ts, calibration/    # solves the mean internal temperature with the hourly engine
   ├── bench.ts                      # timing check, outside the coverage run
-  └── benchmark/                    # rough calculation, HEM input, notes and the provisional calibration (calibration.ts)
+  └── benchmark/                    # rough calculation, HEM input and notes
 reports/
   └── phase-1-london-semi.md        # generated and committed
 .github/workflows/ci.yml

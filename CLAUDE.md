@@ -39,7 +39,7 @@ When asked to remember anything, add project memory in this CLAUDE.md (project r
 - Ofgem price cap; Octopus public tariff API (phase 2)
 - NESO carbon intensity API (phase 2)
 
-**Current Status:** Phase 1 under way. Tooling, CI, the benchmark ([scripts/benchmark/](./scripts/benchmark/README.md)) and the register ([register.md](./REFERENCE/register.md)) are done. The register holds the phase 1 rows, the PVGIS London snapshot and a provisional mean internal temperature calibrated to NEED; the engine PR finalises it. The engine is next.
+**Current Status:** Phase 1 under way. Tooling, CI, the benchmark ([scripts/benchmark/](./scripts/benchmark/README.md)), the register ([register.md](./REFERENCE/register.md)) and the hourly engine ([engine.md](./REFERENCE/engine.md)) are done. The engine passes the HEM check, and the mean internal temperature is calibrated hourly to NEED (15.7 °C). Sampling, sensitivity and the report (PR 5) are next.
 
 ## Implementation phases
 
@@ -50,7 +50,7 @@ Development is organised into numbered phases with clear deliverables, testing r
 3. Phase 3: v1 website and beta launch - form, 2D comparison, hosting; launches as a proof-of-concept beta, with validation after launch (spec to be written)
 4. Phase 4: 3D floating-island street - the committed next step after v1 (spec to be written)
 
-**Current phase:** Phase 1, engine core. Tooling, the benchmark and the register are done; the engine PR is next
+**Current phase:** Phase 1, engine core. Tooling, the benchmark, the register and the engine are done; ranges and the report (PR 5) are next
 
 ### SPECIFICATIONS/
 - **Implementation phases** (numbered files) - Active work-in-progress
@@ -64,7 +64,7 @@ How-it-works documentation for implemented features:
 - [troubleshooting.md](./REFERENCE/troubleshooting.md) - Common issues and solutions
 - [TEMPLATE-UPDATES/](./REFERENCE/TEMPLATE-UPDATES/) - Migration packets for rolling out template improvements to derivative projects
 - [register.md](./REFERENCE/register.md) - The parameter register, its integrity rules, the calibration and the PVGIS snapshot
-- engine.md (added in phase 1)
+- [engine.md](./REFERENCE/engine.md) - The hourly engine: physics, inputs, the fixture house and the HEM check
 
 *Note: Keep CLAUDE.md files short (<300 lines). Break details into separate reference files with succinct summaries. CLAUDE.md files work as "library index" to find context when needed, minimising token usage.*
 
@@ -133,6 +133,7 @@ npm run benchmark:rough   # Benchmark step 1: rough heat-demand estimate
 npm run benchmark:hem-input  # Benchmark step 2: write the HEM input files
 npm run benchmark:tables     # Benchmark steps 2–3: print the comparison tables
 npm run fetch:pvgis          # Re-fetch the PVGIS London snapshot (network; commit the result)
+npm run calibrate            # Solve the mean internal temperature for the NEED gas target
 ```
 
 Tests sit next to the code they test (`*.test.ts`), as the phase 1 spec lays out.
