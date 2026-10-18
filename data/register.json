@@ -37,6 +37,21 @@
       "value": 0
     },
     {
+      "id": "weather.irradianceSampleMinute",
+      "kind": "fixed",
+      "section": "weather",
+      "label": "Minutes past the hour at which the snapshot's irradiance values apply",
+      "unit": "minutes",
+      "status": "approximate",
+      "rationale": "The engine places the sun at this time within each UTC hour when it splits irradiance onto walls. The PVGIS typical year labels each hour HH:00, but its SARAH3 satellite values describe about HH:10. Checked on the snapshot on 18 October 2026: global horizontal should equal beam normal × cos(zenith) + diffuse horizontal, and the mean absolute mismatch, as a share of annual global irradiance, is 1.5% with the sun at HH:00, 0.24% at HH:10 and 2.6% at HH:30. A test repeats this check.",
+      "lastChecked": "2026-10-18",
+      "refreshCadence": "static",
+      "overridable": false,
+      "overrideHint": null,
+      "dependsOn": ["weather.pvgisTypicalYearLondon"],
+      "value": 10
+    },
+    {
       "id": "geometry.totalFloorArea",
       "kind": "fixed",
       "section": "geometry",
@@ -417,6 +432,21 @@
       "value": 0.77
     },
     {
+      "id": "gains.groundReflectance",
+      "kind": "fixed",
+      "section": "gains",
+      "label": "Ground reflectance (albedo) seen by the walls",
+      "unit": "ratio",
+      "status": "approximate",
+      "rationale": "The conventional value for snow-free ground in the isotropic-sky model, which the engine uses to put irradiance on the walls. A wall sees half the ground, so it receives 0.1 × global horizontal irradiance by reflection. Grass and paving range from about 0.1 to 0.3.",
+      "lastChecked": "2026-10-18",
+      "refreshCadence": "static",
+      "overridable": false,
+      "overrideHint": null,
+      "dependsOn": [],
+      "value": 0.2
+    },
+    {
       "id": "heating.meanInternalTemperature",
       "kind": "uncertain",
       "section": "heating",
@@ -427,8 +457,8 @@
         "title": "DESNZ National Energy Efficiency Data-Framework (NEED) 2026 consumption data tables",
         "url": "https://www.gov.uk/government/statistics/national-energy-efficiency-data-framework-need-consumption-data-tables-2026"
       },
-      "rationale": "An air temperature, not an operative one. Calibrated so the archetype's central annual gas use (space heat plus hot water, divided by heating.boilerSeasonalEfficiency, with hot water from the hotWater rows and no cylinder loss for the combi) is 13,200 kWh, the midpoint of NEED's readings for comparable homes; the result must stay within their 10,980–15,433 kWh range. The target was fixed on 17 October 2026, before the engine existed. PROVISIONAL: 16.0 °C solves that target with the benchmark's rough monthly method (Heathrow 1991–2020 degree days, a constant 250 W of solar gains, this register's geometry, fabric, gains, boiler and hot water rows); the engine PR re-solves it on the hourly PVGIS year and replaces it. The low and high (14.8 and 17.1 °C) are the temperatures that reproduce NEED's readings A (10,980 kWh) and C (15,433 kWh) by the same method: they describe uncertainty about the typical home, not the spread between households. dependsOn lists the inputs of the hourly re-solve; the provisional solve used Heathrow degree days and a constant 250 W of solar gains in place of the PVGIS year and the window rows. The calibration may absorb fabric error from pessimistic RdSAP U-values as well as heating behaviour. It comes from gas-heated homes and applies to both setups, gas and heat pump ('the same household, different kit'); heat pump households often heat for longer, which biases the heat pump's running cost low.",
-      "lastChecked": "2026-10-17",
+      "rationale": "An air temperature, not an operative one. Calibrated so the archetype's central annual gas use (space heat plus hot water, divided by heating.boilerSeasonalEfficiency, with hot water from the hotWater rows and no cylinder loss for the combi) is 13,200 kWh, the midpoint of NEED's readings for comparable homes; the result must stay within their 10,980–15,433 kWh range. The target was fixed on 17 October 2026, before the engine existed. 15.7 °C solves that target with the hourly engine on the PVGIS typical year, with every other row at its default (npm run calibrate; solved 15.74 °C on 18 October 2026, rounded to 0.1 °C). The low and high (14.5 and 16.8 °C) are the temperatures that reproduce NEED's readings A (10,980 kWh) and C (15,433 kWh) by the same method: they describe uncertainty about the typical home, not the spread between households. The calibration may absorb fabric error from pessimistic RdSAP U-values as well as heating behaviour. It comes from gas-heated homes and applies to both setups, gas and heat pump ('the same household, different kit'); heat pump households often heat for longer, which biases the heat pump's running cost low.",
+      "lastChecked": "2026-10-18",
       "refreshCadence": "static",
       "overridable": true,
       "overrideHint": "Lower if you heat only some rooms or only part of the day; higher if you keep the whole house warm all day.",
@@ -451,14 +481,16 @@
         "gains.windowGValue",
         "gains.windowFrameFactor",
         "gains.solarAccessFactor",
+        "gains.groundReflectance",
+        "weather.irradianceSampleMinute",
         "heating.boilerSeasonalEfficiency",
         "hotWater.litresPerDay",
         "hotWater.deliveryTemperature",
         "hotWater.coldFeedTemperature"
       ],
-      "default": 16,
-      "low": 14.8,
-      "high": 17.1,
+      "default": 15.7,
+      "low": 14.5,
+      "high": 16.8,
       "distribution": "triangular"
     },
     {

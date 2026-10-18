@@ -16,7 +16,8 @@
     "benchmark:rough": "tsx scripts/benchmark-rough.ts",
     "benchmark:hem-input": "tsx scripts/benchmark-hem-input.ts",
     "benchmark:tables": "tsx scripts/benchmark-tables.ts",
-    "fetch:pvgis": "tsx scripts/fetch-pvgis.ts"
+    "fetch:pvgis": "tsx scripts/fetch-pvgis.ts",
+    "calibrate": "tsx scripts/calibrate.ts"
   },
   "devDependencies": {
     "@types/node": "^24.19.2",
