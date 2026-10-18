@@ -70,6 +70,8 @@ This is a committed ambition, not a nice-to-have. It is the tool's most shareabl
 
 ## What "good" looks like
 
+The site launches as a public beta to show proof of concept. The checks below on real homes and by experts are goals for after that launch, not conditions for it.
+
 - **Right on the decisions:** for a given house, the tool ranks options the way measured data would. In v1 that means gas boiler versus heat pump, each with and without solar. Ranking insulation and glazing upgrades against solar comes when those upgrades are added.
 - **Honest numbers:** on real homes with known bills (Magnus's and friends'), uncalibrated estimates land within about ±25% for most homes.
 - **Experts agree:** a retrofit assessor or heat pump installer, and Magnus's EV-industry friend, review the register and broadly sign it off.
