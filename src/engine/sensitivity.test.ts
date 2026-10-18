@@ -4,6 +4,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { loadPvgisSnapshot } from '../snapshots/pvgisSchema.ts';
+import { defaultHouse } from './archetypes.ts';
 import { readInputs, UNCERTAIN_ROW_IDS } from './inputs.ts';
 import { sensitivity } from './sensitivity.ts';
 import { simulate } from './simulate.ts';
@@ -28,6 +29,13 @@ describe('sensitivity', () => {
 
   it('has one row for every uncertain row', () => {
     expect(table.map((row) => row.id).toSorted()).toEqual(UNCERTAIN_ROW_IDS.toSorted());
+  });
+
+  it('runs a house other than the default when given one', () => {
+    const house = { ...defaultHouse(access, 'semi1930s'), loft: 'none' as const };
+    const noLoft = sensitivity(access, weather, house).find((row) => row.id === 'heating.heatPumpSpf')!;
+    const spf = table.find((row) => row.id === 'heating.heatPumpSpf')!;
+    expect(noLoft.low.costPounds.gas).toBeGreaterThan(spf.low.costPounds.gas);
   });
 
   it('runs each row at its low and its high with every other row at its default', () => {

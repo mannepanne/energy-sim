@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { loadPvgisSnapshot } from '../snapshots/pvgisSchema.ts';
 import { HOURS_PER_YEAR } from './constants.ts';
+import { defaultHouse } from './archetypes.ts';
 import { readInputs, type EngineInputs } from './inputs.ts';
 import { simulate } from './simulate.ts';
 import { fixtureAccessor, type FixtureValues } from './testing/fixtureRegister.ts';
@@ -20,6 +21,9 @@ const run = (values: FixtureValues, setup: 'gas' | 'heatPump' = 'gas') => {
   return simulate(inputs, prepareWeather(weather, inputs), setup);
 };
 
+/** The engine's result on the HEM check, pinned so a change to the solar or heat loss method shows up here. */
+const HEM_CHECK_ENGINE_KWH = 12_999;
+
 const sum = (values: Float64Array): number => values.reduce((total, value) => total + value, 0);
 
 /** Constant 5 °C and no sun, so every hour of the fixture house can be worked by hand. */
@@ -34,13 +38,13 @@ describe('the fixture house by hand (REFERENCE/engine.md)', () => {
   const heatPump = simulate(inputs, flatWeather, 'heatPump');
   const hotWaterPerDay = (100 * 4.18 * 40) / 3600;
 
-  it('needs 3.59 kWh of space heat every hour, 31,448.4 kWh a year', () => {
-    expect(gas.annual.spaceHeatKwh).toBeCloseTo(3.59 * 8760, 6);
-    expect(gas.annual.spaceHeatKwh).toBeCloseTo(31_448.4, 6);
+  it('needs 3.275 kWh of space heat every hour, 28,689 kWh a year', () => {
+    expect(gas.annual.spaceHeatKwh).toBeCloseTo(3.275 * 8760, 6);
+    expect(gas.annual.spaceHeatKwh).toBeCloseTo(28_689, 6);
   });
 
   it('gas setup: (space heat + 365 × 4.644 kWh hot water) ÷ 0.8 of gas, and the bill and carbon that follow', () => {
-    const heat = 31_448.4 + 365 * hotWaterPerDay;
+    const heat = 28_689 + 365 * hotWaterPerDay;
     expect(gas.annual.hotWaterKwh).toBeCloseTo(365 * hotWaterPerDay, 6);
     expect(gas.annual.gasKwh).toBeCloseTo(heat / 0.8, 6);
     expect(gas.annual.electricityKwh).toBeCloseTo(2920, 6);
@@ -49,7 +53,7 @@ describe('the fixture house by hand (REFERENCE/engine.md)', () => {
   });
 
   it('heat pump setup: (space heat + hot water + 1.5 kWh a day of cylinder loss) ÷ 2.5, plus base electricity', () => {
-    const heat = 31_448.4 + 365 * (hotWaterPerDay + 1.5);
+    const heat = 28_689 + 365 * (hotWaterPerDay + 1.5);
     expect(heatPump.annual.heatKwh).toBeCloseTo(heat, 6);
     expect(heatPump.annual.gasKwh).toBe(0);
     expect(heatPump.annual.heatingElectricityKwh).toBeCloseTo(heat / 2.5, 6);
@@ -112,34 +116,46 @@ describe('a simulated year', () => {
 });
 
 describe('the HEM check (benchmark archetype at 17.8 °C air on the PVGIS year)', () => {
-  // Copied from scripts/benchmark/draftValues.ts, not imported, so the check stays independent.
-  // Solar access is 1 because the HEM input has no overshading (its windows have `shading: []`);
-  // the g-value 0.63 and frame fraction 0.3 match the HEM windows.
+  // HEM's own inputs, copied from scripts/benchmark/draftValues.ts rather than imported, so the check stays
+  // independent. The engine is given HEM's element areas directly, not derived geometry, so both sides describe
+  // the same house. HEM's input has no party wall loss, no thermal bridging and no curtains, so those are 0 here.
+  // Solar access is 1 because the HEM windows have no shading; the g-value 0.63 and frame factor 0.7 match HEM's
+  // windows, and SAP's 0.9 for non-normal incidence stays, as HEM models the angle of incidence itself.
   const windowAreaM2 = 0.122 * 90 + 6.875;
-  const archetype: FixtureValues = {
-    'geometry.heatedVolume': 90 * 2.5,
-    'geometry.windowArea': windowAreaM2,
-    'geometry.doorArea': 1.85,
-    'geometry.externalWallArea': 20 * 2.5 * 2 - windowAreaM2 - 1.85,
-    'geometry.roofArea': 45,
-    'geometry.groundFloorArea': 45,
+  const access = fixtureAccessor({
     'fabric.wallUValue': 1.5,
     'fabric.windowUValue': 2.8,
+    'fabric.windowCurtainResistance': 0,
     'fabric.doorUValue': 3,
     'fabric.roofUValue': 0.4,
-    'fabric.groundFloorUValue': 0.75,
     'fabric.airChangeRate': 1,
-    'fabric.qualityFactor': 1,
-    'gains.internalGains': 450,
+    'fabric.partyWallUValue': 0,
+    'fabric.thermalBridging': 0,
+    'gains.perFloorArea': 5,
+    'gains.perOccupant': 0,
     'gains.windowGValue': 0.63,
+    'gains.nonNormalIncidenceFactor': 0.9,
     'gains.windowFrameFactor': 0.7,
     'gains.solarAccessFactor': 1,
     'heating.meanInternalTemperature': 17.8,
+  });
+  const inputs: EngineInputs = {
+    ...readInputs(access, { house: { ...defaultHouse(access, 'semi1930s'), floorAreaM2: 90 } }),
+    heatedVolumeM3: 90 * 2.5,
+    externalWallAreaM2: 20 * 2.5 * 2 - windowAreaM2 - 1.85,
+    partyWallAreaM2: 0,
+    windowAreaM2,
+    doorAreaM2: 1.85,
+    roofAreaM2: 45,
+    groundFloorAreaM2: 45,
+    groundFloorUValue: 0.75,
   };
 
   it('gives annual space heat within 10% of HEM’s thermostat-17 run (13,660 kWh)', () => {
-    const result = run(archetype);
+    const result = simulate(inputs, prepareWeather(weather, inputs), 'gas');
+    expect(inputs.internalGainsW).toBe(450);
     expect(result.heatLoss.totalWPerK).toBeCloseTo(302, 0);
+    expect(Math.round(result.annual.spaceHeatKwh)).toBe(HEM_CHECK_ENGINE_KWH);
     expect(Math.abs(result.annual.spaceHeatKwh / 13_660 - 1)).toBeLessThan(0.1);
   });
 });

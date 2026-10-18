@@ -3,7 +3,8 @@
 
 import type { RegisterAccessor } from '../register/access.ts';
 import type { UncertainRow } from '../register/schema.ts';
-import { UNCERTAIN_ROW_IDS, type UncertainOverrides } from './inputs.ts';
+import type { House } from './archetypes.ts';
+import { uncertainDraws, type UncertainOverrides } from './inputs.ts';
 
 /** The fields of an uncertain row that a draw needs. */
 export type UncertainSpec = Pick<UncertainRow, 'id' | 'default' | 'low' | 'high' | 'distribution' | 'median' | 'sigma'>;
@@ -176,8 +177,10 @@ export function correlationSpecs(access: RegisterAccessor): CorrelationSpec[] {
   return access.correlations().map((row) => ({ anchor: row.between[0], partner: row.between[1], value: row.value }));
 }
 
-/** Joint draws of every uncertain row the engine reads, ready to pass to `readInputs` as overrides. */
-export function sampleOverrides(access: RegisterAccessor, plan: SamplingPlan): UncertainOverrides[] {
-  const rows = UNCERTAIN_ROW_IDS.map((id) => ({ ...access.uncertain(id), id }));
-  return drawSamples(rows, plan, correlationSpecs(access));
+/**
+ * Joint draws of every uncertain row and cell the house reads, ready to pass to `readInputs` as overrides.
+ * The draws depend on the house only through which values it reads, so houses that read the same rows share draws.
+ */
+export function sampleOverrides(access: RegisterAccessor, plan: SamplingPlan, house?: House): UncertainOverrides[] {
+  return drawSamples(uncertainDraws(access, house), plan, correlationSpecs(access));
 }

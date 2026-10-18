@@ -3,7 +3,8 @@
 
 import { compare, centralOutsideBand, runPaired, type Band, type Comparison, type Metric, type PairedRun } from '../../src/engine/compare.ts';
 import { heatLoss } from '../../src/engine/geometry.ts';
-import { readInputs, UNCERTAIN_ROW_IDS } from '../../src/engine/inputs.ts';
+import { defaultHouse, REFERENCE_ARCHETYPE, type House } from '../../src/engine/archetypes.ts';
+import { readInputs, uncertainDraws } from '../../src/engine/inputs.ts';
 import type { SamplingPlan } from '../../src/engine/sampling.ts';
 import { sensitivity, type SensitivityRow } from '../../src/engine/sensitivity.ts';
 import type { Setup } from '../../src/engine/simulate.ts';
@@ -67,7 +68,7 @@ function variantSection(comparison: Comparison): string {
   return [
     '## The variant with no loft insulation',
     '',
-    `With no loft insulation (RdSAP’s default for this age band), the house needs more heat: ${kwh(comparison.bands.gas.spaceHeatKwh.central)} of space heat a year, central. Gas minus heat pump running cost is ${pounds(costDifference.central)} central (${range(pounds(costDifference.p10), pounds(costDifference.p90))}), and the heat pump is cheaper in ${share(comparison.shareHeatPumpCheaper)} of samples. The same samples and the same bias (issue 15) apply.`,
+    `With no loft insulation, the house needs more heat: ${kwh(comparison.bands.gas.spaceHeatKwh.central)} of space heat a year, central. Gas minus heat pump running cost is ${pounds(costDifference.central)} central (${range(pounds(costDifference.p10), pounds(costDifference.p90))}), and the heat pump is cheaper in ${share(comparison.shareHeatPumpCheaper)} of samples. The same samples and the same bias (issue 15) apply.`,
   ].join('\n');
 }
 
@@ -147,28 +148,31 @@ export function pricePeriod(access: RegisterAccessor): string {
 
 function houseSection(access: RegisterAccessor): string {
   const inputs = readInputs(access);
-  const fixed = (id: Parameters<RegisterAccessor['fixed']>[0]): number => access.fixed(id).value;
   return [
     '## The house',
     '',
-    `A semi-detached house built 1930–49, in London: ${plainValue(fixed('geometry.totalFloorArea'))} m² over two storeys, unfilled cavity walls, 100 mm of loft insulation and retrofitted double glazing. This is the main case; the variant with no loft insulation has a short section of its own below.`,
+    `A semi-detached house built 1930–49, in London: ${plainValue(inputs.house.floorAreaM2)} m² over two storeys, unfilled cavity walls, 100 mm of loft insulation and double glazing installed before 2002, with ${inputs.house.occupants} occupants. This is the main case; the variant with no loft insulation has a short section of its own below.`,
     '',
-    `- Heat loss coefficient (central): ${wholeNumber(heatLoss(inputs).totalWPerK)} W/K.`,
+    `- Geometry, derived from the floor area and the footprint shape: ${plainValue(Math.round(inputs.exposedPerimeterM * 10) / 10)} m of exposed perimeter, ${plainValue(Math.round(inputs.externalWallAreaM2))} m² of external wall and ${plainValue(Math.round(inputs.windowAreaM2 * 10) / 10)} m² of windows. The ground floor U-value is ${inputs.groundFloorUValue} W/m²K (BS EN ISO 13370, as RdSAP 10 applies it).`,
+    `- Heat loss coefficient (central): ${wholeNumber(heatLoss(inputs).totalWPerK)} W/K, including a party wall and thermal bridging.`,
     `- Mean internal air temperature (central): ${plainValue(inputs.meanInternalTemperatureC)} °C, held continuously.`,
     `- Prices: the Ofgem price cap, GB average by Direct Debit, for ${pricePeriod(access)}. Electricity ${inputs.electricityUnitRatePence}p a kWh and ${inputs.electricityStandingChargePencePerDay}p a day; gas ${inputs.gasUnitRatePence}p a kWh and ${inputs.gasStandingChargePencePerDay}p a day. The heat pump house has no gas supply, so it pays no gas standing charge.`,
     `- Carbon: ${inputs.gasCarbonKgPerKwh} kgCO₂e a kWh of gas and ${inputs.gridCarbonKgPerKwh} kgCO₂e a kWh of grid electricity (annual average).`,
   ].join('\n');
 }
 
-function methodSection(access: RegisterAccessor, run: PairedRun): string {
-  const uncertain = UNCERTAIN_ROW_IDS.map((id) => access.uncertain(id).label);
+function methodSection(register: Register, access: RegisterAccessor, run: PairedRun): string {
+  const uncertain = uncertainDraws(access, run.house).map((draw) => draw.label);
+  const labels = new Map(register.rows.map((row) => [row.id, row.label.toLowerCase()]));
+  const correlations = access.correlations().map((row) => `${labels.get(row.between[0])} and ${labels.get(row.between[1])} (${plainValue(row.value)})`);
   return [
     '## How the ranges are made',
     '',
     `- **Samples:** ${wholeNumber(run.plan.count)} joint samples with seed ${run.plan.seed}. Each sample draws a value for every uncertain row: ${uncertain.join('; ')}. Every other number is fixed.`,
     '- **Stable draws:** each value comes from a hash of the seed, the sample number and the row id, passed through the row’s inverse distribution function. Triangular rows use their default as the mode. The SPF is lognormal and clipped to its low and high.',
     '- **Central** is the run with every row at its default. **Median** and the **10th to 90th percentile** come from the samples (linear interpolation between ranked samples).',
-    '- **Fabric quality** is one shared factor on every U-value and the air change rate. The other rows are drawn independently of each other.',
+    '- **Fabric quality** is one shared factor on every U-value and the air change rate.',
+    `- **Correlated rows:** a Gaussian copula correlates ${correlations.join('; ')}, in normal-score space. The other rows are drawn independently of each other.`,
     '- **Rounding:** costs to £10, energy to 100 kWh, carbon to 10 kg and shares to 5%.',
   ].join('\n');
 }
@@ -227,15 +231,19 @@ const LIMITATIONS = [
   '- **One SPF for the whole year.** The heat pump has no capacity limit and no backup heater; its performance in cold weather is phase 2 work.',
   '- **Fixed prices and one typical weather year** ([issue 16](https://github.com/mannepanne/energy-sim/issues/16)), and an **annual average grid carbon factor** ([issue 17](https://github.com/mannepanne/energy-sim/issues/17)).',
   '- **The boiler’s own pump and fan electricity is left out** ([issue 18](https://github.com/mannepanne/energy-sim/issues/18)).',
-  '- **Uncertain rows other than fabric quality are drawn independently**, so a real link between them (for example, more occupants means more hot water and more internal gains) is not captured ([issue 20](https://github.com/mannepanne/energy-sim/issues/20)).',
+  '- **Only the per-occupant gains and hot water terms are correlated.** Their correlation (0.5) is an estimate with no source. Every other uncertain row is drawn independently.',
   '- **Constant internal gains**, and windows split equally over four orientations.',
-  '- Several register rows still need a line-by-line check against their source ([issue 7](https://github.com/mannepanne/energy-sim/issues/7), [issue 8](https://github.com/mannepanne/energy-sim/issues/8) and [issue 9](https://github.com/mannepanne/energy-sim/issues/9)).',
+  '- The gas carbon factor still needs a line-by-line check against its source ([issue 8](https://github.com/mannepanne/energy-sim/issues/8)).',
 ].join('\n');
+
+/** The house with no loft insulation, the report's variant. */
+export const noLoftInsulation = (house: House): House => ({ ...house, loft: 'none' });
 
 /** The whole report, ending in a single newline. */
 export function buildReport(register: Register, snapshot: PvgisSnapshot, plan: SamplingPlan = REPORT_PLAN): string {
   const access = createAccessor(register);
-  const weather = prepareWeather(weatherFromSnapshot(snapshot), readInputs(access));
+  const house = defaultHouse(access, REFERENCE_ARCHETYPE);
+  const weather = prepareWeather(weatherFromSnapshot(snapshot), readInputs(access, { house }));
   const run = runPaired(access, weather, plan);
   const comparison = compare(run);
   const sections = [
@@ -250,8 +258,8 @@ export function buildReport(register: Register, snapshot: PvgisSnapshot, plan: S
     resultsSection(comparison),
     comparisonSection(comparison, plan.count),
     sensitivitySection(access, sensitivity(access, weather)),
-    variantSection(compare(runPaired(access, weather, plan, 'noLoftInsulation'))),
-    methodSection(access, run),
+    variantSection(compare(runPaired(access, weather, plan, noLoftInsulation(house)))),
+    methodSection(register, access, run),
     benchmarkSection(run.central.gas.gasKwh),
     dataDatesSection(register, snapshot),
     LIMITATIONS,

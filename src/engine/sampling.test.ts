@@ -2,6 +2,7 @@
 // ABOUT: degenerate ranges give the default, and the inverse distribution functions hit their targets
 
 import { describe, expect, it } from 'vitest';
+import { defaultHouse } from './archetypes.ts';
 import { UNCERTAIN_ROW_IDS } from './inputs.ts';
 import {
   correlatedUniform,
@@ -234,5 +235,15 @@ describe('sampleOverrides', () => {
     expect(Object.keys(first!).toSorted()).toEqual(UNCERTAIN_ROW_IDS.toSorted());
     expect(first!['fabric.qualityFactor']).toBe(1);
     expect(first!['heating.heatPumpSpf']).not.toBe(2.5);
+  });
+
+  it('correlates the per-occupant gains and hot water terms through the register’s correlation row', () => {
+    const ranges = { 'gains.perOccupant': { low: 50, high: 150 }, 'hotWater.litresPerOccupant': { low: 10, high: 30 } };
+    const independent = sampleOverrides(fixtureAccessor({}, ranges), { seed: 3, count: 2_000 });
+    const correlated = sampleOverrides(fixtureAccessor({ 'gains.perOccupantHotWaterCorrelation': 0.8 }, ranges), { seed: 3, count: 2_000 }, defaultHouse(fixtureAccessor(), 'semi1930s'));
+    const series = (draws: typeof independent, id: 'gains.perOccupant' | 'hotWater.litresPerOccupant'): number[] => draws.map((draw) => draw[id]!);
+    expect(pearson(series(correlated, 'gains.perOccupant'), series(correlated, 'hotWater.litresPerOccupant'))).toBeGreaterThan(0.7);
+    expect(Math.abs(pearson(series(independent, 'gains.perOccupant'), series(independent, 'hotWater.litresPerOccupant')))).toBeLessThan(0.1);
+    expect(series(correlated, 'gains.perOccupant')).toEqual(series(independent, 'gains.perOccupant'));
   });
 });

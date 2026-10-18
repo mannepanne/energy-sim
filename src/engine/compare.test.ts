@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { loadPvgisSnapshot } from '../snapshots/pvgisSchema.ts';
 import { band, centralOutsideBand, compare, METRICS, pairedDifference, quantile, runPaired, shareHeatPumpCheaper } from './compare.ts';
+import { defaultHouse } from './archetypes.ts';
 import { readInputs } from './inputs.ts';
 import { simulate } from './simulate.ts';
 import { fixtureAccessor, type FixtureRanges } from './testing/fixtureRegister.ts';
@@ -17,11 +18,11 @@ const weather = prepareWeather(rawWeather, readInputs(fixtureAccessor()));
 
 const RANGES: FixtureRanges = {
   'fabric.qualityFactor': { low: 0.75, high: 1.15 },
-  'gains.internalGains': { low: 300, high: 500 },
+  'gains.perOccupant': { low: 70, high: 130 },
   'heating.meanInternalTemperature': { low: 18, high: 21 },
   'heating.boilerSeasonalEfficiency': { low: 0.75, high: 0.85 },
   'heating.heatPumpSpf': { low: 2, high: 3.5, sigma: 0.15 },
-  'hotWater.litresPerDay': { low: 70, high: 140 },
+  'hotWater.litresPerOccupant': { low: 12, high: 30 },
   'electricity.baseUse': { low: 2000, high: 3500 },
 };
 const plan = { seed: 11, count: 40 };
@@ -131,9 +132,10 @@ describe('runPaired', () => {
     expect(comparison.carbonDifference.median).toBe(quantile(pairedDifference(run.samples.gas.carbonKg, run.samples.heatPump.carbonKg), 0.5));
   });
 
-  it('applies the house variant to the central run and every sample', () => {
-    const variant = runPaired(access, weather, plan, 'noLoftInsulation');
-    expect(variant.variant).toBe('noLoftInsulation');
+  it('applies the house to the central run and every sample', () => {
+    const house = { ...defaultHouse(access, 'semi1930s'), loft: 'none' as const };
+    const variant = runPaired(access, weather, plan, house);
+    expect(variant.house).toEqual(house);
     expect(variant.central.gas.spaceHeatKwh).toBeGreaterThan(run.central.gas.spaceHeatKwh);
     variant.samples.gas.spaceHeatKwh.forEach((kwh, sample) => expect(kwh).toBeGreaterThan(run.samples.gas.spaceHeatKwh[sample]!));
   });

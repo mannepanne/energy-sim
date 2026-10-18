@@ -1,7 +1,11 @@
 // ABOUT: Tests for the pre-registered NEED readings and the archetype flag rule
 // ABOUT: Pins the readings, so a change to the pre-registration shows up as a failing test
 
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { ARCHETYPE_KEYS } from '../../src/engine/archetypes.ts';
+import { createAccessor } from '../../src/register/access.ts';
+import { loadRegister } from '../../src/register/load.ts';
 import { archetypeGap, FLAG_THRESHOLD, NEED_READING_INPUTS, needReadings, readingsFrom } from './needReadings.ts';
 
 describe('the pre-registered NEED readings', () => {
@@ -47,5 +51,17 @@ describe('the flag rule', () => {
     expect(archetypeGap(15_001, interval).flagged).toBe(true);
     expect(archetypeGap(7_499, interval).flagged).toBe(true);
     expect(archetypeGap(7_501, interval).flagged).toBe(false);
+  });
+});
+
+describe('agreement with the register', () => {
+  const access = createAccessor(loadRegister(JSON.parse(readFileSync(new URL('../../data/register.json', import.meta.url), 'utf8')) as unknown));
+
+  it('covers every archetype, with the register’s default floor areas and bedroom counts', () => {
+    expect(Object.keys(NEED_READING_INPUTS).toSorted()).toEqual([...ARCHETYPE_KEYS].toSorted());
+    for (const [archetype, inputs] of Object.entries(NEED_READING_INPUTS)) {
+      expect({ archetype, floorArea: access.cellNumber('archetypes.floorArea', archetype) }).toEqual({ archetype, floorArea: inputs.floorAreaM2 });
+      expect({ archetype, bedrooms: access.cellNumber('archetypes.bedrooms', archetype) }).toEqual({ archetype, bedrooms: inputs.bedrooms });
+    }
   });
 });
