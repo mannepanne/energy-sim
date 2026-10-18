@@ -14,11 +14,13 @@ export class RegisterValidationError extends Error {
   }
 }
 
+const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
+
 /** Names the row by its id when the input has one, and always by its position. */
 function describeRow(input: unknown, index: number): string {
-  const rows = (input as { rows?: unknown } | null)?.rows;
+  const rows = isRecord(input) ? input.rows : undefined;
   const row: unknown = Array.isArray(rows) ? rows[index] : undefined;
-  const id = (row as { id?: unknown } | null | undefined)?.id;
+  const id = isRecord(row) ? row.id : undefined;
   return typeof id === 'string' && id !== '' ? `Row "${id}" (rows[${index}])` : `Row rows[${index}]`;
 }
 
@@ -54,7 +56,9 @@ export interface StaleRow {
 export function dueDate(row: Pick<RegisterRow, 'lastChecked' | 'refreshCadence'>): string | undefined {
   if (row.refreshCadence === 'static') return undefined;
   const months = typeof row.refreshCadence === 'number' ? row.refreshCadence : CADENCE_MONTHS[row.refreshCadence];
-  const [year, month, day] = row.lastChecked.split('-').map(Number) as [number, number, number];
+  const year = Number(row.lastChecked.slice(0, 4));
+  const month = Number(row.lastChecked.slice(5, 7));
+  const day = Number(row.lastChecked.slice(8, 10));
   // Clamp to the last day of the target month, so 31 January plus one month is 28 or 29 February.
   const lastDay = new Date(Date.UTC(year, month - 1 + months + 1, 0)).getUTCDate();
   return new Date(Date.UTC(year, month - 1 + months, Math.min(day, lastDay))).toISOString().slice(0, 10);

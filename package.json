@@ -15,7 +15,8 @@
     "test:coverage": "vitest run --coverage",
     "benchmark:rough": "tsx scripts/benchmark-rough.ts",
     "benchmark:hem-input": "tsx scripts/benchmark-hem-input.ts",
-    "benchmark:tables": "tsx scripts/benchmark-tables.ts"
+    "benchmark:tables": "tsx scripts/benchmark-tables.ts",
+    "fetch:pvgis": "tsx scripts/fetch-pvgis.ts"
   },
   "devDependencies": {
     "@types/node": "^24.19.2",
@@ -26,5 +27,8 @@
     "typescript": "7.0.2",
     "vite": "^8.3.4",
     "vitest": "^5.0.5"
+  },
+  "dependencies": {
+    "zod": "4.6.7"
   }
 }

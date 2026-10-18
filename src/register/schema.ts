@@ -21,7 +21,8 @@ export const STATUSES = ['sourced', 'to-verify', 'approximate'] as const;
 export const SNAPSHOT_SCHEMAS = ['pvgis-tmy'] as const;
 
 /** Profile resolutions and the number of values each needs. */
-export const PROFILE_LENGTHS = { 'hour-of-day': 24, month: 12 } as const;
+export const PROFILE_RESOLUTIONS = ['hour-of-day', 'month'] as const;
+export const PROFILE_LENGTHS: Record<(typeof PROFILE_RESOLUTIONS)[number], number> = { 'hour-of-day': 24, month: 12 };
 
 const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
@@ -87,7 +88,7 @@ const profileRowSchema = z.strictObject({
   ...baseFields,
   kind: z.literal('profile'),
   values: z.array(z.number()).min(1),
-  resolution: z.enum(Object.keys(PROFILE_LENGTHS) as [keyof typeof PROFILE_LENGTHS]),
+  resolution: z.enum(PROFILE_RESOLUTIONS),
 });
 
 type Issue = { field: string; message: string };

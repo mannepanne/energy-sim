@@ -14,9 +14,10 @@ export type PvgisColumn = (typeof PVGIS_COLUMNS)[number];
 const PVGIS_TIME = /^(\d{4})(\d{2})(\d{2}):(\d{2})(\d{2})$/;
 
 /** Month, day and hour (UTC) for hour `index` of a non-leap year, as "MM-DD HH". */
+const pad = (value: number): string => String(value).padStart(2, '0');
+
 function expectedHour(index: number): string {
   const date = new Date(Date.UTC(2001, 0, 1) + index * 3_600_000);
-  const pad = (value: number): string => String(value).padStart(2, '0');
   return `${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())} ${pad(date.getUTCHours())}`;
 }
 
