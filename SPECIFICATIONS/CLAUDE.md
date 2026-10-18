@@ -115,13 +115,13 @@ Replace this template guidance with your actual phase list when you:
 
 Development runs in four phases. v1 leads with the numbers, and the 3D street follows once the numbers are trusted. Only the current phase has a full spec file; later phases get theirs when they start.
 
-**Current phase:** Phase 2, complete v1 model (spec to be written). Phase 1 is complete and its spec is archived.
+**Current phase:** Phase 2, complete v1 model (spec written and reviewed; implementation not started). Phase 1 is complete and its spec is archived.
 
 1. **[01-engine-core.md](./ARCHIVE/01-engine-core.md)** (complete, archived 18 October 2026)
    Proves the heat-demand physics and the trust plumbing. A benchmark against HEM or measured data comes first. Then repo tooling and CI, the typed parameter register, and a headless hourly engine for one archetype (a 1930s semi in London), comparing gas with a heat pump on the price cap. Results come with paired uncertainty ranges and a sensitivity table, and the phase ends with a report Magnus can check without running code. Sending it to an outside expert is optional.
 
-2. **Phase 2: complete v1 model** (spec to be written)
-   All RdSAP archetypes and the quick-facts inputs; hourly heat pump behaviour (a COP curve against outdoor temperature, flow temperature, fitting to Electrification of Heat data, a "well-installed" option and sizing); Octopus time-of-use tariffs, regional price-cap rates and a shared price-level scenario; an hourly grid-carbon profile; weather variation between years; solar PV; capital costs, grants and payback.
+2. **[02-complete-v1-model.md](./02-complete-v1-model.md)** (10–14 weeks; spec reviewed and revised)
+   About ten house types with quick facts; gas boiler or heat pump, each with or without solar; a heat pump COP curve anchored on the field SPF; thermal mass and heating schedules, checked against HEM; the London price cap, Octopus Cosy and Agile; costs, the grant and payback under a shared price scenario. Weather variation between years, an hourly grid-carbon profile and heat pump sizing are deferred.
 
 3. **Phase 3: v1 website and beta launch** (spec to be written)
    The input form, the 2D comparison view, "where does this number come from?", the not-advice notice, Cloudflare hosting, cookie-free analytics and an A grade on securityheaders.com. It launches as a public beta, a proof of concept. Validation against real homes and expert review come after launch and do not gate it.
