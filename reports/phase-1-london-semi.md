@@ -104,6 +104,6 @@ The low and high are the ends of each row’s range, not percentiles. For the he
 - **One SPF for the whole year.** The heat pump has no capacity limit and no backup heater; its performance in cold weather is phase 2 work.
 - **Fixed prices and one typical weather year** ([issue 16](https://github.com/mannepanne/energy-sim/issues/16)), and an **annual average grid carbon factor** ([issue 17](https://github.com/mannepanne/energy-sim/issues/17)).
 - **The boiler’s own pump and fan electricity is left out** ([issue 18](https://github.com/mannepanne/energy-sim/issues/18)).
-- **Uncertain rows other than fabric quality are drawn independently**, so a real link between them (for example, more occupants means more hot water and more internal gains) is not captured.
+- **Uncertain rows other than fabric quality are drawn independently**, so a real link between them (for example, more occupants means more hot water and more internal gains) is not captured ([issue 20](https://github.com/mannepanne/energy-sim/issues/20)).
 - **Constant internal gains**, and windows split equally over four orientations.
 - Several register rows still need a line-by-line check against their source ([issues 7, 8 and 9](https://github.com/mannepanne/energy-sim/issues?q=is%3Aissue+label%3Atechnical-debt)).

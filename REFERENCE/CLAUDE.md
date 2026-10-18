@@ -17,7 +17,7 @@ Row kinds and fields, the integrity rules and their messages, the typed accessor
 ### [engine.md](./engine.md)
 **When to read:** Changing the physics, reading engine results, adding an engine input, or checking how a number is calculated.
 
-The hourly engine's files and API, the heat loss, space heat, solar, hot water, supply, cost and carbon formulas, the hand-calculated fixture house, and the checks against Duffie and Beckman and HEM.
+The hourly engine's files and API, the heat loss, space heat, solar, hot water, supply, cost and carbon formulas, the hand-calculated fixture house, the checks against Duffie and Beckman and HEM, the seeded sampling, paired comparison and sensitivity table, and how the phase 1 report is generated.
 
 ### [environment-setup.md](./environment-setup.md)
 **When to read:** Setting up local development, configuring secrets, or deploying to production.
