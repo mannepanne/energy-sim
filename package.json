@@ -19,7 +19,7 @@
     "fetch:pvgis": "tsx scripts/fetch-pvgis.ts"
   },
   "devDependencies": {
-    "@types/node": "^24.19.2",
+    "@types/node": "^26.6.5",
     "@vitest/coverage-v8": "^5.0.5",
     "oxlint": "^1.88.0",
     "oxlint-tsgolint": "^7.0.2004",
