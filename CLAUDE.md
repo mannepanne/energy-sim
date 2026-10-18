@@ -25,7 +25,7 @@ When asked to remember anything, add project memory in this CLAUDE.md (project r
 
 **Stack:**
 - **Language**: TypeScript 7 (strict), Node 24 LTS (pinned in `.nvmrc`)
-- **Engine**: pure TypeScript library with no I/O; register validated with Zod (phase 1, not set up yet)
+- **Engine**: pure TypeScript library with no I/O; the register is validated with Zod ([register.md](./REFERENCE/register.md))
 - **Testing**: Vitest with V8 coverage; Oxlint with type-aware rules; GitHub Actions CI ([ci.yml](./.github/workflows/ci.yml))
 - **Scripts**: TypeScript run with `tsx`, in `scripts/`
 - **Data**: build-time snapshots committed as JSON; no runtime external API calls
@@ -39,7 +39,7 @@ When asked to remember anything, add project memory in this CLAUDE.md (project r
 - Ofgem price cap; Octopus public tariff API (phase 2)
 - NESO carbon intensity API (phase 2)
 
-**Current Status:** Phase 1 under way. Tooling, CI and the benchmark ([scripts/benchmark/](./scripts/benchmark/README.md)) are done: the method agrees with HEM, and the mean internal temperature will be calibrated to measured data. The register and engine are not started.
+**Current Status:** Phase 1 under way. Tooling, CI, the benchmark ([scripts/benchmark/](./scripts/benchmark/README.md)) and the register ([register.md](./REFERENCE/register.md)) are done. The register holds the phase 1 rows, the PVGIS London snapshot and a provisional mean internal temperature calibrated to NEED; the engine PR finalises it. The engine is next.
 
 ## Implementation phases
 
@@ -50,7 +50,7 @@ Development is organised into numbered phases with clear deliverables, testing r
 3. Phase 3: v1 website and launch - form, 2D comparison, hosting, validation gate (spec to be written)
 4. Phase 4: 3D floating-island street - the committed next step after v1 (spec to be written)
 
-**Current phase:** Phase 1, engine core. Tooling and the benchmark are done; the register PR is next
+**Current phase:** Phase 1, engine core. Tooling, the benchmark and the register are done; the engine PR is next
 
 ### SPECIFICATIONS/
 - **Implementation phases** (numbered files) - Active work-in-progress
@@ -63,7 +63,8 @@ How-it-works documentation for implemented features:
 - [environment-setup.md](./REFERENCE/environment-setup.md) - API keys and environment configuration
 - [troubleshooting.md](./REFERENCE/troubleshooting.md) - Common issues and solutions
 - [TEMPLATE-UPDATES/](./REFERENCE/TEMPLATE-UPDATES/) - Migration packets for rolling out template improvements to derivative projects
-- engine.md and register.md (added in phase 1)
+- [register.md](./REFERENCE/register.md) - The parameter register, its integrity rules, the calibration and the PVGIS snapshot
+- engine.md (added in phase 1)
 
 *Note: Keep CLAUDE.md files short (<300 lines). Break details into separate reference files with succinct summaries. CLAUDE.md files work as "library index" to find context when needed, minimising token usage.*
 
@@ -131,6 +132,7 @@ npm run lint              # Oxlint, including type-aware rules
 npm run benchmark:rough   # Benchmark step 1: rough heat-demand estimate
 npm run benchmark:hem-input  # Benchmark step 2: write the HEM input files
 npm run benchmark:tables     # Benchmark steps 2–3: print the comparison tables
+npm run fetch:pvgis          # Re-fetch the PVGIS London snapshot (network; commit the result)
 ```
 
 Tests sit next to the code they test (`*.test.ts`), as the phase 1 spec lays out.
