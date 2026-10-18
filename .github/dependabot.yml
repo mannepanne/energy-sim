@@ -1,12 +1,18 @@
 # ABOUT: Dependabot keeps the GitHub Actions pins and npm dev dependencies current
 # ABOUT: Weekly grouped pull requests, each reviewed like any other change
 
+# Every update waits until the release is 14 days old. Most hijacked or broken releases are caught
+# and pulled within days, so the wait lets others find problems first. Security updates are not
+# delayed: GitHub's cooldown applies to version updates only.
+
 version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 14
     groups:
       actions:
         patterns: ['*']
@@ -15,6 +21,8 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 14
     groups:
       # oxlint-tsgolint is built against one TypeScript version, so the two move together.
       # See REFERENCE/decisions/2026-10-17-typescript-7-with-oxlint.md.

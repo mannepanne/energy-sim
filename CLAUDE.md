@@ -164,6 +164,7 @@ Tests sit next to the code they test (`*.test.ts`), as the phase 1 spec lays out
 - **Neutrality:** results are never influenced by commercial relationships.
 - **Not advice:** the site gives estimates, not financial advice, and must say so.
 - **Brand-neutral** until Magnus has agreed any char.gy involvement with his employer.
+- **New releases wait 14 days.** Dependabot holds version updates until a release is 14 days old (security updates are not delayed). When adding or bumping a dependency by hand, pin the newest release at least 14 days old (`npm view <package> time --json`).
 
 ---
 
