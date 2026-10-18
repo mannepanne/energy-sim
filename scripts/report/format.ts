@@ -35,5 +35,12 @@ export function plainValue(value: number): string {
   return text.startsWith('-') ? `${MINUS}${text.slice(1)}` : text;
 }
 
+/** A fraction as a signed percentage, for example "−15.7%" or "+4.0%". */
+export function signedPercent(fraction: number, places: number): string {
+  const rounded = Number((fraction * 100).toFixed(places));
+  const sign = rounded > 0 ? '+' : rounded < 0 ? MINUS : '';
+  return `${sign}${Math.abs(rounded).toFixed(places)}%`;
+}
+
 /** A number exactly as stored, with U+2212 for minus. */
 export const exactNumber = (value: number): string => String(value).replace('-', MINUS);

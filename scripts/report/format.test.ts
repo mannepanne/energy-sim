@@ -2,7 +2,7 @@
 // ABOUT: Formatting never depends on the machine's locale, so the committed report stays byte-identical
 
 import { describe, expect, it } from 'vitest';
-import { exactNumber, kgCo2e, kwh, plainValue, pounds, roundTo, share, wholeNumber } from './format.ts';
+import { exactNumber, kgCo2e, kwh, plainValue, pounds, roundTo, share, signedPercent, wholeNumber } from './format.ts';
 
 describe('roundTo', () => {
   it('rounds half away from zero, symmetrically for negatives', () => {
@@ -37,6 +37,12 @@ describe('formatters', () => {
     expect(share(0.638)).toBe('65%');
     expect(share(0.5)).toBe('50%');
     expect(share(0.024)).toBe('0%');
+  });
+
+  it('writes signed percentages with U+2212 for minus', () => {
+    expect(signedPercent(-0.1568, 1)).toBe('\u221215.7%');
+    expect(signedPercent(0.04, 1)).toBe('+4.0%');
+    expect(signedPercent(0.00001, 1)).toBe('0.0%');
   });
 
   it('writes row values at their natural precision', () => {

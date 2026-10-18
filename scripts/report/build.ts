@@ -12,9 +12,12 @@ import { createAccessor, type RegisterAccessor } from '../../src/register/access
 import { dueDate } from '../../src/register/load.ts';
 import { STATUSES, type Register } from '../../src/register/schema.ts';
 import type { PvgisSnapshot } from '../../src/snapshots/pvgisSchema.ts';
-import { HEM_RESULTS } from '../benchmark/comparison.ts';
+import { hemResult } from '../benchmark/comparison.ts';
+import { HEM_RUNS } from '../benchmark/hemInput.ts';
+import { gapFromReference } from '../benchmark/needReference.ts';
+import { roughEstimate } from '../benchmark/roughEstimate.ts';
 import { NEED_GAS_RANGE_KWH, NEED_GAS_TARGET_KWH } from '../calibration/meanInternalTemperature.ts';
-import { exactNumber, kgCo2e, kwh, plainValue, pounds, share, wholeNumber } from './format.ts';
+import { exactNumber, kgCo2e, kwh, plainValue, pounds, share, signedPercent, wholeNumber } from './format.ts';
 
 /**
  * The method settings for the committed report. They are not house parameters, so they live here rather than
@@ -34,6 +37,9 @@ const METRIC_ROWS: readonly { metric: Metric; label: string; format: (value: num
   { metric: 'costPounds', label: 'Running cost', format: pounds },
   { metric: 'carbonKg', label: 'Carbon (kgCO₂e)', format: kgCo2e },
 ];
+
+const pence = (value: number): string => `${value.toFixed(2)}p`;
+const air = (celsius: number): string => `${celsius.toFixed(1)} °C`;
 
 const range = (low: string, high: string): string => (low === high ? low : `${low} to ${high}`);
 
@@ -85,7 +91,10 @@ function comparisonSection(comparison: Comparison, count: number): string {
   ].join('\n');
 }
 
-function sensitivitySection(rows: readonly SensitivityRow[]): string {
+function sensitivitySection(access: RegisterAccessor, rows: readonly SensitivityRow[]): string {
+  const inputs = readInputs(access);
+  const gasPence = inputs.gasUnitRatePence / inputs.boilerSeasonalEfficiency;
+  const heatPumpPence = inputs.electricityUnitRatePence / inputs.heatPumpSpf;
   const lines = rows.map((row) => {
     const unit = row.unit === 'ratio' ? '' : ` ${row.unit}`;
     const values = `${plainValue(row.low.value)} to ${plainValue(row.high.value)}${unit}`;
@@ -94,14 +103,21 @@ function sensitivitySection(rows: readonly SensitivityRow[]): string {
   return [
     '## Sensitivity',
     '',
-    'Each uncertain row is run at its low and then its high value, with every other row at its default. The rows are ranked by how much they move the cost difference. A row that moves both setups equally, such as base electricity use, changes both running costs but not the difference.',
+    'Each uncertain row is run at its low and then its high value, with every other row at its default. The rows are ranked by how much they move the cost difference.',
     '',
-    'The low and high are the ends of each row’s range, not percentiles. For the heat pump SPF, they are the clip limits of its lognormal distribution (about its 1st and 99th percentiles), so its row shows an extreme spread.',
+    `At the central values, a kWh of heat costs almost the same from either system: ${pence(gasPence)} from the boiler (${inputs.gasUnitRatePence}p ÷ ${inputs.boilerSeasonalEfficiency}) and ${pence(heatPumpPence)} from the heat pump (${inputs.electricityUnitRatePence}p ÷ ${inputs.heatPumpSpf}). So rows that change how much heat the house needs, such as fabric quality or the temperature, move both running costs by hundreds of pounds but barely move the difference. The difference turns on the SPF and the boiler efficiency, and on the gas standing charge the heat pump house does not pay. Base electricity use moves both setups equally.`,
+    '',
+    'The low and high are the ends of each row’s range, not percentiles. For the heat pump SPF, they are the clip limits of its lognormal distribution, far out in its tails, so its row shows an extreme spread.',
     '',
     '| Row | Low to high | Gas boiler cost | Heat pump cost | Gas minus heat pump |',
     '| --- | --- | ---: | ---: | ---: |',
     ...lines,
   ].join('\n');
+}
+
+/** The price period, taken from the end of the electricity unit rate row's label, so it updates with the row. */
+export function pricePeriod(access: RegisterAccessor): string {
+  return access.fixed('prices.electricityUnitRate').label.split(', ').at(-1)!;
 }
 
 function houseSection(access: RegisterAccessor): string {
@@ -114,7 +130,7 @@ function houseSection(access: RegisterAccessor): string {
     '',
     `- Heat loss coefficient (central): ${wholeNumber(heatLoss(inputs).totalWPerK)} W/K.`,
     `- Mean internal air temperature (central): ${plainValue(inputs.meanInternalTemperatureC)} °C, held continuously.`,
-    `- Prices: the Ofgem price cap, GB average by Direct Debit, 1 October to 31 December 2026. Electricity ${inputs.electricityUnitRatePence}p a kWh and ${inputs.electricityStandingChargePencePerDay}p a day; gas ${inputs.gasUnitRatePence}p a kWh and ${inputs.gasStandingChargePencePerDay}p a day. The heat pump house has no gas supply, so it pays no gas standing charge.`,
+    `- Prices: the Ofgem price cap, GB average by Direct Debit, for ${pricePeriod(access)}. Electricity ${inputs.electricityUnitRatePence}p a kWh and ${inputs.electricityStandingChargePencePerDay}p a day; gas ${inputs.gasUnitRatePence}p a kWh and ${inputs.gasStandingChargePencePerDay}p a day. The heat pump house has no gas supply, so it pays no gas standing charge.`,
     `- Carbon: ${inputs.gasCarbonKgPerKwh} kgCO₂e a kWh of gas and ${inputs.gridCarbonKgPerKwh} kgCO₂e a kWh of grid electricity (annual average).`,
   ].join('\n');
 }
@@ -132,15 +148,27 @@ function methodSection(register: Register, run: PairedRun): string {
   ].join('\n');
 }
 
+function hemRun(name: string): (typeof HEM_RUNS)[number] {
+  const run = HEM_RUNS.find((candidate) => candidate.name === name);
+  if (!run) throw new Error(`No HEM run named "${name}"`);
+  return run;
+}
+
 function benchmarkSection(centralGasKwh: number): string {
-  const hemMain = HEM_RESULTS.main!.spaceHeatKwh;
-  const hem17 = HEM_RESULTS['thermostat-17']!.spaceHeatKwh;
+  const main = hemRun('main');
+  const matched = hemRun('thermostat-17');
+  const rough = roughEstimate(main.options.roofUValueWPerM2K).annualSpaceHeatKwh;
+  const hemMain = hemResult(main);
+  const hemMatched = hemResult(matched);
   return [
     '## Benchmark and calibration',
     '',
-    `- **Against HEM:** the government’s Home Energy Model gives ${wholeNumber(hemMain)} kWh of space heat for this house at its own settings, and ${wholeNumber(hem17)} kWh with its thermostat at 17 °C (about 17.8 °C of air). The engine, run on the same house at 17.8 °C of air, must stay within 10% of the second figure; a test enforces this. The decision rule set in advance was to proceed within 15%.`,
-    `- **Against measured gas use:** comparable homes use ${wholeNumber(NEED_GAS_RANGE_KWH.low)} to ${wholeNumber(NEED_GAS_RANGE_KWH.high)} kWh of gas a year (NEED). The mean internal temperature is calibrated so the central gas use hits the midpoint, ${wholeNumber(NEED_GAS_TARGET_KWH)} kWh. Here it is ${kwh(centralGasKwh)}.`,
-    '- The full write-up is in [scripts/benchmark/README.md](../scripts/benchmark/README.md) and the [calibration ADR](../REFERENCE/decisions/2026-10-17-air-temperature-calibrated-to-need.md).',
+    'The benchmark checked annual **space heat** against the government’s Home Energy Model (HEM), using a rough calculation for the same house, before the engine was built. The rule set in advance: proceed if within 15%, add thermal mass between 15% and 30%, and stop above 30%.',
+    '',
+    `- **The pre-registered check missed the rule.** HEM gave ${kwh(hemMain.spaceHeatKwh)} at its own settings (about ${air(hemMain.meanAirTemperatureWhenHeatingC)} of air), and the rough calculation at 18 °C of air gave ${kwh(rough)}: a gap of ${signedPercent(gapFromReference(rough, hemMain.spaceHeatKwh), 1)}, just outside 15%.`,
+    `- **The rule was amended after seeing that result** (Magnus, 17 October 2026). HEM’s thermostat controls the felt (operative) temperature, which runs below the air temperature, while this engine uses air temperature. So the check compares like with like: at about ${air(hemMatched.meanAirTemperatureWhenHeatingC)} of air, HEM gives ${kwh(hemMatched.spaceHeatKwh)}, a gap of ${signedPercent(gapFromReference(rough, hemMatched.spaceHeatKwh), 1)}. **Decision: proceed with no thermal mass.** A test keeps the engine itself within 10% of that HEM run.`,
+    `- **Both models predict more gas than comparable homes use.** NEED gives ${wholeNumber(NEED_GAS_RANGE_KWH.low)} to ${wholeNumber(NEED_GAS_RANGE_KWH.high)} kWh of gas a year. **Decision: calibrate the mean internal temperature** so the central gas use hits the midpoint, ${wholeNumber(NEED_GAS_TARGET_KWH)} kWh, a target fixed before the engine existed. Here the central gas use is ${kwh(centralGasKwh)}.`,
+    '- The full write-up is in [scripts/benchmark/README.md](../scripts/benchmark/README.md), and the decisions are in the [calibration ADR](../REFERENCE/decisions/2026-10-17-air-temperature-calibrated-to-need.md).',
   ].join('\n');
 }
 
@@ -198,7 +226,7 @@ export function buildReport(register: Register, snapshot: PvgisSnapshot, plan: S
       .join('\n')
       .trimEnd(),
     comparisonSection(comparison, plan.count),
-    sensitivitySection(sensitivity(access, weather)),
+    sensitivitySection(access, sensitivity(access, weather)),
     methodSection(register, run),
     benchmarkSection(run.central.gas.gasKwh),
     dataDatesSection(register, snapshot),

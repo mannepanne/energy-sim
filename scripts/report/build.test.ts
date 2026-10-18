@@ -6,7 +6,8 @@ import { describe, expect, it } from 'vitest';
 import { band } from '../../src/engine/compare.ts';
 import { loadRegister } from '../../src/register/load.ts';
 import { loadPvgisSnapshot } from '../../src/snapshots/pvgisSchema.ts';
-import { buildReport, marginPoints, outsideBandNotes, REPORT_PLAN } from './build.ts';
+import { createAccessor } from '../../src/register/access.ts';
+import { buildReport, marginPoints, outsideBandNotes, pricePeriod, REPORT_PLAN } from './build.ts';
 
 const readJson = (path: string): unknown => JSON.parse(readFileSync(new URL(path, import.meta.url), 'utf8')) as unknown;
 const register = loadRegister(readJson('../../data/register.json'));
@@ -58,6 +59,20 @@ describe('buildReport', () => {
   it('lists every uncertain row in the sensitivity table', () => {
     const rows = report.slice(report.indexOf('## Sensitivity'), report.indexOf('## How the ranges are made'));
     for (const row of register.rows.filter((candidate) => candidate.kind === 'uncertain')) expect(rows).toContain(row.label);
+  });
+
+  it('states the benchmark gaps and the decisions, including that the rule was amended after the result', () => {
+    const benchmark = report.slice(report.indexOf('## Benchmark and calibration'), report.indexOf('## Data dates'));
+    expect(benchmark).toContain('\u221215.7%');
+    expect(benchmark).toContain('\u22124.6%');
+    expect(benchmark).toContain('amended after seeing that result');
+    expect(benchmark).toContain('Decision: proceed with no thermal mass');
+    expect(benchmark).toContain('Decision: calibrate the mean internal temperature');
+  });
+
+  it('takes the price period from the price row’s label', () => {
+    expect(pricePeriod(createAccessor(register))).toBe('1 October–31 December 2026');
+    expect(report).toContain(`for ${pricePeriod(createAccessor(register))}.`);
   });
 
   it('uses 500 samples for the committed report', () => {

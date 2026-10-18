@@ -10,7 +10,7 @@ A semi-detached house built 1930–49, in London: 90 m² over two storeys, unfil
 
 - Heat loss coefficient (central): 302 W/K.
 - Mean internal air temperature (central): 15.7 °C, held continuously.
-- Prices: the Ofgem price cap, GB average by Direct Debit, 1 October to 31 December 2026. Electricity 26.32p a kWh and 54.83p a day; gas 7.97p a kWh and 29.68p a day. The heat pump house has no gas supply, so it pays no gas standing charge.
+- Prices: the Ofgem price cap, GB average by Direct Debit, for 1 October–31 December 2026. Electricity 26.32p a kWh and 54.83p a day; gas 7.97p a kWh and 29.68p a day. The heat pump house has no gas supply, so it pays no gas standing charge.
 - Carbon: 0.18296 kgCO₂e a kWh of gas and 0.14396 kgCO₂e a kWh of grid electricity (annual average).
 
 ## Results for each setup
@@ -52,9 +52,11 @@ Both setups run on the same samples, so each sample compares the same house and 
 
 ## Sensitivity
 
-Each uncertain row is run at its low and then its high value, with every other row at its default. The rows are ranked by how much they move the cost difference. A row that moves both setups equally, such as base electricity use, changes both running costs but not the difference.
+Each uncertain row is run at its low and then its high value, with every other row at its default. The rows are ranked by how much they move the cost difference.
 
-The low and high are the ends of each row’s range, not percentiles. For the heat pump SPF, they are the clip limits of its lognormal distribution (about its 1st and 99th percentiles), so its row shows an extreme spread.
+At the central values, a kWh of heat costs almost the same from either system: 9.38p from the boiler (7.97p ÷ 0.85) and 9.40p from the heat pump (26.32p ÷ 2.8). So rows that change how much heat the house needs, such as fabric quality or the temperature, move both running costs by hundreds of pounds but barely move the difference. The difference turns on the SPF and the boiler efficiency, and on the gas standing charge the heat pump house does not pay. Base electricity use moves both setups equally.
+
+The low and high are the ends of each row’s range, not percentiles. For the heat pump SPF, they are the clip limits of its lognormal distribution, far out in its tails, so its row shows an extreme spread.
 
 | Row | Low to high | Gas boiler cost | Heat pump cost | Gas minus heat pump |
 | --- | --- | ---: | ---: | ---: |
@@ -76,9 +78,12 @@ The low and high are the ends of each row’s range, not percentiles. For the he
 
 ## Benchmark and calibration
 
-- **Against HEM:** the government’s Home Energy Model gives 15,455 kWh of space heat for this house at its own settings, and 13,660 kWh with its thermostat at 17 °C (about 17.8 °C of air). The engine, run on the same house at 17.8 °C of air, must stay within 10% of the second figure; a test enforces this. The decision rule set in advance was to proceed within 15%.
-- **Against measured gas use:** comparable homes use 10,980 to 15,433 kWh of gas a year (NEED). The mean internal temperature is calibrated so the central gas use hits the midpoint, 13,200 kWh. Here it is 13,100 kWh.
-- The full write-up is in [scripts/benchmark/README.md](../scripts/benchmark/README.md) and the [calibration ADR](../REFERENCE/decisions/2026-10-17-air-temperature-calibrated-to-need.md).
+The benchmark checked annual **space heat** against the government’s Home Energy Model (HEM), using a rough calculation for the same house, before the engine was built. The rule set in advance: proceed if within 15%, add thermal mass between 15% and 30%, and stop above 30%.
+
+- **The pre-registered check missed the rule.** HEM gave 15,500 kWh at its own settings (about 18.8 °C of air), and the rough calculation at 18 °C of air gave 13,000 kWh: a gap of −15.7%, just outside 15%.
+- **The rule was amended after seeing that result** (Magnus, 17 October 2026). HEM’s thermostat controls the felt (operative) temperature, which runs below the air temperature, while this engine uses air temperature. So the check compares like with like: at about 17.8 °C of air, HEM gives 13,700 kWh, a gap of −4.6%. **Decision: proceed with no thermal mass.** A test keeps the engine itself within 10% of that HEM run.
+- **Both models predict more gas than comparable homes use.** NEED gives 10,980 to 15,433 kWh of gas a year. **Decision: calibrate the mean internal temperature** so the central gas use hits the midpoint, 13,200 kWh, a target fixed before the engine existed. Here the central gas use is 13,100 kWh.
+- The full write-up is in [scripts/benchmark/README.md](../scripts/benchmark/README.md), and the decisions are in the [calibration ADR](../REFERENCE/decisions/2026-10-17-air-temperature-calibrated-to-need.md).
 
 ## Data dates
 
