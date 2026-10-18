@@ -15,6 +15,8 @@ export default defineConfig({
     typeAware: true,
   },
   rules: {
+    // Test helpers whose names start with "expect" make assertions themselves.
+    'vitest/expect-expect': ['error', { assertFunctionNames: ['expect', 'expect*'] }],
     // The type-aware rules in typescript-eslint's recommended-type-checked set.
     'typescript/await-thenable': 'error',
     'typescript/no-array-delete': 'error',

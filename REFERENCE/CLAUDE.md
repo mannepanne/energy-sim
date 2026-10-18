@@ -9,6 +9,11 @@ Auto-loaded when working with files in this directory. How-it-works documentatio
 
 Testing philosophy, where tests live (next to the code), Vitest set-up, coverage requirements and exceptions, and the CI checks.
 
+### [register.md](./register.md)
+**When to read:** Adding or changing a register row, reading parameters in the engine, refreshing the PVGIS snapshot, or checking where a number comes from.
+
+Row kinds and fields, the integrity rules and their messages, the typed accessor, the phase 1 rows, the mean internal temperature calibration, and the PVGIS snapshot format.
+
 ### [environment-setup.md](./environment-setup.md)
 **When to read:** Setting up local development, configuring secrets, or deploying to production.
 

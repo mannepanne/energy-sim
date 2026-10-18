@@ -66,7 +66,7 @@ Ofgem's typical domestic consumption value for a medium gas user is 9,500 kWh a 
 
 ### Draft values and their status
 
-Each value is marked with the register's statuses. None of these is a register row yet; the real rows come in the `feature/phase-1-register` PR.
+Each value is marked with the register's statuses. The register rows in [`data/register.json`](../../data/register.json) carry the same values (see [register.md](../../REFERENCE/register.md)).
 
 - **sourced**: checked against the named source while writing this.
 - **to-verify**: taken from the named source, not yet checked line by line. RdSAP values cite the [RdSAP 10 specification](https://bregroup.com/documents/d/bre-group/rdsap-10-specification-10-06-2025) (BRE, June 2025); the Hitchin constant cites [CIBSE TM41](https://www.cibse.org/knowledge-research/knowledge-portal/technical-memorandum-41-degree-days-theory-and-application-2006-pdf/).

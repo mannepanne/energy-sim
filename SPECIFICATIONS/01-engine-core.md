@@ -21,10 +21,10 @@ Background: [project-outline.md](./ORIGINAL_IDEA/project-outline.md) (scope and 
 ### In scope
 - [x] **Benchmark spike, first:** a rough heat-demand calculation for the archetype and an attempt to run HEM. It runs alongside the tooling work, so a bad result can reshape the engine before it is built. *(Done: see [scripts/benchmark/](../scripts/benchmark/README.md) and the outcome under "Benchmark".)*
 - [ ] **Repository tooling:** TypeScript (strict), Vitest with coverage, linting, and a GitHub Actions workflow for type checking, lint, tests and report drift. *(Done except the report-drift step, which lands with the report.)*
-- [ ] **The register schema**, with typed row kinds, and the single register data file validated against it.
-- [ ] **Register rows** for everything phase 1 uses (see "Register contents"), each with a source or a stated rationale.
-- [ ] **A build-time PVGIS snapshot** for London, with its own validated schema.
-- [ ] **The hourly engine:** geometry and heat loss, internal and solar gains, space heat at a mean internal temperature, hot water, heat supply, cost and carbon, over 8,760 hours.
+- [x] **The register schema**, with typed row kinds, and the single register data file validated against it. *(Done: see [register.md](../REFERENCE/register.md).)*
+- [x] **Register rows** for everything phase 1 uses (see "Register contents"), each with a source or a stated rationale. *(Done, with a provisional mean internal temperature that the engine PR re-solves. Still open, and tracked as `technical-debt` issues: the ground floor U-value working, the 2026 gas carbon factor, the line-by-line check of the RdSAP rows, and the MCS heat loss cross-check.)*
+- [x] **A build-time PVGIS snapshot** for London, with its own validated schema. *(Done: see the PVGIS section of [register.md](../REFERENCE/register.md#the-pvgis-snapshot).)*
+- [ ] **The hourly engine:** geometry and heat loss, internal and solar gains, space heat at a mean internal temperature, hot water, heat supply, cost and carbon, over 8,760 hours. The engine PR also re-solves the mean internal temperature hourly on the PVGIS year, then removes or repoints the provisional solver in `scripts/benchmark/calibration.ts` so only one calibration path remains.
 - [ ] **Paired, seeded sampling** for uncertainty bands, and paired comparison of two setups.
 - [ ] **A sensitivity table:** each uncertain row run at its low and high value, ranked by effect.
 - [ ] **A generated report**, `reports/phase-1-london-semi.md`, committed to the repo and checked for drift in CI.
@@ -45,7 +45,7 @@ Background: [project-outline.md](./ORIGINAL_IDEA/project-outline.md) (scope and 
 - [ ] `npm run report` regenerates the report from the register and snapshot alone, with no network access, and produces byte-identical output on a second run.
 - [ ] The report shows, for both setups: annual heat demand, kWh by fuel, running cost and carbon, each as a central value plus a 10th–90th percentile range and the median. It also shows the paired difference (gas minus heat pump), the share of samples in which the heat pump is cheaper, the sensitivity table, the benchmark result, the data dates, the seed and sample count, and the limitations, including that one calibrated mean internal temperature applies to both setups.
 - [ ] Every non-constant number the engine uses comes from a register row, enforced as described under "Register integrity".
-- [ ] The register fails validation, with a message naming the row and field, for every rule under "Register integrity".
+- [x] The register fails validation, with a message naming the row and field, for every rule under "Register integrity".
 - [ ] All physics, register and sampling tests pass. Coverage is 95%+ for lines, functions and statements and 90%+ for branches, type checking passes, and CI is green.
 - [ ] Magnus has read the report, and it has been sent to at least one outside reviewer (the EV-industry friend or an installer), with their comments noted.
 
@@ -211,6 +211,7 @@ src/
   │   ├── schema.ts                 # Zod schemas: row kinds, provenance, integrity
   │   ├── ids.ts                    # the RowId union
   │   ├── load.ts                   # validates a parsed object (no file reads)
+  │   ├── access.ts                 # typed accessor that throws on an unknown id
   │   └── *.test.ts
   ├── snapshots/
   │   ├── pvgisSchema.ts            # snapshot schema
@@ -230,9 +231,10 @@ src/
   └── types.ts
 scripts/
   ├── fetch-pvgis.ts                # writes the snapshot
+  ├── pvgis/trim.ts                 # trims and validates the PVGIS response
   ├── report.ts                     # reads files, runs the engine, writes the report
   ├── bench.ts                      # timing check, outside the coverage run
-  └── benchmark/                    # rough calculation, HEM input and notes
+  └── benchmark/                    # rough calculation, HEM input, notes and the provisional calibration (calibration.ts)
 reports/
   └── phase-1-london-semi.md        # generated and committed
 .github/workflows/ci.yml
