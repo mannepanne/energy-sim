@@ -26,7 +26,11 @@ export function weatherFromSnapshot(snapshot: PvgisSnapshot): Weather {
   };
 }
 
-/** Uses only fixed rows (sample minute and ground reflectance), so one preparation serves every sample. */
+/**
+ * Uses only fixed rows (sample minute and ground reflectance), so one preparation serves every sample.
+ * `simulate` does not check that its inputs match these two values; if either row ever becomes uncertain,
+ * prepare the weather per sample.
+ */
 export function prepareWeather(weather: Weather, inputs: Pick<EngineInputs, 'irradianceSampleMinute' | 'groundReflectance'>): PreparedWeather {
   return {
     outdoorTemperatureC: weather.outdoorTemperatureC,

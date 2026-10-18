@@ -5,17 +5,9 @@ import { createAccessor, type RegisterAccessor } from '../../register/access.ts'
 import { ROW_IDS, type RowId } from '../../register/ids.ts';
 import { loadRegister } from '../../register/load.ts';
 import type { Register } from '../../register/schema.ts';
+import { UNCERTAIN_ROW_IDS } from '../inputs.ts';
 
-/** Rows the engine reads as uncertain; every other number is a fixed row. */
-const UNCERTAIN_IDS: ReadonlySet<RowId> = new Set<RowId>([
-  'fabric.qualityFactor',
-  'gains.internalGains',
-  'heating.meanInternalTemperature',
-  'heating.boilerSeasonalEfficiency',
-  'heating.heatPumpSpf',
-  'hotWater.litresPerDay',
-  'electricity.baseUse',
-]);
+const UNCERTAIN_IDS: ReadonlySet<RowId> = new Set<RowId>(UNCERTAIN_ROW_IDS);
 
 const SERIES_ID: RowId = 'weather.pvgisTypicalYearLondon';
 

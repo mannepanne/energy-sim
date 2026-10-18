@@ -6,12 +6,14 @@ import { describe, expect, it } from 'vitest';
 import { createAccessor } from '../../src/register/access.ts';
 import { loadRegister } from '../../src/register/load.ts';
 import { loadPvgisSnapshot } from '../../src/snapshots/pvgisSchema.ts';
-import { weatherFromSnapshot } from '../../src/engine/weather.ts';
+import { readInputs } from '../../src/engine/inputs.ts';
+import { prepareWeather, weatherFromSnapshot } from '../../src/engine/weather.ts';
 import { calibrate, centralGasKwh, NEED_GAS_RANGE_KWH, NEED_GAS_TARGET_KWH, solveMeanInternalTemperature } from './meanInternalTemperature.ts';
 
 const readJson = (path: string): unknown => JSON.parse(readFileSync(new URL(path, import.meta.url), 'utf8')) as unknown;
 const access = createAccessor(loadRegister(readJson('../../data/register.json')));
 const weather = weatherFromSnapshot(loadPvgisSnapshot(readJson('../../data/snapshots/pvgis-tmy-london.json')));
+const prepared = prepareWeather(weather, readInputs(access));
 const row = access.uncertain('heating.meanInternalTemperature');
 
 describe('mean internal temperature calibration (hourly engine, PVGIS year)', () => {
@@ -22,7 +24,7 @@ describe('mean internal temperature calibration (hourly engine, PVGIS year)', ()
   });
 
   it('gives central gas use near the target and inside the NEED range', () => {
-    const gas = centralGasKwh(access, weather, row.default);
+    const gas = centralGasKwh(access, prepared, row.default);
     expect(Math.abs(gas - NEED_GAS_TARGET_KWH)).toBeLessThan(150);
     expect(gas).toBeGreaterThanOrEqual(NEED_GAS_RANGE_KWH.low);
     expect(gas).toBeLessThanOrEqual(NEED_GAS_RANGE_KWH.high);
@@ -34,7 +36,7 @@ describe('mean internal temperature calibration (hourly engine, PVGIS year)', ()
   });
 
   it('throws when no temperature in range reaches the target', () => {
-    expect(() => solveMeanInternalTemperature(access, weather, 1)).toThrow('No temperature between 5 and 25 °C');
-    expect(() => solveMeanInternalTemperature(access, weather, 1_000_000)).toThrow('No temperature');
+    expect(() => solveMeanInternalTemperature(access, prepared, 1)).toThrow('No temperature between 5 and 25 °C');
+    expect(() => solveMeanInternalTemperature(access, prepared, 1_000_000)).toThrow('No temperature');
   });
 });

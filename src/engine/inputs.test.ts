@@ -30,9 +30,21 @@ describe('readInputs', () => {
     expect({ ...overridden, heatPumpSpf: 2.5 }).toEqual(readInputs(access));
   });
 
-  it('throws when an override names a fixed row, rather than ignoring it', () => {
-    expect(() => readInputs(fixtureAccessor(), { overrides: { 'fabric.wallUValue': 2 } })).toThrow(
-      'Register row "fabric.wallUValue" has kind "fixed", not "uncertain"',
+  it('rejects an override that is not a finite number', () => {
+    expect(() => readInputs(fixtureAccessor(), { overrides: { 'heating.heatPumpSpf': Number.NaN } })).toThrow(
+      'Override for "heating.heatPumpSpf" must be a finite number',
+    );
+    expect(() => readInputs(fixtureAccessor(), { overrides: { 'gains.internalGains': Infinity } })).toThrow('finite');
+  });
+
+  it('reads uncertain rows as uncertain, so a register with the wrong kind fails naming the row', () => {
+    const rows = fixtureRegister().rows.map((row) => {
+      if (row.kind !== 'uncertain' || row.id !== 'heating.heatPumpSpf') return row;
+      const { default: value, low: _low, high: _high, distribution: _distribution, ...base } = row;
+      return { ...base, kind: 'fixed', value };
+    });
+    expect(() => readInputs(createAccessor(loadRegister({ rows })))).toThrow(
+      'Register row "heating.heatPumpSpf" has kind "fixed", not "uncertain"',
     );
   });
 

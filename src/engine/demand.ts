@@ -1,5 +1,5 @@
 // ABOUT: Hourly space heat at a mean internal temperature, solar and internal gains, and daily hot water
-// ABOUT: Q(t) = max(0, H (T_mean − T_out(t)) − G_solar(t) − G_internal), over 8,760 hours in typed arrays
+// ABOUT: Q(t) = max(0, H (T_mean − T_out(t) − offset) − G_solar(t) − G_internal), over 8,760 hours in typed arrays
 
 import { HOURS_PER_DAY, HOURS_PER_YEAR, KJ_PER_KWH, WATER_SPECIFIC_HEAT_KJ_PER_KGK, WH_PER_KWH } from './constants.ts';
 import type { EngineInputs } from './inputs.ts';

@@ -1,12 +1,16 @@
 // ABOUT: Solar position, isotropic-sky irradiance on tilted surfaces, and hourly mean vertical irradiance
 // ABOUT: Formulas follow Duffie and Beckman, Solar Engineering of Thermal Processes, chapters 1 and 2
 
-import { DAYS_PER_YEAR, HOURS_PER_DAY, HOURS_PER_YEAR, MINUTES_PER_HOUR, RADIANS_PER_DEGREE } from './constants.ts';
-
-/** The sun's hour angle moves 15° an hour; one degree of longitude is four minutes of solar time. */
-const DEGREES_PER_HOUR = 15;
-const MINUTES_PER_DEGREE_OF_LONGITUDE = 4;
-const SOLAR_NOON_HOUR = 12;
+import {
+  DAYS_PER_YEAR,
+  DEGREES_PER_HOUR,
+  HOURS_PER_DAY,
+  HOURS_PER_YEAR,
+  MINUTES_PER_DEGREE_OF_LONGITUDE,
+  MINUTES_PER_HOUR,
+  RADIANS_PER_DEGREE,
+  SOLAR_NOON_HOUR,
+} from './constants.ts';
 
 export interface SunAngles {
   /** Solar declination, radians. */

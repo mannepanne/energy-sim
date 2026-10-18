@@ -2,13 +2,30 @@
 // ABOUT: Uncertain rows give their default unless an override is passed (the hook for sampling)
 
 import type { RegisterAccessor } from '../register/access.ts';
-import { ROW_IDS, type RowId } from '../register/ids.ts';
+import type { RowId } from '../register/ids.ts';
 
 /** The main case has 100 mm of loft insulation; the variant has none (RdSAP's default for the age band). */
 export type HouseVariant = 'main' | 'noLoftInsulation';
 
-/** Values for uncertain rows, by row id, that replace the rows' defaults. */
-export type UncertainOverrides = Partial<Record<RowId, number>>;
+/** The rows the engine reads as uncertain. Sampling draws them; every other input is a fixed row. */
+export const UNCERTAIN_ROW_IDS = [
+  'fabric.qualityFactor',
+  'gains.internalGains',
+  'heating.meanInternalTemperature',
+  'heating.boilerSeasonalEfficiency',
+  'heating.heatPumpSpf',
+  'hotWater.litresPerDay',
+  'electricity.baseUse',
+] as const satisfies readonly RowId[];
+
+export type UncertainRowId = (typeof UNCERTAIN_ROW_IDS)[number];
+
+/**
+ * Values for uncertain rows, by row id, that replace the rows' defaults. This is the hook for sampling.
+ * It is not the user-override path: the register's `overridable` flag (which also covers some fixed rows,
+ * such as prices and U-values) is for phase 3 to wire up.
+ */
+export type UncertainOverrides = Partial<Record<UncertainRowId, number>>;
 
 export interface EngineInputs {
   outdoorTemperatureOffsetK: number;
@@ -63,10 +80,12 @@ export interface ReadInputsOptions {
 /** Reads the engine's inputs from the register. Throws, naming the id, if a row is missing or of the wrong kind. */
 export function readInputs(access: RegisterAccessor, options: ReadInputsOptions = {}): EngineInputs {
   const { variant = 'main', overrides = {} } = options;
-  // Only uncertain rows take overrides; this throws for a fixed or missing id rather than ignoring it.
-  for (const id of ROW_IDS) if (overrides[id] !== undefined) access.uncertain(id);
+  for (const id of UNCERTAIN_ROW_IDS) {
+    const value = overrides[id];
+    if (value !== undefined && !Number.isFinite(value)) throw new Error(`Override for "${id}" must be a finite number, got ${value}`);
+  }
   const fixed = (id: RowId): number => access.fixed(id).value;
-  const uncertain = (id: RowId): number => {
+  const uncertain = (id: UncertainRowId): number => {
     const row = access.uncertain(id);
     return overrides[id] ?? row.default;
   };

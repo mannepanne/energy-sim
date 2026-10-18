@@ -18,3 +18,8 @@ export const WH_PER_KWH = 1000;
 export const PENCE_PER_POUND = 100;
 
 export const RADIANS_PER_DEGREE = Math.PI / 180;
+
+/** The Earth turns 15° an hour, so one degree of longitude is four minutes of solar time. */
+export const DEGREES_PER_HOUR = 15;
+export const MINUTES_PER_DEGREE_OF_LONGITUDE = 4;
+export const SOLAR_NOON_HOUR = 12;

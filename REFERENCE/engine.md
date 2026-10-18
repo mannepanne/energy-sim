@@ -33,9 +33,11 @@ gas.annual.gasKwh; // also spaceHeatKwh, hotWaterKwh, electricityKwh, cost, carb
 ```
 
 - **Variants.** `readInputs(access, { variant: 'noLoftInsulation' })` swaps the main roof U-value for the no-loft-insulation row.
-- **Overrides.** `readInputs(access, { overrides: { 'heating.heatPumpSpf': 3.2 } })` replaces an uncertain row's default. Sampling in PR 5 uses this. An override that names a fixed row throws, so it cannot be silently ignored.
+- **Overrides.** `readInputs(access, { overrides: { 'heating.heatPumpSpf': 3.2 } })` replaces an uncertain row's default, and is the hook for sampling. Overrides are typed to the uncertain rows (`UNCERTAIN_ROW_IDS`), and a value that is not a finite number throws.
 - **Prepared weather** holds the outdoor temperature and the hourly mean wall irradiance. It depends only on fixed rows, so one preparation serves every sample.
-- **Speed.** One year takes about 0.6 ms, so 500 samples × 2 setups take well under a second.
+- **Overrides are not user overrides.** The sampling hook follows row kind. The register's `overridable` flag, for what a visitor may change, also covers fixed rows (U-values, prices, cylinder loss), and excludes some uncertain ones (fabric quality factor, internal gains). How user overrides reach the engine is a phase 3 decision (see [SPECIFICATIONS/CLAUDE.md](../SPECIFICATIONS/CLAUDE.md)).
+- **Prepared weather must match the inputs.** `simulate` does not check that the weather was prepared with the same sample minute and ground reflectance. Both are fixed rows today; if either becomes uncertain, prepare the weather per sample.
+- **Speed.** `simulate` takes about 0.6 ms for a year, and `prepareWeather` about 1.7 ms, run once. So 500 samples × 2 setups take well under a second. Each result holds five hourly arrays (about 350 KB), so a sampler should keep only the annual totals.
 
 ## The physics
 
@@ -130,7 +132,7 @@ At a fabric quality factor of 0.9, H = 239.4 W/K. With the no-loft-insulation ro
 
 ## Checks against outside references
 
-- **Solar geometry:** Duffie and Beckman's Example 1.6.1 (beam incidence of 35° on a 45° surface facing 15° west of south, Madison, 13 February, 10:30) and Example 1.6.2 (zenith angles of 66.5° and 79.6°), to within 2%. A south wall at an equinox noon receives beam at cos θ = sin(latitude), exactly. London's midsummer noon sun sits at 61.9°.
+- **Solar geometry** (accepted by Magnus on 18 October 2026 in place of a published vertical-wall example): Duffie and Beckman's Example 1.6.1 (beam incidence of 35° on a 45° surface facing 15° west of south, Madison, 13 February, 10:30) and Example 1.6.2 (zenith angles of 66.5° and 79.6°), to within 2%. A south wall at an equinox noon receives beam at cos θ = sin(latitude), exactly. London's midsummer noon sun sits at 61.9°.
 - **The HEM check:** an inline fixture register matching the benchmark archetype (values copied from `scripts/benchmark/draftValues.ts`), run at 17.8 °C air on the PVGIS weather, gives 12,847 kWh of annual space heat. That is 6.0% below HEM's `thermostat-17` run (13,660 kWh), inside the 10% regression guard. The fixture uses a solar access factor of 1, because the HEM input has no overshading. With the register's 0.77 it gives 13,217 kWh (3.2% below).
 
 ## The register house's central results
@@ -142,7 +144,7 @@ With every row at its default (15.7 °C, the main case), on the London typical y
 | Gas boiler | 9,461 kWh | 1,695 kWh | 13,124 kWh | 2,500 kWh | £2,012 | 2,761 kg |
 | Heat pump | 9,461 kWh | 2,243 kWh | 0 | 6,680 kWh | £1,958 | 962 kg |
 
-These are central values only. Ranges, the paired comparison and the sensitivity table come with PR 5's report. Gas use matches the calibration target (see [register.md](./register.md#the-mean-internal-temperature-calibration)).
+These are central values only, measured on 18 October 2026 and not pinned by a test: rerun the engine if a price, SPF, carbon or base-use row changes. Ranges, the paired comparison and the sensitivity table come with the phase 1 report. The heat pump's small cost margin sits inside a known low bias on heat pump cost: one calibrated temperature applies to both setups ([#15](https://github.com/mannepanne/energy-sim/issues/15)). Gas use matches the calibration target (see [register.md](./register.md#the-mean-internal-temperature-calibration)).
 
 ## Known simplifications
 

@@ -7,7 +7,10 @@ export function fuelForHeat(heatKwh: Float64Array, efficiency: number): Float64A
   return heatKwh.map((heat) => heat / efficiency);
 }
 
-/** Cost of one kWh of delivered heat, in pence: the unit rate divided by the seasonal efficiency. */
+/**
+ * Cost of one kWh of delivered heat, in pence: the unit rate divided by the seasonal efficiency.
+ * Not used by `simulate`; it holds the spec's worked price check (costCarbon.test.ts).
+ */
 export function pencePerKwhOfHeat(unitRatePence: number, efficiency: number): number {
   if (!(efficiency > 0)) throw new Error(`A seasonal efficiency must be positive, got ${efficiency}`);
   return unitRatePence / efficiency;
