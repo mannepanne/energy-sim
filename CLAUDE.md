@@ -47,7 +47,7 @@ Development is organised into numbered phases with clear deliverables, testing r
 
 1. [01-engine-core.md](./SPECIFICATIONS/01-engine-core.md) - Benchmark first, then the typed register and headless hourly engine for one archetype, with paired ranges (4–6 weeks)
 2. Phase 2: complete v1 model - archetypes, hourly heat pump COP, time-of-use tariffs, solar, costs, grants, payback (spec to be written)
-3. Phase 3: v1 website and launch - form, 2D comparison, hosting, validation gate (spec to be written)
+3. Phase 3: v1 website and beta launch - form, 2D comparison, hosting; launches as a proof-of-concept beta, with validation after launch (spec to be written)
 4. Phase 4: 3D floating-island street - the committed next step after v1 (spec to be written)
 
 **Current phase:** Phase 1, engine core. Tooling, the benchmark and the register are done; the engine PR is next
@@ -163,6 +163,7 @@ Tests sit next to the code they test (`*.test.ts`), as the phase 1 spec lays out
 - **No runtime external calls and no personal data on a server.** PVGIS forbids browser calls; data is snapshotted at build time. See the [client-side ADR](./REFERENCE/decisions/2026-10-17-client-side-build-time-snapshots.md).
 - **Neutrality:** results are never influenced by commercial relationships.
 - **Not advice:** the site gives estimates, not financial advice, and must say so.
+- **Beta launch, validation later.** The site launches as a public beta to show proof of concept. Volunteer homes, expert review and other external validation follow the launch; they never gate a phase or the launch.
 - **Brand-neutral** until Magnus has agreed any char.gy involvement with his employer.
 - **New releases wait 14 days.** Dependabot holds version updates until a release is 14 days old; its security updates are not delayed. By hand, install with `npm install --before "$(date -v-14d +%F)" <package>`, which applies the limit to the whole dependency tree. For a GitHub Action, check the release date with `gh release view <tag> -R <owner/repo>` before pinning its SHA. A release that fixes a known vulnerability affecting us may skip the wait. See the [dependency wait ADR](./REFERENCE/decisions/2026-10-18-fourteen-day-dependency-wait.md).
 

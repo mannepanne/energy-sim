@@ -124,7 +124,7 @@ Development runs in four phases. v1 leads with the numbers, and the 3D street fo
    All RdSAP archetypes and the quick-facts inputs; hourly heat pump behaviour (a COP curve against outdoor temperature, flow temperature, fitting to Electrification of Heat data, a "well-installed" option and sizing); Octopus time-of-use tariffs, regional price-cap rates and a shared price-level scenario; an hourly grid-carbon profile; weather variation between years; solar PV; capital costs, grants and payback.
 
 3. **Phase 3: v1 website and launch** (spec to be written)
-   The input form, the 2D comparison view, "where does this number come from?", the not-advice notice, Cloudflare hosting, cookie-free analytics and an A grade on securityheaders.com. The launch gate is validation against volunteer homes plus the expert review.
+   The input form, the 2D comparison view, "where does this number come from?", the not-advice notice, Cloudflare hosting, cookie-free analytics and an A grade on securityheaders.com. It launches as a public beta, a proof of concept. Validation against real homes and expert review come after launch and do not gate it.
    **To decide in the phase 3 spec: how user overrides flow to derived rows.** Heated volume and the wall, roof and floor areas are stored in the register, computed from floor area and window area. So `geometry.totalFloorArea` and `geometry.windowArea` are marked not overridable until overrides recompute (or the engine derives) the rows that depend on them. See [register.md](../REFERENCE/register.md#overrides).
 
 4. **Phase 4: 3D floating-island street** (spec to be written)
@@ -132,7 +132,7 @@ Development runs in four phases. v1 leads with the numbers, and the 3D street fo
 
 **Later, after phase 4:** bill calibration (including the Octopus smart-meter link), home batteries and EVs (including on-street charging), insulation and glazing upgrades as options, all of England, then Wales and Scotland.
 
-**Non-code tracks to start early** (they have long lead times and gate the phase 3 launch):
+**Non-code tracks** (they improve trust in the numbers after the beta launch; none of them gates any phase or the launch):
 - Recruit 10–20 volunteer homes with a year of gas and electricity bills.
 - Find a retrofit assessor or heat pump installer, plus Magnus's EV-industry friend, to review the register.
 - Talk to char.gy about the project, and check the employment contract's IP terms.

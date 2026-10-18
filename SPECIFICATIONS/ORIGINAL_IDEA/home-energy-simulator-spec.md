@@ -227,7 +227,7 @@ Inputs are layered so anyone gets a result in under a minute, and every extra fa
 
 ## Validation plan and known limitations
 
-The model earns trust by being checked against three independent references before launch, and by publishing the results.
+The model earns trust by being checked against independent references and by publishing the results. The site launches first as a public beta, a proof of concept; these checks follow the launch and do not gate it.
 
 | Check | What it tests | Pass bar (proposed) |
 | --- | --- | --- |
@@ -261,8 +261,8 @@ The model earns trust by being checked against three independent references befo
 - [ ] Download the EoH final datasets and fit the COP-vs-temperature curve
 - [ ] Build a PVGIS cache for one test location (Canterbury or London)
 - [ ] Write the hourly engine and test it on one archetype against HEM
-- [ ] Recruit 10 volunteer homes with a year of bills
-- [ ] Expert review of this register
+- [ ] Recruit 10 volunteer homes with a year of bills (after the beta launch)
+- [ ] Expert review of this register (after the beta launch)
 
 ## Sources
 

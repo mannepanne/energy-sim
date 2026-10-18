@@ -8,7 +8,7 @@
 **Dependencies:** None. This is the starting phase.
 
 **Brief description:**
-This phase proves two things before anything else is built. First, that a simple hourly engine gets a house's **heat demand** right, checked against independent references. Second, that the **trust plumbing** works: every number comes from a sourced register row, results are honest ranges, and two setups are compared fairly. The phase uses one house archetype in one location, comparing a gas boiler with an air source heat pump on the price cap. There is no user interface. The phase ends with a plain-language report Magnus and an outside expert can check without running code.
+This phase proves two things before anything else is built. First, that a simple hourly engine gets a house's **heat demand** right, checked against independent references. Second, that the **trust plumbing** works: every number comes from a sourced register row, results are honest ranges, and two setups are compared fairly. The phase uses one house archetype in one location, comparing a gas boiler with an air source heat pump on the price cap. There is no user interface. The phase ends with a plain-language report that Magnus, and later an outside expert, can check without running code.
 
 What phase 1 deliberately does **not** test is hourly heat pump behaviour. On a flat tariff, only the heat pump's seasonal efficiency affects the result, so the COP curve, flow temperature and time-of-use tariffs move to phase 2, where they change the answer.
 
@@ -47,7 +47,7 @@ Background: [project-outline.md](./ORIGINAL_IDEA/project-outline.md) (scope and 
 - [ ] Every non-constant number the engine uses comes from a register row, enforced as described under "Register integrity".
 - [x] The register fails validation, with a message naming the row and field, for every rule under "Register integrity".
 - [ ] All physics, register and sampling tests pass. Coverage is 95%+ for lines, functions and statements and 90%+ for branches, type checking passes, and CI is green.
-- [ ] Magnus has read the report, and it has been sent to at least one outside reviewer (the EV-industry friend or an installer), with their comments noted.
+- [ ] Magnus has read the report. Sending it to an outside reviewer is optional and does not block the phase.
 
 ---
 
@@ -293,7 +293,7 @@ The engine's tests use small inline fixture registers, so the engine PR doesn't 
 
 ### Manual checklist
 - [ ] Magnus reads the report and the numbers look plausible.
-- [ ] The report goes to an outside reviewer, and their comments are noted in the PR.
+- [ ] Optional, not blocking: if the report goes to an outside reviewer, their comments are noted in the PR.
 - [ ] Changing one register value (for example, the SPF median to 3.2) moves the result in the expected direction.
 
 ---
