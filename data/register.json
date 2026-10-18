@@ -43,7 +43,7 @@
       "label": "Minutes past the hour at which the snapshot's irradiance values apply",
       "unit": "minutes",
       "status": "approximate",
-      "rationale": "The engine places the sun at this time within each UTC hour when it splits irradiance onto walls. The PVGIS typical year labels each hour HH:00, but its SARAH3 satellite values describe about HH:10. Checked on the snapshot on 18 October 2026: global horizontal should equal beam normal × cos(zenith) + diffuse horizontal, and the mean absolute mismatch, as a share of annual global irradiance, is 1.5% with the sun at HH:00, 0.24% at HH:10 and 2.6% at HH:30. A test repeats this check.",
+      "rationale": "The engine places the sun at this time within each UTC hour when it splits irradiance onto walls. The PVGIS typical year labels each hour HH:00. The 10 minutes is inferred from the data, not from PVGIS documentation: checked on the snapshot on 18 October 2026: global horizontal should equal beam normal × cos(zenith) + diffuse horizontal, and the mean absolute mismatch, as a share of annual global irradiance, is 1.5% with the sun at HH:00, 0.24% at HH:10 and 2.6% at HH:30. A test repeats this check.",
       "lastChecked": "2026-10-18",
       "refreshCadence": "static",
       "overridable": false,
@@ -464,6 +464,7 @@
       "overrideHint": "Lower if you heat only some rooms or only part of the day; higher if you keep the whole house warm all day.",
       "dependsOn": [
         "weather.pvgisTypicalYearLondon",
+        "weather.outdoorTemperatureOffset",
         "geometry.heatedVolume",
         "geometry.externalWallArea",
         "geometry.windowArea",
