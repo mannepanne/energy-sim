@@ -183,7 +183,7 @@ The default tariff is the Ofgem price cap, and specific tariffs come from the Oc
 | Time-of-use tariffs (Agile, Go, Cosy, Tracker) | Half-hourly rate schedule | [Octopus REST API](https://developer.octopus.energy/docs/api/), public product and unit-rate endpoints | Daily (Agile), on change (others) | Pick tariff | Sourced |
 | Other suppliers' tariffs | Manual entry | Supplier websites | On change | Peak / off-peak rates and times | To verify |
 | Export rate | Flat SEG rate | Supplier export tariffs | On change | User's export tariff | To verify |
-| Grid carbon intensity | Hourly profile for a typical year | [NESO Carbon Intensity API](https://carbonintensity.org.uk/) | Yearly rebuild | — | Sourced |
+| Grid carbon intensity | Hourly profile for a typical year (deferred beyond v1; v1 uses an annual factor) | [NESO Carbon Intensity API](https://carbonintensity.org.uk/) | Yearly rebuild | — | Sourced |
 | Gas carbon factor | \~0.18 kgCO₂e/kWh | DESNZ GHG conversion factors | Yearly | — | Approximate |
 | Future price path | Flat at today's cap | — | — | "Prices rise X% a year" slider | Approximate |
 

@@ -65,7 +65,7 @@ Decisions: the [client-side snapshots](../REFERENCE/decisions/2026-10-17-client-
 - [ ] **Boiler auxiliary electricity** for the gas setups, which closes [#18](https://github.com/mannepanne/energy-sim/issues/18).
 - [ ] **Correlated sampling**, with a Gaussian copula and sourced or approximate correlation rows. This closes [#20](https://github.com/mannepanne/energy-sim/issues/20).
 - [ ] **A sourced heat pump heating schedule** (longer, lower heating), so the behaviour bias in [#15](https://github.com/mannepanne/energy-sim/issues/15) is either fixed or stated prominently. See "Heating over time".
-- [ ] **The phase 2 report**, `reports/phase-2-v1-model.md`. It is committed and checked for drift in CI. See "The report".
+- [ ] **The phase 2 report**, `reports/phase-2-v1-model.md`. It is committed and checked for drift in CI. See "Sampling, the report and speed".
 - [ ] **The ADRs** listed under "Architecture decisions".
 - [ ] **Tests**, plus updates to `REFERENCE/engine.md`, `REFERENCE/register.md` and the troubleshooting guide.
 
@@ -89,7 +89,7 @@ Decisions: the [client-side snapshots](../REFERENCE/decisions/2026-10-17-client-
 - [ ] **PV:** the reference system is within the pre-registered tolerance of PVGIS's calculator (see "Solar PV").
 - [ ] **HEM under a schedule:** the thermal-mass engine is checked against HEM using the same schedule and pre-registered rules, and the decision rule is applied and recorded.
 - [ ] **Recalibration:** the behaviour rows are recalibrated so the 1930s semi's central gas use hits the target fixed in this spec.
-- [ ] **Report:** `npm run report` regenerates the phase 2 report offline and byte-identically, and CI checks it for drift. Its contents are listed under "The report".
+- [ ] **Report:** `npm run report` regenerates the phase 2 report offline and byte-identically, and CI checks it for drift. Its contents are listed under "Sampling, the report and speed".
 - [ ] **Speed:**
   - one central run of one house, with all setup and tariff combinations, takes under 100 ms on the bench machine;
   - the full report builds in CI in under 60 seconds.
@@ -140,7 +140,7 @@ The engine stays a pure library, and data stays build-time snapshots. The report
 | Mid-terrace, cavity | E (1967–75) | 1965–1982 |
 | Detached, cavity | F (1976–82) | 1965–1982 |
 | Detached, cavity, insulated as built | G (1983–90) | 1983–1992 |
-| Semi-detached, insulated as built | K (2007–11) | 2000–2011 |
+| Semi-detached, insulated as built | K (2007–11) | 2000–2011 (NEED's nearest band; it also covers RdSAP J, 2003–06) |
 | Mid-terrace, insulated as built | L (2012–21) | 2012 onwards |
 
 A purpose-built flat is out of scope, because it has no roof or ground floor of its own and needs different geometry.
@@ -191,11 +191,12 @@ COP(t) = k \cdot \frac{T_{flow}(t) + 273.15}{T_{flow}(t) - T_{out}(t) + \Delta T
 ```
 
 - **The shape** is Carnot-like. It is clamped to a floor and a ceiling (rows) **before** scaling, so k stays a closed-form solve. The clamp guards the hours when T_out nears T_flow.
+- **A physical ceiling** (a row, around 7) also applies to the scaled COP. If it binds in any hour, k is solved iteratively instead, so the year still matches the SPF. The report counts the samples in which it bound.
 - **T_flow:**
   - for space heating, a weather-compensation line from T_out, with its endpoints as rows (the flow temperature at design and at mild conditions is uncertain);
   - for hot water, a fixed, higher value.
 - **The k solve:**
-  - k is solved **once per sample** on the reference run: price cap, no control, the gas-equivalent schedule;
+  - k is solved **once per sample** on the reference run: price cap, no control, and the gas setups' heating pattern (continuous heating until PR 5, then the gas schedule);
   - on that run, total heat (space and hot water) ÷ total electricity equals the sampled SPF exactly;
   - the same k is reused on every tariff and with control, so moving running into colder or hotter hours changes efficiency through the curve.
 - **The cross-check:** the curve's shape and the compensation line are compared with the Electrification of Heat trial's published performance by outdoor temperature. This is a check, not a fit.
@@ -219,7 +220,7 @@ It can't run out, because a reheat is forced at the minimum. No immersion backup
 
 - **Generation:**
   - uses the engine's existing transposition onto the roof plane;
-  - tilt (default 35°) and azimuth (default south) are rows;
+  - tilt (default 35°) is a row. Azimuth is an uncertain row (default south, range south-east to south-west), so the sensitivity table shows how much roof direction matters;
   - temperature losses use the snapshot's air temperature and a fixed coefficient row; system losses are a row.
 - **Size:**
   - an uncertain row, with a default of 4 kWp;
@@ -250,7 +251,7 @@ It can't run out, because a reheat is forced at the minimum. No immersion backup
 **Lifetimes** are uncertain rows for the heat pump, the boiler and PV.
 
 **Payback horizon and replacements:**
-- the horizon for a heat pump setup is the heat pump's lifetime;
+- the horizon for a heat pump setup, with or without solar, is the heat pump's lifetime. Any PV value left at the end is ignored, and the report says so;
 - for gas with solar, it is the PV lifetime;
 - the reference boiler is replaced again whenever its lifetime ends inside the horizon, and that cost counts against the reference;
 - a gas setup's own boiler follows the same rule.
@@ -318,7 +319,7 @@ C \frac{dT_{in}}{dt} = Q_{heat}(t) + G_{solar}(t) + G_{internal}(t) - H\,\big(T_
 
 **Recalibration**, once the benchmark passes:
 - **The target is fixed now:** the 1930s semi's central gas use = 13,200 kWh, the phase 1 target.
-- The setpoint is the calibrated row. Its range comes from NEED readings A and C, as in phase 1.
+- The setpoint is the calibrated row. Its range comes from phase 1's NEED readings A and C for the 1930s semi (not this phase's per-archetype readings T and S).
 - The schedule stays at its sourced default and is not fitted.
 - If the solved setpoint falls outside 16–21 °C, stop and review with Magnus rather than force a fit.
 - `scripts/calibration/` re-solves the setpoint, and a drift test on the setpoint replaces the phase 1 test on the mean internal temperature.
@@ -346,7 +347,7 @@ C \frac{dT_{in}}{dt} = Q_{heat}(t) + G_{solar}(t) + G_{internal}(t) - H\,\big(T_
 | Octopus Agile | Yes (electricity only) | Yes |
 | Octopus Cosy | No (sold only to homes with a heat pump or electric heating) | Yes |
 
-That gives 10 combinations. Gas is always on the price cap.
+That gives 10 combinations: 2 gas setups × 2 tariffs, plus 2 heat pump setups × 3 tariffs. Gas fuel is always on the price cap; a gas home's electricity may be on the cap or Agile.
 
 **Price rows for each tariff:**
 - unit rates and standing charges, including VAT (the Octopus API's inc-VAT values);
@@ -357,7 +358,7 @@ That gives 10 combinations. Gas is always on the price cap.
 **Control rules for the heat pump setups.** These are the same for every tariff, and published in `REFERENCE/engine.md`:
 - **Cheap and peak:**
   - on Cosy, these are its published cheap and peak periods;
-  - on Agile, "cheap" is the cheapest quarter of each day's hours and "peak" the dearest quarter, with the quarter as a row.
+  - on Agile, "cheap" is the cheapest quarter of each day's hours and "peak" the dearest quarter, with the quarter as a row. A "day" runs from midnight to midnight, UK local time.
 - **Preheat:** in cheap hours during a heating period, or up to 3 hours before one, the setpoint is raised by a boost row (uncertain, around 1–2 K). The comfort cap is setpoint + boost.
 - **Coast:** in peak hours during a heating period, the setpoint is lowered by the same boost. This is never below setpoint − boost.
 - **Cylinder:** under control, the cylinder is reheated in the cheapest hours that keep it above its minimum before each scheduled draw-off.
@@ -366,7 +367,8 @@ That gives 10 combinations. Gas is always on the price cap.
 **Agile's limitations, stated in the report:**
 - which 12 months were used;
 - that a past year is not a forecast;
-- that the past year's prices are paired with typical-year weather. This loses the link between price spikes and cold, still days, and likely flatters the heat pump on Agile.
+- that the past year's prices are paired with typical-year weather. This loses the link between price spikes and cold, still days, and likely flatters the heat pump on Agile;
+- that control knows each day's prices in advance. Octopus publishes them the day before, so this is realistic for a smart controller, but it favours the heat pump over a household that doesn't respond.
 
 ### Sampling, the report and speed
 
@@ -401,7 +403,7 @@ The phase 1 report stays as a historical file. It is no longer regenerated, and 
 
 ### Data downloads
 
-Magnus approves these in one go when implementation starts. Packages follow the 14-day rule.
+Magnus approves these in one go when implementation starts. Packages follow the [14-day rule](../REFERENCE/decisions/2026-10-18-fourteen-day-dependency-wait.md).
 - **RdSAP 10 specification tables** (BRE PDF, already cited).
 - **NEED 2026 tables** by type, age and bedrooms (refetched for the extra archetypes).
 - **Ofgem price cap** regional rates (London) for the current quarter.
@@ -442,12 +444,13 @@ Rows that become derived are removed: element areas, volume and `heating.meanInt
 - **Thermal mass:**
   - with continuous heating and C → 0, the node reproduces phase 1's annual space heat to within 0.5%;
   - with continuous heating and full C, it stays within 5% (mass stores shoulder-season surplus that phase 1 discarded);
-  - with heating off, the temperature decays towards outdoor with time constant C ÷ H, within 2% of the exact exponential at an hourly backward-Euler step;
+  - with heating off, the temperature decays towards outdoor with time constant C ÷ H. For time constants of 10 hours or more, which covers every archetype, it is within 2% of the exact exponential at an hourly backward-Euler step;
   - the energy balance holds every hour and over the year;
   - the output cap is never exceeded.
 - **COP curve:**
   - on the reference run, k gives the sampled SPF to within 0.1% in every sample;
-  - COP falls as outdoor temperature falls and as flow temperature rises, and stays within its clamps;
+  - COP falls as outdoor temperature falls and as flow temperature rises;
+  - the shape stays within its clamps, and the scaled COP never exceeds its physical ceiling;
   - hot water COP is below space heating COP in the same hour;
   - control that shifts running into colder hours lowers the year's efficiency.
 - **Control:**
@@ -502,6 +505,8 @@ The flat-tariff work comes first, so a failed HEM check under a schedule still l
 
 1. `feature/phase-2-archetypes`:
    - the register schema changes and the archetypes ADR;
+   - the calendar module and its time-base ADR, so every later hourly profile uses local time from the start;
+   - the Gaussian copula (closes #20), so later PRs' ranges don't shift when it lands;
    - derived geometry, the archetypes and quick facts;
    - the RdSAP tables (closes #7 and #9);
    - the pre-registered NEED readings and flag rule;
@@ -520,14 +525,19 @@ The flat-tariff work comes first, so a failed HEM check under a schedule still l
    - the comparison layer for N setups.
 5. `feature/phase-2-heating-schedules`:
    - the comparison rules committed first;
-   - the calendar module;
    - thermal mass, schedules and the output cap;
    - the HEM run and decision;
    - the recalibration and its ADR, with the sourced heat pump schedule (closes #13, with evidence on #14 and #15).
 6. `feature/phase-2-tariffs`: London cap rates, the Octopus snapshots (Cosy, Agile, export), and the control rules and their ADR.
-7. `feature/phase-2-report`: the copula (closes #20), the phase 2 report, the archetype table, the bench workloads and the CI drift switch.
+7. `feature/phase-2-report`: the phase 2 report, the archetype table, the bench workloads and the CI drift switch.
+
+Until PR 5 lands, the engine heats continuously, as in phase 1. PRs 2–4 are built and tested on that, and their numbers shift once when schedules arrive. The report is only generated in PR 7.
 
 Run `/review-pr` on each.
+
+**Fallbacks agreed in advance** (Magnus, 18 October 2026):
+- **If the scheduled HEM check is above 30% and the two-node fallback doesn't fix it,** v1 launches on the price cap only: PRs 1–4 plus a price-cap version of the report. Time-of-use tariffs become the first follow-up. Magnus makes the call at that point.
+- **If time slips,** cut in this order: Agile first, then the well-installed scenario. Cosy, solar and payback stay, because the project outline names them.
 
 ---
 
