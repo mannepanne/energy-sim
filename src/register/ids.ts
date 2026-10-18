@@ -4,6 +4,7 @@
 export const ROW_IDS = [
   'weather.pvgisTypicalYearLondon',
   'weather.outdoorTemperatureOffset',
+  'weather.irradianceSampleMinute',
   'geometry.totalFloorArea',
   'geometry.storeyHeight',
   'geometry.heatedVolume',
@@ -26,6 +27,7 @@ export const ROW_IDS = [
   'gains.windowGValue',
   'gains.windowFrameFactor',
   'gains.solarAccessFactor',
+  'gains.groundReflectance',
   'heating.meanInternalTemperature',
   'heating.boilerSeasonalEfficiency',
   'heating.heatPumpSpf',

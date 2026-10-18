@@ -22,14 +22,14 @@ Background: [project-outline.md](./ORIGINAL_IDEA/project-outline.md) (scope and 
 - [x] **Benchmark spike, first:** a rough heat-demand calculation for the archetype and an attempt to run HEM. It runs alongside the tooling work, so a bad result can reshape the engine before it is built. *(Done: see [scripts/benchmark/](../scripts/benchmark/README.md) and the outcome under "Benchmark".)*
 - [ ] **Repository tooling:** TypeScript (strict), Vitest with coverage, linting, and a GitHub Actions workflow for type checking, lint, tests and report drift. *(Done except the report-drift step, which lands with the report.)*
 - [x] **The register schema**, with typed row kinds, and the single register data file validated against it. *(Done: see [register.md](../REFERENCE/register.md).)*
-- [x] **Register rows** for everything phase 1 uses (see "Register contents"), each with a source or a stated rationale. *(Done, with a provisional mean internal temperature that the engine PR re-solves. Still open, and tracked as `technical-debt` issues: the ground floor U-value working, the 2026 gas carbon factor, the line-by-line check of the RdSAP rows, and the MCS heat loss cross-check.)*
+- [x] **Register rows** for everything phase 1 uses (see "Register contents"), each with a source or a stated rationale. *(Done. The engine PR re-solved the mean internal temperature hourly, to 15.7 °C. Still open, and tracked as `technical-debt` issues: the ground floor U-value working, the 2026 gas carbon factor, the line-by-line check of the RdSAP rows, and the MCS heat loss cross-check.)*
 - [x] **A build-time PVGIS snapshot** for London, with its own validated schema. *(Done: see the PVGIS section of [register.md](../REFERENCE/register.md#the-pvgis-snapshot).)*
-- [ ] **The hourly engine:** geometry and heat loss, internal and solar gains, space heat at a mean internal temperature, hot water, heat supply, cost and carbon, over 8,760 hours. The engine PR also re-solves the mean internal temperature hourly on the PVGIS year, then removes or repoints the provisional solver in `scripts/benchmark/calibration.ts` so only one calibration path remains.
+- [x] **The hourly engine:** geometry and heat loss, internal and solar gains, space heat at a mean internal temperature, hot water, heat supply, cost and carbon, over 8,760 hours. The engine PR also re-solves the mean internal temperature hourly on the PVGIS year, then removes or repoints the provisional solver in `scripts/benchmark/calibration.ts` so only one calibration path remains. *(Done: see [engine.md](../REFERENCE/engine.md). The HEM check gives 12,847 kWh, 6.0% below HEM. The temperature re-solves to 15.7 °C (14.5–16.8) in `scripts/calibration/`, and the provisional solver is removed.)*
 - [ ] **Paired, seeded sampling** for uncertainty bands, and paired comparison of two setups.
 - [ ] **A sensitivity table:** each uncertain row run at its low and high value, ranked by effect.
 - [ ] **A generated report**, `reports/phase-1-london-semi.md`, committed to the repo and checked for drift in CI.
 - [x] **The two ADRs** (client-side snapshots, register format), written alongside this spec.
-- [ ] **Tests**, plus `REFERENCE/engine.md` and `REFERENCE/register.md`.
+- [ ] **Tests**, plus `REFERENCE/engine.md` and `REFERENCE/register.md`. *(Physics tests, `engine.md` and `register.md` done; the sampling tests come with PR 5.)*
 
 ### Out of scope (phase 2 or later)
 - The heat pump COP curve versus outdoor temperature, flow temperature, and fitting either to Electrification of Heat data.
@@ -160,10 +160,10 @@ L is litres per day (uncertain, from occupancy), the delivery temperature is a f
 
 **The archetype: a semi-detached house built 1930–49, two storeys, about 90 m², cavity walls as built (unfilled), 100 mm of loft insulation, double glazing retrofitted.** A variant with no loft insulation (RdSAP's default for the age band) is kept for comparison. Magnus chose 100 mm as the main case on 17 October 2026, because most real 1930s semis have had loft insulation added. Wall construction moves results a lot. Solid-wall and filled-cavity variants come with phase 2's archetypes.
 
-- **Location and weather:** a `series` row for the PVGIS v5.3 typical year at London (51.507, −0.128). A fixed outdoor-temperature offset row (default 0 K) lets tests build a "colder year".
+- **Location and weather:** a `series` row for the PVGIS v5.3 typical year at London (51.507, −0.128). A fixed outdoor-temperature offset row (default 0 K) lets tests build a "colder year". A fixed row gives the minute past each hour that the irradiance values describe (10).
 - **Geometry:** element areas, storey height, heated volume and ground floor perimeter, each a fixed row with its derivation.
 - **Fabric:** U-values for walls, roof, floor, windows and door, and the air change rate, as fixed rows from the RdSAP 10 England tables; plus the uncertain fabric quality factor.
-- **Gains:** internal gains (uncertain), and g-value, frame factor and shading factor (fixed).
+- **Gains:** internal gains (uncertain), and g-value, frame factor, shading factor and ground reflectance (fixed).
 - **Heating and hot water:** the mean internal temperature (uncertain; its central value is set so the archetype's central annual gas use is 13,200 kWh, the midpoint of the NEED readings, staying within their range of 10,980–15,433 kWh; NEED is its source; it applies to both setups and may absorb fabric error, and the row says both), boiler seasonal efficiency (uncertain), the heat pump SPF (uncertain, see below), hot water litres per day (uncertain), delivery and cold-feed temperatures (fixed), and the cylinder standing loss (fixed).
 - **Prices and carbon:** the GB average price cap by Direct Debit for October–December 2026, verified against Ofgem on 2026-10-17, as fixed rows; the gas carbon factor; and the annual grid carbon factor.
 - **Base electricity:** uncertain, cross-checked against Ofgem's typical consumption figure.
@@ -218,12 +218,15 @@ src/
   │   └── *.test.ts
   ├── engine/
   │   ├── constants.ts              # physical constants only
+  │   ├── inputs.ts                 # reads every input through the accessor
+  │   ├── weather.ts                # snapshot to typed arrays; precomputed wall irradiance
   │   ├── geometry.ts               # areas, volume, H
   │   ├── solar.ts                  # solar position, vertical irradiance, gains
   │   ├── demand.ts                 # space heat and hot water, hourly
   │   ├── supply.ts                 # boiler and heat pump
   │   ├── costCarbon.ts             # tariffs and carbon
   │   ├── simulate.ts               # one house, one setup, one year
+  │   ├── testing/fixtureRegister.ts  # inline fixture registers for tests
   │   ├── sampling.ts               # hashed, seeded draws; inverse distribution functions
   │   ├── compare.ts                # paired comparison and share of wins
   │   ├── sensitivity.ts            # one-row-at-a-time table
@@ -233,8 +236,9 @@ scripts/
   ├── fetch-pvgis.ts                # writes the snapshot
   ├── pvgis/trim.ts                 # trims and validates the PVGIS response
   ├── report.ts                     # reads files, runs the engine, writes the report
+  ├── calibrate.ts, calibration/    # solves the mean internal temperature with the hourly engine
   ├── bench.ts                      # timing check, outside the coverage run
-  └── benchmark/                    # rough calculation, HEM input, notes and the provisional calibration (calibration.ts)
+  └── benchmark/                    # rough calculation, HEM input and notes
 reports/
   └── phase-1-london-semi.md        # generated and committed
 .github/workflows/ci.yml
@@ -263,7 +267,7 @@ The engine's tests use small inline fixture registers, so the engine PR doesn't 
 - A higher SPF always lowers the heat pump's electricity use, in every sample.
 - Gas use scales exactly with 1 ÷ boiler efficiency.
 - The heat-pump-only setup pays no gas standing charge, and both setups pay the electricity standing charge.
-- Vertical irradiance matches a published worked example for a known sun position, to within 2%.
+- Solar geometry matches published worked examples to within 2%: Duffie and Beckman's Example 1.6.1 (beam incidence on a tilted surface) and Example 1.6.2 (zenith angles). A south wall at an equinox noon receives beam at cos θ = sin(latitude), exactly. On the PVGIS snapshot, beam × cos(zenith) + diffuse matches global horizontal to within 0.5%. *(These replace a published vertical-wall example, which was not found; Magnus accepted them on 18 October 2026.)*
 - The worked price check above is reproduced to within 0.01p.
 - A fixture house with hand-calculated H, documented in `REFERENCE/engine.md`, is reproduced exactly.
 - An inline fixture register matching the benchmark archetype (values copied from `scripts/benchmark/draftValues.ts`, not imported), run at 17.8 °C air on the PVGIS weather, gives annual space heat within 10% of the HEM `thermostat-17` run (13,660 kWh; see `scripts/benchmark/hem/`). The decision threshold is 15%; the tighter 10% guards against regressions.

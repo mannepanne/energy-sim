@@ -115,7 +115,7 @@ Replace this template guidance with your actual phase list when you:
 
 Development runs in four phases. v1 leads with the numbers, and the 3D street follows once the numbers are trusted. Only the current phase has a full spec file; later phases get theirs when they start.
 
-**Current phase:** Phase 1, engine core. Tooling, the benchmark and the register are done; the engine PR is next
+**Current phase:** Phase 1, engine core. Tooling, the benchmark, the register and the engine are done; ranges and the report (PR 5) are next
 
 1. **[01-engine-core.md](./01-engine-core.md)** (4–6 weeks)
    Proves the heat-demand physics and the trust plumbing. A benchmark against HEM or measured data comes first. Then repo tooling and CI, the typed parameter register, and a headless hourly engine for one archetype (a 1930s semi in London), comparing gas with a heat pump on the price cap. Results come with paired uncertainty ranges and a sensitivity table, and the phase ends with a report Magnus and an outside expert can check.
@@ -125,7 +125,7 @@ Development runs in four phases. v1 leads with the numbers, and the 3D street fo
 
 3. **Phase 3: v1 website and beta launch** (spec to be written)
    The input form, the 2D comparison view, "where does this number come from?", the not-advice notice, Cloudflare hosting, cookie-free analytics and an A grade on securityheaders.com. It launches as a public beta, a proof of concept. Validation against real homes and expert review come after launch and do not gate it.
-   **To decide in the phase 3 spec: how user overrides flow to derived rows.** Heated volume and the wall, roof and floor areas are stored in the register, computed from floor area and window area. So `geometry.totalFloorArea` and `geometry.windowArea` are marked not overridable until overrides recompute (or the engine derives) the rows that depend on them. See [register.md](../REFERENCE/register.md#overrides).
+   **To decide in the phase 3 spec: how user overrides flow to derived rows.** Heated volume and the wall, roof and floor areas are stored in the register, computed from floor area and window area. So `geometry.totalFloorArea` and `geometry.windowArea` are marked not overridable until overrides recompute (or the engine derives) the rows that depend on them. See [register.md](../REFERENCE/register.md#overrides). The engine's `readInputs` overrides are a sampling hook for uncertain rows only, so user overrides of fixed rows marked `overridable` (U-values, prices, cylinder loss) need their own path into the engine. See [engine.md](../REFERENCE/engine.md#running-the-engine).
 
 4. **Phase 4: 3D floating-island street** (spec to be written)
    This is the committed next step after v1, and the project's main marketing asset. It is a low-poly Three.js diorama, drawn only from engine results.
