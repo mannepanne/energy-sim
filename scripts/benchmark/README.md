@@ -1,6 +1,6 @@
 # Benchmark
 
-The benchmark tests the project's riskiest assumption: that a simple engine gets a house's heat demand right. The plan is in [SPECIFICATIONS/01-engine-core.md](../../SPECIFICATIONS/01-engine-core.md), section "Benchmark".
+The benchmark tests the project's riskiest assumption: that a simple engine gets a house's heat demand right. The plan is in [SPECIFICATIONS/ARCHIVE/01-engine-core.md](../../SPECIFICATIONS/ARCHIVE/01-engine-core.md), section "Benchmark".
 
 This folder holds all four steps: a rough calculation (step 1), a run of the government's Home Energy Model in [hem/](./hem/README.md) (step 2), a comparison with measured gas use from NEED (step 3), and the decision (step 4).
 
@@ -13,7 +13,7 @@ This folder holds all four steps: a rough calculation (step 1), a run of the gov
 
 **Result: about 13,000 kWh a year of space heat for the main case, with 100 mm of loft insulation (H about 300 W/K).** The variant with no loft insulation gives about 18,000 kWh (H about 390 W/K).
 
-These numbers set an early expectation. Step 4 applies the 15%/30% decision rule to them against HEM, and the engine PR repeats that check with the engine itself.
+These numbers set an early expectation. Step 4 applies the 15%/30% decision rule to them against HEM, and the engine repeated that check with its hourly method (6.0% below HEM; see step 4).
 
 ### What it computes
 
@@ -150,7 +150,7 @@ Space heat = gas × boiler seasonal efficiency − 1,700 kWh of hot water heat. 
    - **What:** the uncertain mean internal temperature row is set so that the archetype's central annual gas use (space heat and hot water, from the engine's own boiler and hot water rows) hits a target fixed now, before the engine exists.
    - **The target:** 13,200 kWh of gas a year, the midpoint of readings A and C (10,980–15,433 kWh). The full A–C range is the tolerance the result must stay within. The row cites NEED as its source. *(Engine PR, 18 October 2026: the hourly engine solves 15.7 °C, which gives 13,124 kWh. See [register.md](../../REFERENCE/register.md#the-mean-internal-temperature-calibration).)*
    - **The fabric question:** the gap may partly come from pessimistic RdSAP U-values rather than behaviour. Calibrating the temperature absorbs both, so the row's rationale says so, and the phase 1 spec records it as technical debt. Splitting the correction between temperature and the fabric factor needs evidence this benchmark doesn't have (for example volunteer homes with known fabric), and matters most for phase 2's insulation options.
-   - **An assumption to record in the register PR:** the calibrated temperature comes from gas-heated homes and applies to both setups ("the same household, different kit"). Heat pump households often heat for longer hours, so the row says so, and the phase 1 report lists it as a limitation.
+   - **A recorded assumption:** the calibrated temperature comes from gas-heated homes and applies to both setups ("the same household, different kit"). Heat pump households often heat for longer hours. The row says so, the phase 1 report lists it as a limitation, and [issue 15](https://github.com/mannepanne/energy-sim/issues/15) tracks it.
    - **Why:** it corrects for real households heating less than the whole house all day, without new physics in phase 1. Intermittent heating schedules and thermal mass stay in phase 2.
 3. **The NEED reference is the A–C range, not a single reading,** because none of the readings was chosen in advance.
 

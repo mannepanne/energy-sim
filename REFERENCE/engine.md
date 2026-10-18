@@ -4,7 +4,7 @@
 
 The engine is a pure TypeScript library in `src/engine/`. It reads no files and makes no network calls, so the same code runs in tests, scripts and (in phase 3) the browser. It runs one house with one heating setup over the 8,760 hours of a typical year, using typed arrays rather than an object per hour. Every number it uses comes from the [register](./register.md); only physical constants live in `src/engine/constants.ts`.
 
-What phase 1 builds and why is in the [phase 1 spec](../SPECIFICATIONS/01-engine-core.md). Why the temperature is an air temperature calibrated to measured gas use is in the [calibration ADR](./decisions/2026-10-17-air-temperature-calibrated-to-need.md).
+What phase 1 builds and why is in the [phase 1 spec](../SPECIFICATIONS/ARCHIVE/01-engine-core.md). Why the temperature is an air temperature calibrated to measured gas use is in the [calibration ADR](./decisions/2026-10-17-air-temperature-calibrated-to-need.md).
 
 ## Files
 

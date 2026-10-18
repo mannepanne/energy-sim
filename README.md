@@ -6,10 +6,10 @@ The site gives estimates, not financial advice. Its results are never influenced
 
 ## Status
 
-Phase 1 of 4 is under way: a headless TypeScript engine for one house type (a 1930s semi in London), comparing a gas boiler with a heat pump. So far the repository has its tooling, CI, the benchmark (a rough heat-demand estimate checked against the government's Home Energy Model and against measured gas use), the parameter register that holds every number the engine uses, the hourly engine, and seeded uncertainty ranges with a paired comparison and a sensitivity table. The results are in the [phase 1 report](./reports/phase-1-london-semi.md). There is no website yet.
+Phase 1 of 4 is complete: a headless TypeScript engine for one house type (a 1930s semi in London), comparing a gas boiler with a heat pump. So far the repository has its tooling, CI, the benchmark (a rough heat-demand estimate checked against the government's Home Energy Model and against measured gas use), the parameter register that holds every number the engine uses, the hourly engine, and seeded uncertainty ranges with a paired comparison and a sensitivity table. The results are in the [phase 1 report](./reports/phase-1-london-semi.md). There is no website yet.
 
 - What the project is: [project outline](./SPECIFICATIONS/ORIGINAL_IDEA/project-outline.md)
-- What phase 1 builds: [phase 1 spec](./SPECIFICATIONS/01-engine-core.md)
+- What phase 1 built: [phase 1 spec, archived](./SPECIFICATIONS/ARCHIVE/01-engine-core.md)
 - The benchmark and its decision: [scripts/benchmark/](./scripts/benchmark/README.md)
 - The parameter register: [REFERENCE/register.md](./REFERENCE/register.md)
 - How the engine works: [REFERENCE/engine.md](./REFERENCE/engine.md)

@@ -69,5 +69,5 @@ The engine needs large reference datasets: an hourly typical weather year, tarif
 ## References
 
 - [PVGIS API non-interactive service (EU JRC)](https://joint-research-centre.ec.europa.eu/photovoltaic-geographical-information-system-pvgis/using-pvgis-5/api-non-interactive-service_en)
-- [Phase 1 spec](../../SPECIFICATIONS/01-engine-core.md)
+- [Phase 1 spec](../../SPECIFICATIONS/ARCHIVE/01-engine-core.md)
 - [Project outline](../../SPECIFICATIONS/ORIGINAL_IDEA/project-outline.md), "Constraints and assumptions"

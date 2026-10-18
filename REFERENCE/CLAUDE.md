@@ -25,9 +25,9 @@ The hourly engine's files and API, the heat loss, space heat, solar, hot water, 
 Node version, installing dependencies, and where secrets will go. Phase 1 needs no API keys.
 
 ### [troubleshooting.md](./troubleshooting.md)
-**When to read:** Debugging issues, fixing deployment problems, or resolving API integration errors.
+**When to read:** A check fails locally or in CI, the register won't load, or a data file needs refreshing.
 
-Common issues and solutions for local development, deployment, and API integrations.
+Set-up problems, register validation and calibration failures, report drift and bench failures in CI, the benchmark's README and HEM drift tests, and refreshing PVGIS and prices.
 
 ### [pr-review-workflow.md](./pr-review-workflow.md)
 **When to read:** Starting a new feature, creating PRs, or running any kind of review.
