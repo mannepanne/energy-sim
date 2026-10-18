@@ -30,7 +30,7 @@ Add an entry here when a problem takes more than a few minutes to work out.
 
 **The id parity test fails.** A row was added to or removed from the register without the same change to the `RowId` union in `src/register/ids.ts`, or the other way round. Keep the two in step.
 
-**The calibration test fails** (`scripts/calibration/meanInternalTemperature.test.ts`). A change to a row the gas setup reads, such as a U-value, the windows or the weather, has moved central gas use away from the 13,200 kWh target. Re-solve the `heating.meanInternalTemperature` row with `npm run calibrate`, as [register.md](./register.md#the-mean-internal-temperature-calibration) describes, then regenerate the report.
+**The calibration test fails** (`scripts/calibration/meanInternalTemperature.test.ts`). A change to a row the gas setup reads, such as a U-value, the windows or the weather, has moved central gas use away from its calibration target. Re-solve the `heating.meanInternalTemperature` row with `npm run calibrate`, as [register.md](./register.md#the-mean-internal-temperature-calibration) describes, then regenerate the report.
 
 ## The report and CI
 
