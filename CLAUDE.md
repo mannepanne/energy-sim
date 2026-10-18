@@ -53,7 +53,7 @@ Development is organised into numbered phases with clear deliverables, testing r
 **Current phase:** Phase 2, complete v1 model (spec to be written; open phase 1 technical debt is tracked in GitHub issues with the `technical-debt` label)
 
 ### SPECIFICATIONS/
-- **Implementation phases** (numbered files) - Active work-in-progress
+- **Implementation phases** (numbered files) - Active work-in-progress (none until the phase 2 spec is written)
 - **ORIGINAL_IDEA/** - Master spec, product vision, naming inspiration
 - **ARCHIVE/** - Completed specs (move here when phase complete)
 
@@ -61,7 +61,7 @@ Development is organised into numbered phases with clear deliverables, testing r
 How-it-works documentation for implemented features:
 - [testing-strategy.md](./REFERENCE/testing-strategy.md) - Testing philosophy and approach
 - [environment-setup.md](./REFERENCE/environment-setup.md) - API keys and environment configuration
-- [troubleshooting.md](./REFERENCE/troubleshooting.md) - Common issues and solutions
+- [troubleshooting.md](./REFERENCE/troubleshooting.md) - Register validation and calibration failures, report drift and bench failures, the benchmark drift tests, and refreshing data
 - [TEMPLATE-UPDATES/](./REFERENCE/TEMPLATE-UPDATES/) - Migration packets for rolling out template improvements to derivative projects
 - [register.md](./REFERENCE/register.md) - The parameter register, its integrity rules, the calibration and the PVGIS snapshot
 - [engine.md](./REFERENCE/engine.md) - The hourly engine: physics, inputs, the fixture house and the HEM check

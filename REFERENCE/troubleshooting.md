@@ -14,7 +14,7 @@ Add an entry here when a problem takes more than a few minutes to work out.
 
 ## Set-up
 
-**`npm ci` fails, or tests won't start with "Cannot find package 'vitest'".** The dependencies aren't installed, or `package-lock.json` doesn't match `package.json`. Use Node 24 (`nvm use` reads `.nvmrc`), then run `npm ci`. Don't run a bare `npm install` to "fix" the lockfile; add or bump packages only as the 14-day rule in root `CLAUDE.md` describes.
+**`npm ci` fails, or tests won't start with "Cannot find package 'vitest'".** The dependencies aren't installed, or `package-lock.json` doesn't match `package.json`. Use the Node version in `.nvmrc` (`nvm use` picks it up), then run `npm ci`. Don't run a bare `npm install` to "fix" the lockfile; add or bump packages only as the 14-day rule in root `CLAUDE.md` describes.
 
 **Type errors appear only in CI.** Run `npm run typecheck` locally. TypeScript is pinned to an exact version and upgraded together with `oxlint-tsgolint`, so a version mismatch between the two shows up as lint or type errors ([TypeScript 7 and Oxlint ADR](./decisions/2026-10-17-typescript-7-with-oxlint.md)).
 
@@ -22,7 +22,7 @@ Add an entry here when a problem takes more than a few minutes to work out.
 
 ## The register
 
-**`RegisterValidationError` when loading `data/register.json`.** The error lists every problem, each naming the row id, its position and the field, for example `Row "heating.heatPumpSpf" (rows[26]), field "default": …`. Fix each named field. The full list of integrity rules is in [register.md](./register.md#integrity-rules). Common causes:
+**`RegisterValidationError` when loading `data/register.json`.** The error lists every problem, each naming the row id, its position and the field, for example `Row "heating.heatPumpSpf" (rows[n]), field "default": …`. Fix each named field. The full list of integrity rules is in [register.md](./register.md#integrity-rules). Common causes:
 - a field misspelt (unknown fields are rejected);
 - an uncertain row whose default lies outside low–high, or a lognormal row whose default differs from its median;
 - a `sourced` or `to-verify` row without a `source`, or an `approximate` row without a `rationale`;
@@ -30,7 +30,7 @@ Add an entry here when a problem takes more than a few minutes to work out.
 
 **The id parity test fails.** A row was added to or removed from the register without the same change to the `RowId` union in `src/register/ids.ts`, or the other way round. Keep the two in step.
 
-**The calibration test fails** (`scripts/calibration/meanInternalTemperature.test.ts`). A change to a row the gas setup reads, such as a U-value, the windows or the weather, has moved central gas use away from the 13,200 kWh target. Run `npm run calibrate`, copy the solved default, low and high into the `heating.meanInternalTemperature` row (rounded to 0.1 °C), then regenerate the report. See [register.md](./register.md#the-mean-internal-temperature-calibration).
+**The calibration test fails** (`scripts/calibration/meanInternalTemperature.test.ts`). A change to a row the gas setup reads, such as a U-value, the windows or the weather, has moved central gas use away from the 13,200 kWh target. Re-solve the `heating.meanInternalTemperature` row with `npm run calibrate`, as [register.md](./register.md#the-mean-internal-temperature-calibration) describes, then regenerate the report.
 
 ## The report and CI
 
@@ -38,7 +38,7 @@ Add an entry here when a problem takes more than a few minutes to work out.
 
 **`npm run report` gives a different file on a second run.** That breaks the drift check. The report must never read the clock or depend on run order. Look for a date, a timestamp or an unseeded random number in `scripts/report/`.
 
-**CI's "Bench" step fails.** 500 samples × 2 setups took longer than 5 seconds, many times the usual time. Look for a slowdown in the hourly loop: per-hour objects instead of typed arrays, or weather prepared again for every sample instead of once.
+**CI's "Bench" step fails.** 500 samples × 2 setups took longer than 5 seconds. On a recent Mac it takes about 0.6 seconds (580–590 ms on 18 October 2026), and CI runners are somewhat slower, so a failure means a real slowdown, not noise. Look for a slowdown in the hourly loop: per-hour objects instead of typed arrays, or weather prepared again for every sample instead of once.
 
 ## The benchmark
 
