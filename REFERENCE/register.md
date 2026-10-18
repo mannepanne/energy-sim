@@ -39,7 +39,7 @@ Every row has `id`, `kind`, `section`, `label`, `unit`, `status`, `lastChecked` 
 - `sourced` (checked against the source on `lastChecked`) and `to-verify` (taken from the source, not yet checked line by line) need `source: { title, url }`.
 - `approximate` (an estimate) needs a `rationale`, and may add a `source`.
 
-Any row may carry a `rationale`, and most do.
+Any row may carry a `rationale`, and most do. Any row may also carry `validUntil` (YYYY-MM-DD), the last day its value applies, such as the end of a price cap period. It must not be before `lastChecked`.
 
 **Value fields depend on the kind:**
 
@@ -68,7 +68,7 @@ Unknown fields are rejected, so a typo such as `defualt` fails.
 
 Cross-row rules (duplicates, dependencies) run only once every row is valid on its own.
 
-**Stale rows are a warning, not an error.** `staleRows(register, asOf)` lists rows whose `lastChecked` plus their cadence falls before `asOf`. The caller passes the date, so output never depends on the clock and the committed report stays byte-identical.
+**Stale rows are a warning, not an error.** `dueDate(row)` is `lastChecked` plus the row's cadence, or its `validUntil` if that comes first; the four price rows fall due on 2026-12-31, when their cap period ends. `staleRows(register, asOf)` lists rows whose due date falls before `asOf`, and `npm run report` prints them as console warnings. The caller passes the date, so output never depends on the clock and the committed report stays byte-identical.
 
 ## Adding or changing a row
 

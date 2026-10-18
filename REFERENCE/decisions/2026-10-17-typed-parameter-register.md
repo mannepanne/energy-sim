@@ -8,7 +8,7 @@
 
 ## Decision
 
-Every input the engine uses lives in one data file, `data/register.json`. Each row is one parameter, of one of four typed kinds: `uncertain`, `fixed`, `series` or `profile`. A Zod schema validates the file on load. The schema enforces provenance on every row: either a source or, for `approximate` rows, a written rationale. It also enforces integrity rules: unique ids, valid ranges, valid dependencies and ISO dates. The engine reads parameters only through a typed accessor. Only physical constants and unit conversions live in code.
+Every input the engine uses lives in one data file, `data/register.json`. Each row is one parameter, of one of four typed kinds: `uncertain`, `fixed`, `series` or `profile`. A Zod schema validates the file on load. The schema enforces provenance on every row: either a source or, for `approximate` rows, a written rationale. It also enforces integrity rules: unique ids, valid ranges, valid dependencies and ISO dates. The engine reads parameters only through a typed accessor. Only physical constants, unit conversions and method settings live in code (see the amendment below).
 
 ## Context
 
@@ -69,8 +69,18 @@ The first draft used one flat row shape with `default`/`low`/`high`, and require
 - Expert review row by row, with comments logged against row ids.
 
 **Prevents or complicates:**
-- Ad hoc constants in engine code. Physical constants are the only exemption, and they live in one file.
+- Ad hoc constants in engine code. Physical constants (in `src/engine/constants.ts`) and method settings are the only exemptions; see the amendment below.
 - Adding a new input always means adding a row with provenance first. That is intentional friction.
+
+## Amendment (18 October 2026): method settings may live in code
+
+**Decision (Magnus, while reviewing the phase 1 ranges-and-report PR):** two kinds of number may live in code:
+- physical constants and unit conversions;
+- **method settings**: numbers that say how the calculation is carried out, not what is true of a house. Examples are the report's sampling plan (seed 1, 500 samples), the sensitivity table's tie threshold, the coefficients of the inverse normal approximation and the hash constants.
+
+Every fact about houses, energy, prices or behaviour stays in the register, with its source and date.
+
+**Why:** a method setting has no source to cite and no range to sample. Putting it in the register would break the register's rule that each row is a sourced fact. Each method setting sits next to the code that uses it, with a comment saying what it is.
 
 ---
 

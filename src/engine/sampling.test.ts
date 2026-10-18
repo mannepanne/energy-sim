@@ -129,6 +129,11 @@ describe('the lognormal SPF row', () => {
 });
 
 describe('sampleOverrides', () => {
+  it('never samples a row that prepareWeather reads, because the weather is prepared once for every sample', () => {
+    const weatherRows: readonly string[] = ['weather.irradianceSampleMinute', 'gains.groundReflectance'];
+    for (const id of UNCERTAIN_ROW_IDS) expect(weatherRows).not.toContain(id);
+  });
+
   it('draws every uncertain row the engine reads', () => {
     const access = fixtureAccessor({}, { 'heating.heatPumpSpf': { low: 2, high: 3.5, sigma: 0.15 } });
     const [first] = sampleOverrides(access, { seed: 1, count: 1 });

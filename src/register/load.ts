@@ -52,8 +52,17 @@ export interface StaleRow {
   dueBy: string;
 }
 
-/** The date a row is next due for a check, or undefined for a static row. */
-export function dueDate(row: Pick<RegisterRow, 'lastChecked' | 'refreshCadence'>): string | undefined {
+/**
+ * The date a row is next due for a check: its refresh cadence after `lastChecked`, or its `validUntil` date
+ * if that comes first. Undefined for a static row with no `validUntil`.
+ */
+export function dueDate(row: Pick<RegisterRow, 'lastChecked' | 'refreshCadence' | 'validUntil'>): string | undefined {
+  const byCadence = cadenceDueDate(row);
+  if (row.validUntil === undefined) return byCadence;
+  return byCadence === undefined || row.validUntil < byCadence ? row.validUntil : byCadence;
+}
+
+function cadenceDueDate(row: Pick<RegisterRow, 'lastChecked' | 'refreshCadence'>): string | undefined {
   if (row.refreshCadence === 'static') return undefined;
   const months = typeof row.refreshCadence === 'number' ? row.refreshCadence : CADENCE_MONTHS[row.refreshCadence];
   const year = Number(row.lastChecked.slice(0, 4));

@@ -44,7 +44,7 @@ Background: [project-outline.md](./ORIGINAL_IDEA/project-outline.md) (scope and 
 - [x] The benchmark result is recorded, with the decision it triggers (see "Benchmark"), before the engine PR is merged.
 - [x] `npm run report` regenerates the report from the register and snapshot alone, with no network access, and produces byte-identical output on a second run.
 - [x] The report shows, for both setups: annual heat demand, kWh by fuel, running cost and carbon, each as a central value plus a 10th–90th percentile range and the median. It also shows the paired difference (gas minus heat pump), the share of samples in which the heat pump is cheaper, the sensitivity table, the benchmark result, the data dates, the seed and sample count, and the limitations, including that one calibrated mean internal temperature applies to both setups.
-- [ ] Every non-constant number the engine uses comes from a register row, enforced as described under "Register integrity".
+- [x] Every non-constant number the engine uses comes from a register row, enforced as described under "Register integrity". *(Done: the engine reads every input through the typed accessor, and the id parity test holds. Method settings, such as the report's seed and sample count, may live in code; Magnus amended the [register ADR](../REFERENCE/decisions/2026-10-17-typed-parameter-register.md) on 18 October 2026.)*
 - [x] The register fails validation, with a message naming the row and field, for every rule under "Register integrity".
 - [x] All physics, register and sampling tests pass. Coverage is 95%+ for lines, functions and statements and 90%+ for branches, type checking passes, and CI is green.
 - [ ] Magnus has read the report. Sending it to an outside reviewer is optional and does not block the phase.
@@ -112,7 +112,7 @@ Validation fails with a message naming the row and field when:
 - a `dependsOn` entry names a missing row, or the dependencies form a cycle;
 - `lastChecked` is not a valid ISO date.
 
-A row past its `refreshCadence` is not an error. It produces a warning, and the report lists such rows under "data dates".
+A row past its `refreshCadence`, or past its optional `validUntil` date (such as the end of a price cap period), is not an error. `npm run report` prints a warning for it on the console. The report itself lists every row that needs refreshing, with the date it falls due, under "data dates". It never uses today's date, so the committed report stays byte-identical. *(Magnus chose this on 18 October 2026, in place of listing only the overdue rows.)*
 
 **Every number comes from a row.** Physical constants and unit conversions live in `src/engine/constants.ts`: hours per year, the heat capacity of air (0.33 Wh/m³K), the specific heat of water, and kWh conversions. Everything else is read through a typed accessor. Row ids are a TypeScript union, and a parity test checks that the union and the register file contain exactly the same ids. The accessor throws an error naming the id if asked for one that doesn't exist.
 
@@ -298,7 +298,7 @@ The engine's tests use small inline fixture registers, so the engine PR doesn't 
 ### Manual checklist
 - [ ] Magnus reads the report and the numbers look plausible.
 - [ ] Optional, not blocking: if the report goes to an outside reviewer, their comments are noted in the PR.
-- [ ] Changing one register value (for example, the SPF median to 3.2) moves the result in the expected direction.
+- [x] Changing one register value (for example, the SPF median to 3.2) moves the result in the expected direction. *(Checked on 18 October 2026 on the real register, seed 1, 500 samples: central heat pump cost falls from £1,958 to £1,821, and the heat pump is cheaper in 89% of samples instead of 64%.)*
 
 ---
 

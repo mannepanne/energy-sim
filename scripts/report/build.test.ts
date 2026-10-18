@@ -71,8 +71,16 @@ describe('buildReport', () => {
   });
 
   it('takes the price period from the price row’s label', () => {
-    expect(pricePeriod(createAccessor(register))).toBe('1 October–31 December 2026');
-    expect(report).toContain(`for ${pricePeriod(createAccessor(register))}.`);
+    const access = createAccessor(register);
+    expect(access.fixed('prices.electricityUnitRate').label.endsWith(`, ${pricePeriod(access)}`)).toBe(true);
+    expect(pricePeriod(access)).toMatch(/\d{4}$/);
+    expect(report).toContain(`for ${pricePeriod(access)}.`);
+  });
+
+  it('explains the hot water gap, reports the no-loft variant and names the NEED age band', () => {
+    expect(report).toContain('hot water cylinder loses heat');
+    expect(report).toContain('## The variant with no loft insulation');
+    expect(report).toContain('1919–44 band');
   });
 
   it('uses 500 samples for the committed report', () => {

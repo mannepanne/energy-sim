@@ -10,7 +10,10 @@ export type UncertainSpec = Pick<UncertainRow, 'id' | 'default' | 'low' | 'high'
 
 const UINT32_RANGE = 2 ** 32;
 
-/** FNV-1a over the text's UTF-16 code units, then the murmur3 finaliser to spread the bits. Returns an unsigned 32-bit integer. */
+/**
+ * FNV-1a over the text's UTF-16 code units, then the murmur3 finaliser to spread the bits. Returns an unsigned 32-bit integer.
+ * It is fast and reproducible, not cryptographic: never use it for anything security-related.
+ */
 export function hash32(text: string): number {
   let hash = 0x811c9dc5;
   for (let index = 0; index < text.length; index += 1) {
@@ -87,15 +90,17 @@ function checkPlan({ seed, count }: SamplingPlan): void {
 }
 
 /** One value per row per sample, keyed by row id. Each draw depends only on (seed, sample, row id). */
-export function drawSamples(rows: readonly UncertainSpec[], plan: SamplingPlan): Record<string, number>[] {
+export function drawSamples<Id extends string>(rows: readonly (UncertainSpec & { id: Id })[], plan: SamplingPlan): Partial<Record<Id, number>>[] {
   checkPlan(plan);
-  return Array.from({ length: plan.count }, (_, sample) =>
-    Object.fromEntries(rows.map((row) => [row.id, drawValue(row, uniformFor(plan.seed, sample, row.id))])),
-  );
+  return Array.from({ length: plan.count }, (_, sample) => {
+    const values: Partial<Record<Id, number>> = {};
+    for (const row of rows) values[row.id] = drawValue(row, uniformFor(plan.seed, sample, row.id));
+    return values;
+  });
 }
 
 /** Joint draws of every uncertain row the engine reads, ready to pass to `readInputs` as overrides. */
 export function sampleOverrides(access: RegisterAccessor, plan: SamplingPlan): UncertainOverrides[] {
-  const rows = UNCERTAIN_ROW_IDS.map((id) => access.uncertain(id));
+  const rows = UNCERTAIN_ROW_IDS.map((id) => ({ ...access.uncertain(id), id }));
   return drawSamples(rows, plan);
 }

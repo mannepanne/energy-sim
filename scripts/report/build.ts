@@ -3,7 +3,7 @@
 
 import { compare, centralOutsideBand, runPaired, type Band, type Comparison, type Metric, type PairedRun } from '../../src/engine/compare.ts';
 import { heatLoss } from '../../src/engine/geometry.ts';
-import { readInputs } from '../../src/engine/inputs.ts';
+import { readInputs, UNCERTAIN_ROW_IDS } from '../../src/engine/inputs.ts';
 import type { SamplingPlan } from '../../src/engine/sampling.ts';
 import { sensitivity, type SensitivityRow } from '../../src/engine/sensitivity.ts';
 import type { Setup } from '../../src/engine/simulate.ts';
@@ -46,6 +46,31 @@ const range = (low: string, high: string): string => (low === high ? low : `${lo
 const bandCells = (value: Band, format: (value: number) => string): string =>
   `${format(value.central)} | ${format(value.median)} | ${range(format(value.p10), format(value.p90))}`;
 
+function resultsSection(comparison: Comparison): string {
+  return [
+    '## Results for each setup',
+    '',
+    '### Gas boiler',
+    '',
+    resultsTable(comparison, 'gas'),
+    '',
+    '### Heat pump',
+    '',
+    resultsTable(comparison, 'heatPump'),
+    '',
+    'Hot water heat is higher for the heat pump because its hot water cylinder loses heat all day; the gas combi boiler heats water as it is used and has no cylinder.',
+  ].join('\n');
+}
+
+function variantSection(comparison: Comparison): string {
+  const { costDifference } = comparison;
+  return [
+    '## The variant with no loft insulation',
+    '',
+    `With no loft insulation (RdSAP’s default for this age band), the house needs more heat: ${kwh(comparison.bands.gas.spaceHeatKwh.central)} of space heat a year, central. Gas minus heat pump running cost is ${pounds(costDifference.central)} central (${range(pounds(costDifference.p10), pounds(costDifference.p90))}), and the heat pump is cheaper in ${share(comparison.shareHeatPumpCheaper)} of samples. The same samples and the same bias (issue 15) apply.`,
+  ].join('\n');
+}
+
 function resultsTable(comparison: Comparison, setup: Setup): string {
   const rows = METRIC_ROWS.map(({ metric, label, format }) => `| ${label} | ${bandCells(comparison.bands[setup][metric], format)} |`);
   return ['| A year | Central | Median | 10th to 90th percentile |', '| --- | ---: | ---: | ---: |', ...rows].join('\n');
@@ -84,9 +109,9 @@ function comparisonSection(comparison: Comparison, count: number): string {
     `| Running cost | ${bandCells(costDifference, pounds)} |`,
     `| Carbon (kgCO₂e) | ${bandCells(carbonDifference, kgCo2e)} |`,
     '',
-    `**The heat pump is cheaper to run in ${share(comparison.shareHeatPumpCheaper)} of samples** (rounded to the nearest 5%; an exact tie counts as half). With ${wholeNumber(count)} samples, this share is uncertain by about ±${marginPoints(comparison.shareHeatPumpCheaper, count)} percentage points (95% confidence).`,
+    `**The heat pump is cheaper to run in ${share(comparison.shareHeatPumpCheaper)} of samples** (rounded to the nearest 5%; an exact tie counts as half). With ${wholeNumber(count)} samples, this share carries sampling noise of about ±${marginPoints(comparison.shareHeatPumpCheaper, count)} percentage points. That is noise from the method, not the real-world uncertainty, which the ranges above show.`,
     '',
-    '**This running-cost comparison leans in the heat pump’s favour.** One calibrated mean internal temperature, taken from gas-heated homes, applies to both setups. Heat pump households often heat for longer, so the heat pump’s running cost is likely too low here, and the share of samples in which it is cheaper too high ([issue 15](https://github.com/mannepanne/energy-sim/issues/15)). Phase 2 is where this gets addressed.',
+    '**This running-cost comparison leans in the heat pump’s favour.** One calibrated mean internal temperature, taken from gas-heated homes, applies to both setups. Heat pump households often heat for longer, so the heat pump’s running cost is likely too low here, and the share of samples in which it is cheaper too high ([issue 15](https://github.com/mannepanne/energy-sim/issues/15)). The model does not yet give the two setups different temperatures.',
     ...(notes.length > 0 ? ['', ...notes] : []),
   ].join('\n');
 }
@@ -126,7 +151,7 @@ function houseSection(access: RegisterAccessor): string {
   return [
     '## The house',
     '',
-    `A semi-detached house built 1930–49, in London: ${plainValue(fixed('geometry.totalFloorArea'))} m² over two storeys, unfilled cavity walls, 100 mm of loft insulation and retrofitted double glazing. This is the main case; the variant with no loft insulation is not reported here.`,
+    `A semi-detached house built 1930–49, in London: ${plainValue(fixed('geometry.totalFloorArea'))} m² over two storeys, unfilled cavity walls, 100 mm of loft insulation and retrofitted double glazing. This is the main case; the variant with no loft insulation has a short section of its own below.`,
     '',
     `- Heat loss coefficient (central): ${wholeNumber(heatLoss(inputs).totalWPerK)} W/K.`,
     `- Mean internal air temperature (central): ${plainValue(inputs.meanInternalTemperatureC)} °C, held continuously.`,
@@ -135,8 +160,8 @@ function houseSection(access: RegisterAccessor): string {
   ].join('\n');
 }
 
-function methodSection(register: Register, run: PairedRun): string {
-  const uncertain = register.rows.filter((row) => row.kind === 'uncertain').map((row) => row.label.split(' (')[0]!.toLowerCase());
+function methodSection(access: RegisterAccessor, run: PairedRun): string {
+  const uncertain = UNCERTAIN_ROW_IDS.map((id) => access.uncertain(id).label);
   return [
     '## How the ranges are made',
     '',
@@ -167,7 +192,7 @@ function benchmarkSection(centralGasKwh: number): string {
     '',
     `- **The pre-registered check missed the rule.** HEM gave ${kwh(hemMain.spaceHeatKwh)} at its own settings (about ${air(hemMain.meanAirTemperatureWhenHeatingC)} of air), and the rough calculation at 18 °C of air gave ${kwh(rough)}: a gap of ${signedPercent(gapFromReference(rough, hemMain.spaceHeatKwh), 1)}, just outside 15%.`,
     `- **The rule was amended after seeing that result** (Magnus, 17 October 2026). HEM’s thermostat controls the felt (operative) temperature, which runs below the air temperature, while this engine uses air temperature. So the check compares like with like: at about ${air(hemMatched.meanAirTemperatureWhenHeatingC)} of air, HEM gives ${kwh(hemMatched.spaceHeatKwh)}, a gap of ${signedPercent(gapFromReference(rough, hemMatched.spaceHeatKwh), 1)}. **Decision: proceed with no thermal mass.** A test keeps the engine itself within 10% of that HEM run.`,
-    `- **Both models predict more gas than comparable homes use.** NEED gives ${wholeNumber(NEED_GAS_RANGE_KWH.low)} to ${wholeNumber(NEED_GAS_RANGE_KWH.high)} kWh of gas a year. **Decision: calibrate the mean internal temperature** so the central gas use hits the midpoint, ${wholeNumber(NEED_GAS_TARGET_KWH)} kWh, a target fixed before the engine existed. Here the central gas use is ${kwh(centralGasKwh)}.`,
+    `- **Both models predict more gas than comparable homes use.** Three ways of reading NEED, the government’s measured gas use data, give ${wholeNumber(NEED_GAS_RANGE_KWH.low)} to ${wholeNumber(NEED_GAS_RANGE_KWH.high)} kWh of gas a year for a typical home like this one. That is the spread between the readings, not between real homes, which vary far more. NEED has no 1930–49 age band, so its 1919–44 band stands in for this house. **Decision: calibrate the mean internal temperature** so the central gas use hits the midpoint, ${wholeNumber(NEED_GAS_TARGET_KWH)} kWh, a target fixed before the engine existed. Here the central gas use is ${kwh(centralGasKwh)}.`,
     '- The full write-up is in [scripts/benchmark/README.md](../scripts/benchmark/README.md), and the decisions are in the [calibration ADR](../REFERENCE/decisions/2026-10-17-air-temperature-calibrated-to-need.md).',
   ].join('\n');
 }
@@ -184,9 +209,9 @@ function dataDatesSection(register: Register, snapshot: PvgisSnapshot): string {
   return [
     '## Data dates',
     '',
-    `- **Register:** ${register.rows.length} rows (${statusCounts}), last checked between ${checked[0]} and ${checked[checked.length - 1]}.`,
+    `- **Register:** ${register.rows.length} rows (${statusCounts}), last checked between ${checked[0]} and ${checked[checked.length - 1]}. A sourced row has been checked against its source; a to-verify row is taken from a source but not yet checked line by line; an approximate row is an estimate with a written reason. See [register.md](../REFERENCE/register.md).`,
     `- **Weather:** the PVGIS typical year for ${exactNumber(snapshot.location.latitude)}, ${exactNumber(snapshot.location.longitude)} (${snapshot.radiationDatabase}), fetched on ${snapshot.fetchedOn}. ${snapshot.attribution}`,
-    '- **Rows due for a fresh check** (the rest are static):',
+    '- **Rows due for a fresh check** (the rest are static). A price row falls due when its price cap period ends:',
     '',
     '| Row | Last checked | Due by |',
     '| --- | --- | --- |',
@@ -204,7 +229,7 @@ const LIMITATIONS = [
   '- **The boiler’s own pump and fan electricity is left out** ([issue 18](https://github.com/mannepanne/energy-sim/issues/18)).',
   '- **Uncertain rows other than fabric quality are drawn independently**, so a real link between them (for example, more occupants means more hot water and more internal gains) is not captured ([issue 20](https://github.com/mannepanne/energy-sim/issues/20)).',
   '- **Constant internal gains**, and windows split equally over four orientations.',
-  '- Several register rows still need a line-by-line check against their source ([issues 7, 8 and 9](https://github.com/mannepanne/energy-sim/issues?q=is%3Aissue+label%3Atechnical-debt)).',
+  '- Several register rows still need a line-by-line check against their source ([issue 7](https://github.com/mannepanne/energy-sim/issues/7), [issue 8](https://github.com/mannepanne/energy-sim/issues/8) and [issue 9](https://github.com/mannepanne/energy-sim/issues/9)).',
 ].join('\n');
 
 /** The whole report, ending in a single newline. */
@@ -222,12 +247,11 @@ export function buildReport(register: Register, snapshot: PvgisSnapshot, plan: S
       'This report compares a gas combi boiler with an air source heat pump for one house, with honest ranges. The numbers are estimates for a typical house of this kind, not advice for any particular home, and not financial advice.',
     ].join('\n'),
     houseSection(access),
-    ['## Results for each setup', '', ...(['gas', 'heatPump'] as const).flatMap((setup) => [`### ${SETUP_NAMES[setup]}`, '', resultsTable(comparison, setup), ''])]
-      .join('\n')
-      .trimEnd(),
+    resultsSection(comparison),
     comparisonSection(comparison, plan.count),
     sensitivitySection(access, sensitivity(access, weather)),
-    methodSection(register, run),
+    variantSection(compare(runPaired(access, weather, plan, 'noLoftInsulation'))),
+    methodSection(access, run),
     benchmarkSection(run.central.gas.gasKwh),
     dataDatesSection(register, snapshot),
     LIMITATIONS,

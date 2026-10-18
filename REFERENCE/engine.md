@@ -155,7 +155,7 @@ The engine turns register ranges into result ranges by sampling. The [phase 1 re
 
 ```typescript
 const weather = prepareWeather(weatherFromSnapshot(snapshot), readInputs(access)); // once
-const run = runPaired(access, weather, { seed: 1, count: 500 });
+const run = runPaired(access, weather, { seed: 1, count: 500 }); // optional fourth argument: 'noLoftInsulation'
 const comparison = compare(run); // bands for each setup, the paired difference and the share of wins
 const table = sensitivity(access, weather);
 ```
@@ -185,8 +185,10 @@ const table = sensitivity(access, weather);
 - **Offline and byte-identical.** It reads only committed files, never the clock or the locale, and writes `\n` line endings. Formatting groups thousands by hand and writes minus as U+2212, so the output does not depend on the machine.
 - **Rounding:** costs to £10, energy to 100 kWh, carbon to 10 kg and shares to 5%.
 - **Method settings:** seed 1 and 500 samples (`REPORT_PLAN`). They are settings of the method, not facts about the house, so they live in code rather than the register.
-- **Data dates:** the register's status counts and check dates, the snapshot's fetch date, and every non-static row with the date it is due for a fresh check. No "today" is used, so the committed report never goes stale by itself.
+- **Data dates:** the register's status counts and check dates, the snapshot's fetch date, and every row that needs refreshing with the date it falls due (see `dueDate` in [register.md](./register.md#integrity-rules)). No "today" is used, so the committed report never goes stale by itself. `npm run report` prints overdue rows as console warnings instead.
+- **The no-loft variant** gets a short section with its own paired run on the same samples. `sensitivity` also takes an optional variant.
 - **CI** regenerates the report and fails if it differs from the committed copy. After changing a register row, run `npm run report` and commit the result.
+- **Unescaped text.** Register and snapshot strings, such as labels and the PVGIS attribution, go into the Markdown as they are. That is safe for committed data. If phase 3 renders them as HTML, they must go through an escaping renderer.
 
 ## Known simplifications
 
