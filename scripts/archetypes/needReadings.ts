@@ -142,7 +142,10 @@ export interface NeedReadings {
 }
 
 export function needReadings(archetype: PreRegisteredArchetype): NeedReadings {
-  const inputs: NeedReadingInputs = NEED_READING_INPUTS[archetype];
+  return readingsFrom(NEED_READING_INPUTS[archetype]);
+}
+
+export function readingsFrom(inputs: NeedReadingInputs): NeedReadings {
   const readingTKwh = inputs.medianGasKwh;
   const readingSKwh = inputs.medianGasKwhPerM2 * inputs.floorAreaM2;
   return { readingTKwh, readingSKwh, lowKwh: Math.min(readingTKwh, readingSKwh), highKwh: Math.max(readingTKwh, readingSKwh) };

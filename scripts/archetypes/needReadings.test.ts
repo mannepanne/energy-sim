@@ -2,7 +2,7 @@
 // ABOUT: Pins the readings, so a change to the pre-registration shows up as a failing test
 
 import { describe, expect, it } from 'vitest';
-import { archetypeGap, FLAG_THRESHOLD, NEED_READING_INPUTS, needReadings } from './needReadings.ts';
+import { archetypeGap, FLAG_THRESHOLD, NEED_READING_INPUTS, needReadings, readingsFrom } from './needReadings.ts';
 
 describe('the pre-registered NEED readings', () => {
   it('reproduce phase 1’s readings A and C for the 1930s semi', () => {
@@ -19,8 +19,8 @@ describe('the pre-registered NEED readings', () => {
   });
 
   it('order the interval ends whichever reading is larger', () => {
-    for (const archetype of Object.keys(NEED_READING_INPUTS) as (keyof typeof NEED_READING_INPUTS)[]) {
-      const readings = needReadings(archetype);
+    for (const inputs of Object.values(NEED_READING_INPUTS)) {
+      const readings = readingsFrom(inputs);
       expect(readings.lowKwh).toBeLessThanOrEqual(readings.highKwh);
       expect([readings.readingTKwh, readings.readingSKwh]).toContain(readings.lowKwh);
     }
