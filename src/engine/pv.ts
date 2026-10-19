@@ -72,7 +72,7 @@ export function pvGenerationKwh(planeIrradianceW: Float64Array, airTemperatureC:
 /** The house's electricity loads in the order solar meets them. */
 export interface ElectricityLoads {
   baseKwh: Float64Array;
-  /** The heat pump's space heating electricity, or the boiler's pump and fan. */
+  /** The heat pump's space heating and standby electricity, or the boiler's pump and fan. */
   heatingKwh: Float64Array;
   /** The heat pump's cylinder reheats. Zero for a combi boiler. */
   cylinderKwh: Float64Array;
@@ -88,7 +88,7 @@ export interface SolarUse {
 }
 
 /**
- * Each hour, generation meets base load first, then heating, then the cylinder; what is left is exported, and what
+ * Each hour, generation meets base load first, then heating (with the heat pump's standby), then the cylinder; what is left is exported, and what
  * the loads still need is imported. With no control, the order only says which load solar met: import and export
  * are the same in any order. Pass a zero generation array for a house without solar.
  */

@@ -41,7 +41,7 @@ export interface HourlyResult {
 /** Which load the year's used generation met, in the order solar meets them. */
 export interface SolarUsedBy {
   baseKwh: number;
-  /** The heat pump's space heating, or the boiler's pump and fan. */
+  /** The heat pump's space heating and standby, or the boiler's pump and fan. */
   heatingKwh: number;
   /** The heat pump's cylinder reheats. */
   cylinderKwh: number;
@@ -129,7 +129,7 @@ interface Supply {
   gasKwh: Float64Array;
   heatingElectricityKwh: Float64Array;
   auxiliaryElectricityKwh: Float64Array;
-  /** The heat pump's space heating, or the boiler's pump and fan. */
+  /** The heat pump's space heating and standby, or the boiler's pump and fan. */
   heatingLoadKwh: Float64Array;
   /** The heat pump's cylinder reheats; zero for the combi. */
   cylinderLoadKwh: Float64Array;
@@ -170,14 +170,15 @@ function heatPumpSupply(
   }).reheatKwh;
   const outdoorC = weather.outdoorTemperatureC.map((temperature) => temperature + inputs.outdoorTemperatureOffsetK);
   const load = heatPumpLoad(inputs, outdoorC, spaceHeatKwh, hotWaterKwh);
-  const copScale = givenScale ?? solveCopScale(load, inputs.heatPumpSpf, inputs.copCurve);
+  const copScale = givenScale ?? solveCopScale(load, inputs.heatPumpSpf, inputs.copCurve, inputs.heatPumpStandbyShare);
   const electricity = heatPumpElectricityParts(load, copScale, inputs.copCurve);
   return {
     hotWaterKwh,
     gasKwh: new Float64Array(HOURS_PER_YEAR),
     heatingElectricityKwh: electricity.totalKwh,
     auxiliaryElectricityKwh: new Float64Array(HOURS_PER_YEAR),
-    heatingLoadKwh: electricity.spaceKwh,
+    // Standby runs whether or not the heat pump is heating, so solar meets it with space heating, before the cylinder.
+    heatingLoadKwh: electricity.spaceKwh.map((space) => space + electricity.standbyKwhPerHour),
     cylinderLoadKwh: electricity.hotWaterKwh,
     copScale,
   };

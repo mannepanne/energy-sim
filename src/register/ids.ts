@@ -51,6 +51,8 @@ export const ROW_IDS = [
   'heating.copShapeFloor',
   'heating.copShapeCeiling',
   'heating.copCeiling',
+  'heating.heatPumpStandbyShare',
+  'heating.heatPumpStandbyShareWellInstalled',
   'heating.compensationDesignOutdoorTemperature',
   'heating.compensationMildOutdoorTemperature',
   'heating.flowTemperatureAtDesign',

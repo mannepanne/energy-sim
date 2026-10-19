@@ -200,7 +200,7 @@ COP(t) = k \cdot \frac{T_{flow}(t) + 273.15}{T_{flow}(t) - T_{out}(t) + \Delta T
   - on that run, total heat (space and hot water) ÷ total electricity equals the sampled SPF exactly;
   - the same k is reused on every tariff and with control, so moving running into colder or hotter hours changes efficiency through the curve.
 - **The cross-check:** the curve's shape and the compensation line are compared with the Electrification of Heat trial's published performance by outdoor temperature. This is a check, not a fit.
-  - The trial's open daily dataset (SN 9210) may need UK Data Service registration. If it does, Magnus downloads it, and it stays local and uncommitted. The trial's published reports are the fallback.
+  - The trial's open daily dataset (SN 9210) may need UK Data Service registration. If it does, Magnus downloads it into `REFERENCE/data-downloads/` (gitignored), and it stays local and uncommitted. The trial's published reports are the fallback.
 
 **The "well-installed" scenario** swaps the SPF distribution for one anchored on HeatpumpMonitor.org. It appears in the report as a labelled scenario, not a fifth setup. The report says that sample is self-selected.
 
@@ -578,7 +578,8 @@ New, tracked when their code lands:
 - undiscounted payback, assuming the boiler needs replacing now;
 - Agile represented by a past year on typical weather;
 - weekdays taken from the 2026 reference year ([#25](https://github.com/mannepanne/energy-sim/issues/25));
-- no carbon credit for export ([#34](https://github.com/mannepanne/energy-sim/issues/34)).
+- no carbon credit for export ([#34](https://github.com/mannepanne/energy-sim/issues/34));
+- the heat pump's standby is a share of its electricity, not kWh a day, so small houses get less of it and their mild hours stay a little optimistic against the Electrification of Heat daily data (see `REFERENCE/engine.md`).
 
 ---
 

@@ -28,6 +28,12 @@
 
 The full command list is in the [README](./../README.md#getting-started).
 
+## Local-only source data
+
+Licensed downloads used for cross-checks go in `REFERENCE/data-downloads/`, which git ignores. Their licences forbid redistribution, so they are never committed, and only aggregate figures go into the docs. A fresh clone has none of them. To repeat the heat pump cross-check (see [engine.md](./engine.md#checks-against-outside-references)), download them again into `REFERENCE/data-downloads/eoh/`:
+- the Electrification of Heat daily dataset, UK Data Service SN 9210 (needs a UK Data Service login);
+- the trial's final "Heat Pump Performance Data Analysis Report", through the form on Energy Systems Catapult's reports page.
+
 ## Secrets and API keys
 
 **Phase 1 needs none.** The engine is a pure library, and nothing is deployed.

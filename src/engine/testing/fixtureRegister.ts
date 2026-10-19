@@ -153,6 +153,9 @@ export const FIXTURE_HOUSE: Readonly<Record<Exclude<RowId, typeof SERIES_ID>, Fi
   'heating.copShapeFloor': 4,
   'heating.copShapeCeiling': 15,
   'heating.copCeiling': 7,
+  // Zero, so every hour's COP is k × shape; the standby tests set it.
+  'heating.heatPumpStandbyShare': 0,
+  'heating.heatPumpStandbyShareWellInstalled': 0,
   'heating.compensationDesignOutdoorTemperature': -2,
   'heating.compensationMildOutdoorTemperature': 15,
   'heating.flowTemperatureAtDesign': 45,

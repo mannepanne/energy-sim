@@ -57,10 +57,14 @@ export function copShape(flowC: number, outdoorC: number, curve: CopCurve): numb
   return Math.min(curve.shapeCeiling, Math.max(curve.shapeFloor, raw));
 }
 
-/** The scale factor k, and whether the physical ceiling bound in any hour of the run it was solved on. */
+/**
+ * The scale factor k, whether the physical ceiling bound in any hour of the run it was solved on, and that run's
+ * standby electricity per hour. A run that reuses the scale reuses the standby too.
+ */
 export interface CopScale {
   k: number;
   ceilingBound: boolean;
+  standbyKwhPerHour: number;
 }
 
 /** Heat delivered in each hour, split by flow temperature, with the COP shape of each part. */
@@ -74,15 +78,20 @@ export interface HeatPumpLoad {
 const cop = (k: number, shape: number, ceiling: number): number => Math.min(ceiling, k * shape);
 
 export interface HeatPumpElectricity {
+  /** Space heat ÷ its COP. */
   spaceKwh: Float64Array;
+  /** Cylinder reheats ÷ their COP. */
   hotWaterKwh: Float64Array;
-  /** The two parts added. */
+  /** The standby electricity, the same in every hour. */
+  standbyKwhPerHour: number;
+  /** Standby plus the two parts. */
   totalKwh: Float64Array;
 }
 
-/** Heating electricity in each hour, by part and in total: each part's heat ÷ its COP, min(k × shape, ceiling). */
+/** Heating electricity in each hour, by part and in total: the standby, plus each part's heat ÷ its COP, min(k × shape, ceiling). */
 export function heatPumpElectricityParts(load: HeatPumpLoad, scale: CopScale, curve: CopCurve): HeatPumpElectricity {
   const { spaceHeatKwh, spaceShape, hotWaterHeatKwh, hotWaterShape } = load;
+  const { standbyKwhPerHour } = scale;
   const spaceKwh = new Float64Array(spaceHeatKwh.length);
   const hotWaterKwh = new Float64Array(spaceHeatKwh.length);
   const totalKwh = new Float64Array(spaceHeatKwh.length);
@@ -91,26 +100,32 @@ export function heatPumpElectricityParts(load: HeatPumpLoad, scale: CopScale, cu
     const hotWater = hotWaterHeatKwh[hour]! / cop(scale.k, hotWaterShape[hour]!, curve.copCeiling);
     spaceKwh[hour] = space;
     hotWaterKwh[hour] = hotWater;
-    totalKwh[hour] = space + hotWater;
+    totalKwh[hour] = standbyKwhPerHour + space + hotWater;
   }
-  return { spaceKwh, hotWaterKwh, totalKwh };
+  return { spaceKwh, hotWaterKwh, standbyKwhPerHour, totalKwh };
 }
 
-/** Heating electricity in each hour: the space heating and hot water parts added. */
+/** Heating electricity in each hour: the standby plus the space heating and hot water parts. */
 export function heatPumpElectricity(load: HeatPumpLoad, scale: CopScale, curve: CopCurve): Float64Array {
   return heatPumpElectricityParts(load, scale, curve).totalKwh;
 }
 
 /**
- * Solves k so that the run's total heat ÷ total electricity equals the SPF.
- * Without the ceiling, k = SPF × Σ(heat ÷ shape) ÷ Σheat. If that k puts any hour above the ceiling, those hours
+ * Solves k so that the run's total heat ÷ total electricity equals the SPF, with standby inside that electricity.
+ * Standby is `standbyShare` × Σheat ÷ SPF, drawn evenly in every hour, so the heat itself needs the rest:
+ * (1 − share) × Σheat ÷ SPF. Without the ceiling, k = Σ(heat ÷ shape) ÷ that. If that k puts any hour above the ceiling, those hours
  * run at the ceiling and k is re-solved on the rest; this repeats until no further hour reaches the ceiling.
  * Each step only raises k and caps at least one more hour, so the loop ends: once no further hour is capped, the
  * next k equals the current one exactly.
  */
-export function solveCopScale(load: HeatPumpLoad, spf: number, curve: CopCurve): CopScale {
+export function solveCopScale(load: HeatPumpLoad, spf: number, curve: CopCurve, standbyShare: number): CopScale {
   if (!(spf > 0)) throw new Error(`The SPF must be positive, got ${spf}`);
-  if (!(spf < curve.copCeiling)) throw new Error(`The SPF (${spf}) must be below the COP ceiling (${curve.copCeiling}) for k to reach it`);
+  // Even with every hour at the ceiling, the heat needs Σheat ÷ ceiling, so the share must leave at least that.
+  if (!(standbyShare >= 0 && standbyShare < 1 - spf / curve.copCeiling)) {
+    throw new Error(
+      `The standby share (${standbyShare}) must be at least 0 and below 1 − SPF ÷ COP ceiling (1 − ${spf} ÷ ${curve.copCeiling}) for k to reach the SPF`,
+    );
+  }
   const parts: [Float64Array, Float64Array][] = [
     [load.spaceHeatKwh, load.spaceShape],
     [load.hotWaterHeatKwh, load.hotWaterShape],
@@ -118,7 +133,9 @@ export function solveCopScale(load: HeatPumpLoad, spf: number, curve: CopCurve):
   let totalHeat = 0;
   for (const [heat] of parts) for (const value of heat) totalHeat += value;
   if (!(totalHeat > 0)) throw new Error('The reference run delivers no heat, so k cannot be solved');
-  const targetElectricity = totalHeat / spf;
+  const standby = (standbyShare * totalHeat) / spf;
+  const standbyKwhPerHour = standby / load.spaceHeatKwh.length;
+  const targetElectricity = totalHeat / spf - standby;
 
   let k = 0;
   let ceilingBound = false;
@@ -136,7 +153,7 @@ export function solveCopScale(load: HeatPumpLoad, spf: number, curve: CopCurve):
     }
     const next = uncappedHeatPerShape / (targetElectricity - cappedElectricity);
     if (cappedElectricity > 0) ceilingBound = true;
-    if (next <= k) return { k, ceilingBound };
+    if (next <= k) return { k, ceilingBound, standbyKwhPerHour };
     k = next;
   }
 }

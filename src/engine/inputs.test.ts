@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { createAccessor } from '../register/access.ts';
 import { loadRegister } from '../register/load.ts';
 import { defaultHouse } from './archetypes.ts';
-import { readInputs, uncertainDraws, UNCERTAIN_ROW_IDS } from './inputs.ts';
+import { readInputs, rowsOutsideScenario, uncertainDraws, UNCERTAIN_ROW_IDS } from './inputs.ts';
 import { fixtureAccessor, fixtureRegister } from './testing/fixtureRegister.ts';
 
 describe('readInputs', () => {
@@ -63,10 +63,11 @@ describe('readInputs', () => {
     expect(draw).toMatchObject({ low: 0.6, high: 1.2, label: 'Fixture fabric.airChangeRate (C)', unit: 'fixture' });
   });
 
-  it('lists every uncertain row the house reads, with the SPF row of the chosen scenario only', () => {
-    const fieldTrial = UNCERTAIN_ROW_IDS.filter((id) => id !== 'heating.heatPumpSpfWellInstalled');
+  it('lists every uncertain row the house reads, with the SPF and standby rows of the chosen scenario only', () => {
+    const fieldTrial = UNCERTAIN_ROW_IDS.filter((id) => !rowsOutsideScenario('fieldTrial').includes(id));
     expect(uncertainDraws(fixtureAccessor()).map((draw) => draw.id).toSorted()).toEqual(fieldTrial.toSorted());
-    const wellInstalled = UNCERTAIN_ROW_IDS.filter((id) => id !== 'heating.heatPumpSpf');
+    expect(rowsOutsideScenario('fieldTrial')).toEqual(['heating.heatPumpSpfWellInstalled', 'heating.heatPumpStandbyShareWellInstalled']);
+    const wellInstalled = UNCERTAIN_ROW_IDS.filter((id) => !rowsOutsideScenario('wellInstalled').includes(id));
     const house = defaultHouse(fixtureAccessor(), 'semi1930s');
     expect(uncertainDraws(fixtureAccessor(), house, 'wellInstalled').map((draw) => draw.id).toSorted()).toEqual(wellInstalled.toSorted());
   });
@@ -77,6 +78,9 @@ describe('readInputs', () => {
     expect(fieldTrial.heatPumpSpf).toBe(2.5);
     expect(wellInstalled.heatPumpSpf).toBe(3.5);
     expect({ ...wellInstalled, heatPumpSpf: 2.5 }).toEqual(fieldTrial);
+    const shares = fixtureAccessor({ 'heating.heatPumpStandbyShare': 0.06, 'heating.heatPumpStandbyShareWellInstalled': 0.02 });
+    expect(readInputs(shares).heatPumpStandbyShare).toBe(0.06);
+    expect(readInputs(shares, { spfScenario: 'wellInstalled' }).heatPumpStandbyShare).toBe(0.02);
   });
 
   it('rejects a draw-off profile that does not sum to 1, and a compensation line or COP curve out of order', () => {

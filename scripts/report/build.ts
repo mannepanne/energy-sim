@@ -147,7 +147,7 @@ function sensitivitySection(access: RegisterAccessor, rows: readonly Sensitivity
     '',
     'The low and high are the ends of each row’s range, not percentiles. For the heat pump SPF, they are the clip limits of its lognormal distribution, far out in its tails, so its row shows an extreme spread.',
     '',
-    'The two heat pump flow temperature rows move nothing here. On the price cap, the heat pump’s COP curve is scaled so the year matches the sampled SPF, so the flow temperatures change when the heat pump uses electricity, not how much. They matter only where hours are priced differently, as on time-of-use tariffs.',
+    'The heat pump’s flow temperature and standby share rows move nothing here. On the price cap, the heat pump’s COP curve is scaled so the year matches the sampled SPF, so these rows change when the heat pump uses electricity, not how much. They matter only where hours are priced differently, as on time-of-use tariffs.',
     '',
     'The three roof solar rows (size, usable roof share and direction) move nothing here either, because this report compares the two setups without solar.',
     '',
