@@ -4,13 +4,11 @@
 import { HOURS_PER_DAY, HOURS_PER_YEAR } from './constants.ts';
 
 /**
- * Method settings of the time base (see the time-base ADR). The typical year's months come from different years,
- * so it has no real weekdays or clock-change dates. The engine applies the clock-change dates of this reference
- * year, and counts weekdays from 1 January as a Monday.
+ * A method setting of the time base (see the time-base ADR). The typical year's months come from different years,
+ * so it has no real weekdays or clock-change dates. The engine takes both from this reference year: its clock-change
+ * dates, and its weekdays (1 January 2026 is a Thursday), so the clock changes fall on Sundays.
  */
 export const REFERENCE_YEAR = 2026;
-/** Weekday of 1 January, counting Monday as 0. */
-export const FIRST_DAY_WEEKDAY = 0;
 
 export const DAYS_PER_WEEK = 7;
 export const HOURS_PER_WEEK = DAYS_PER_WEEK * HOURS_PER_DAY;
@@ -28,6 +26,11 @@ function lastSundayChange(year: number, month: number): number {
 }
 
 const isLeapYear = (year: number): boolean => (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+
+/** The weekday of 1 January in a year, counting Monday as 0. */
+export function firstDayWeekday(year: number = REFERENCE_YEAR): number {
+  return (new Date(Date.UTC(year, 0, 1)).getUTCDay() + DAYS_PER_WEEK - 1) % DAYS_PER_WEEK;
+}
 
 export interface SummerTime {
   /** The first engine hour on British Summer Time (UTC + 1). */
@@ -56,7 +59,7 @@ export interface Calendar {
   localHourOfDay: Uint8Array;
   /** Local day of the year, 0–364. */
   localDayOfYear: Uint16Array;
-  /** Local weekday, Monday 0 to Sunday 6, by the rule that 1 January is a Monday. */
+  /** Local weekday, Monday 0 to Sunday 6, as in the reference year. */
   weekday: Uint8Array;
   /** Local hour of the week, 0 (Monday 00:00) to 167 (Sunday 23:00). */
   hourOfWeek: Uint8Array;
@@ -68,6 +71,7 @@ export interface Calendar {
  */
 export function buildCalendar(year: number = REFERENCE_YEAR): Calendar {
   const time = summerTime(year);
+  const firstWeekday = firstDayWeekday(year);
   const calendar: Calendar = {
     summerTime: time,
     utcOffsetHours: new Uint8Array(HOURS_PER_YEAR),
@@ -81,7 +85,7 @@ export function buildCalendar(year: number = REFERENCE_YEAR): Calendar {
     const local = hour + offset;
     const day = Math.floor(local / HOURS_PER_DAY);
     const hourOfDay = local % HOURS_PER_DAY;
-    const weekday = (day + FIRST_DAY_WEEKDAY) % DAYS_PER_WEEK;
+    const weekday = (day + firstWeekday) % DAYS_PER_WEEK;
     calendar.utcOffsetHours[hour] = offset;
     calendar.localHourOfDay[hour] = hourOfDay;
     calendar.localDayOfYear[hour] = day;

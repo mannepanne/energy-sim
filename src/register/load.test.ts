@@ -193,6 +193,7 @@ describe('loadRegister', () => {
     it('fail with no cells, no keyedBy, or a cell that is neither fixed nor uncertain', () => {
       expectProblem([tableRow({ cells: [] })], 'fabric.table', 'cells', '');
       expectProblem([tableRow({ keyedBy: undefined })], 'fabric.table', 'keyedBy', '');
+      expectProblem([tableRow({ keyedBy: 'age-band' })], 'fabric.table', 'keyedBy', '');
       expectProblem([tableRow({ cells: [{ key: 'A', value: true }] })], 'fabric.table', 'cells.0', '');
     });
   });

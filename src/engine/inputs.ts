@@ -8,9 +8,9 @@ import {
   checkHouse,
   defaultHouse,
   GROUND_FLOOR_CONSTRUCTIONS,
+  oneOf,
   REFERENCE_ARCHETYPE,
   wallKey,
-  type GroundFloorConstruction,
   type House,
 } from './archetypes.ts';
 import { deriveGeometry } from './geometry.ts';
@@ -148,12 +148,6 @@ class Reader {
   }
 }
 
-function groundFloorConstruction(value: string): GroundFloorConstruction {
-  const found = GROUND_FLOOR_CONSTRUCTIONS.find((option) => option === value);
-  if (found === undefined) throw new Error(`Unknown ground floor construction "${value}"`);
-  return found;
-}
-
 function read(access: RegisterAccessor, house: House, reader: Reader): EngineInputs {
   checkHouse(access, house);
   const facts = archetypeFacts(access, house.archetype);
@@ -172,7 +166,7 @@ function read(access: RegisterAccessor, house: House, reader: Reader): EngineInp
   const wallThicknessMm = reader.cell('archetypes.wallThickness', `${facts.wallConstruction}/${band}`);
   const groundFloor = groundFloorUValue(
     {
-      construction: groundFloorConstruction(reader.text('archetypes.groundFloorConstruction', band)),
+      construction: oneOf(GROUND_FLOOR_CONSTRUCTIONS, reader.text('archetypes.groundFloorConstruction', band), 'ground floor construction'),
       areaM2: geometry.groundFloorAreaM2,
       exposedPerimeterM: geometry.exposedPerimeterM,
       wallThicknessMm,

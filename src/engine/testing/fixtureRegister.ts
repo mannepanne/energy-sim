@@ -4,7 +4,7 @@
 import { createAccessor, type RegisterAccessor } from '../../register/access.ts';
 import { ROW_IDS, type RowId } from '../../register/ids.ts';
 import { loadRegister } from '../../register/load.ts';
-import type { Register } from '../../register/schema.ts';
+import type { Register, TableKeyKind } from '../../register/schema.ts';
 import { ARCHETYPE_KEYS, GLAZING_ANSWERS, LOFT_ANSWERS, WALL_ANSWERS, WALL_CONSTRUCTIONS } from '../archetypes.ts';
 import { UNCERTAIN_ROW_IDS, type UncertainRowId } from '../inputs.ts';
 
@@ -27,7 +27,7 @@ const wallKeys = FIXTURE_BANDS.flatMap((band) => WALL_CONSTRUCTIONS.flatMap((con
 const constructionBandKeys = WALL_CONSTRUCTIONS.flatMap((construction) => FIXTURE_BANDS.map((band) => `${construction}/${band}`));
 
 /** The keys of each table row, with what they are keyed by. */
-const TABLE_KEYS: Readonly<Partial<Record<RowId, { keyedBy: string; keys: readonly string[] }>>> = {
+const TABLE_KEYS: Readonly<Partial<Record<RowId, { keyedBy: TableKeyKind; keys: readonly string[] }>>> = {
   'archetypes.houseType': { keyedBy: 'archetype', keys: archetypeKeyed },
   'archetypes.ageBand': { keyedBy: 'archetype', keys: archetypeKeyed },
   'archetypes.storeys': { keyedBy: 'archetype', keys: archetypeKeyed },

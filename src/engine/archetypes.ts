@@ -65,7 +65,8 @@ export interface ArchetypeFacts {
   partyWalls: number;
 }
 
-function oneOf<T extends string>(options: readonly T[], value: string, what: string): T {
+/** The value if it is one of the options; otherwise throws, naming what was expected. */
+export function oneOf<T extends string>(options: readonly T[], value: string, what: string): T {
   const found = options.find((option) => option === value);
   if (found === undefined) throw new Error(`Unknown ${what} "${value}"; expected one of ${options.join(', ')}`);
   return found;

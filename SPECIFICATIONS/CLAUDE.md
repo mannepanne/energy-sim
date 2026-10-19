@@ -125,6 +125,7 @@ Development runs in four phases. v1 leads with the numbers, and the 3D street fo
 
 3. **Phase 3: v1 website and beta launch** (spec to be written)
    The input form, the 2D comparison view, "where does this number come from?", the not-advice notice, Cloudflare hosting, cookie-free analytics and an A grade on securityheaders.com. It launches as a public beta, a proof of concept. Validation against real homes and expert review come after launch and do not gate it.
+   **To decide in the phase 3 spec: how a flagged archetype's warning reaches the site.** The pre-registered rule flags an archetype whose central gas use lies more than 25% outside its NEED readings, and the phase 2 report shows the warning. The site needs to show it too (in October 2026 the pre-1900 end-terrace is flagged). See [scripts/archetypes/README.md](../scripts/archetypes/README.md).
    **To decide in the phase 3 spec: how user overrides reach the engine.** Phase 2 settled derived geometry: the engine derives every area and the volume from the floor area, which is a `House` input, so a visitor's floor area flows through. The engine's `readInputs` overrides are a sampling hook for uncertain rows and cells only, so user overrides of fixed rows and cells marked `overridable` (U-values, prices, cylinder loss) still need their own path into the engine. See [register.md](../REFERENCE/register.md#overrides) and [engine.md](../REFERENCE/engine.md#running-the-engine).
 
 4. **Phase 4: 3D floating-island street** (spec to be written)

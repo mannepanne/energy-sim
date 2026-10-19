@@ -32,7 +32,7 @@ Add an entry here when a problem takes more than a few minutes to work out.
 
 **The id parity test fails.** A row was added to or removed from the register without the same change to the `RowId` union in `src/register/ids.ts`, or the other way round. Keep the two in step.
 
-**The table key parity test fails** (`src/engine/archetypes.test.ts`). A table keyed by archetype is missing a cell for one of `ARCHETYPE_KEYS`, or has an extra one; or a table keyed by age band doesn't hold exactly the bands the archetypes use. Add or remove the cells. A new archetype needs a cell in every archetype-keyed table, a pre-registered NEED reading in `scripts/archetypes/needReadings.ts`, and cells for its band if no other archetype uses it.
+**The table key parity test fails** (`src/engine/archetypes.test.ts`). The test checks every table against its `keyedBy` kind: a table keyed by archetype must hold exactly `ARCHETYPE_KEYS`, one keyed by age band exactly the bands the archetypes use, and so on for constructions and quick-facts answers. Add or remove the cells. A `keyedBy` outside `TABLE_KEY_KINDS` fails the register load instead, so no table can drop out of the check. A new archetype needs a cell in every archetype-keyed table, a pre-registered NEED reading in `scripts/archetypes/needReadings.ts`, and cells for its band if no other archetype uses it.
 
 **"Register row … has no cell with key …".** The engine read a table key that isn't there, often a wall answer that doesn't fit the archetype's construction (such as `cavityFilled` on solid brick). Use `wallAnswers(access, archetype)` for the answers an archetype offers, or add the missing cell with its source.
 

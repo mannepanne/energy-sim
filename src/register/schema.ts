@@ -104,6 +104,23 @@ const profileRowSchema = z.strictObject({
   resolution: z.enum(PROFILE_RESOLUTIONS),
 });
 
+/**
+ * What a table's keys are. The table key parity test checks every table against its kind, so a table with a kind
+ * outside this list fails to load rather than drop out of the check.
+ */
+export const TABLE_KEY_KINDS = [
+  'archetype',
+  'age band',
+  'construction',
+  'construction/age band',
+  'age band/construction/answer',
+  'loft answer',
+  'glazing answer',
+  'coefficient',
+  'parameter',
+] as const;
+export type TableKeyKind = (typeof TABLE_KEY_KINDS)[number];
+
 /** A table key: any text without "|", which separates the row id from the key in a sampling hash. */
 const tableKeySchema = z.string().min(1).regex(/^[^|]+$/, { message: 'must not contain "|"' });
 
@@ -115,7 +132,7 @@ const tableRowSchema = z.strictObject({
   ...baseFields,
   kind: z.literal('table'),
   /** What the keys are, such as "archetype" or "age band/construction/answer". */
-  keyedBy: z.string().min(1),
+  keyedBy: z.enum(TABLE_KEY_KINDS),
   cells: z.array(z.union([fixedCellSchema, uncertainCellSchema])).min(1),
 });
 

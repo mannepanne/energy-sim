@@ -1,4 +1,4 @@
-// ABOUT: Tests for the time base: clock changes on the 2026 dates, weekdays from a Monday 1 January,
+// ABOUT: Tests for the time base: clock changes and weekdays from the 2026 reference year (1 January a Thursday),
 // ABOUT: local-time profiles expanded to UTC engine hours, and half-hourly rates averaged to hours
 
 import { describe, expect, it } from 'vitest';
@@ -6,7 +6,7 @@ import {
   buildCalendar,
   expandDaily,
   expandWeekly,
-  FIRST_DAY_WEEKDAY,
+  firstDayWeekday,
   hourlyFromHalfHourly,
   HOURS_PER_WEEK,
   REFERENCE_YEAR,
@@ -42,17 +42,19 @@ describe('summer time on the reference year', () => {
 });
 
 describe('the calendar', () => {
-  it('starts on a Monday at local midnight, and gives every hour a weekday by the rule', () => {
-    expect(FIRST_DAY_WEEKDAY).toBe(0);
-    expect(calendar.hourOfWeek[0]).toBe(0);
-    expect(calendar.weekday[24 * 6]).toBe(6);
-    expect(calendar.weekday[24 * 7]).toBe(0);
+  it('starts on Thursday 1 January at local midnight, as in 2026, counting Monday as 0', () => {
+    expect(firstDayWeekday()).toBe(3);
+    expect(firstDayWeekday(2027)).toBe(4);
+    expect(calendar.weekday[0]).toBe(3);
+    expect(calendar.hourOfWeek[0]).toBe(3 * 24);
+    expect(calendar.weekday[24 * 4]).toBe(0);
+    expect(calendar.weekday[24 * 3]).toBe(6);
     expect(calendar.localDayOfYear[HOURS_PER_YEAR - 1]).toBe(364);
   });
 
-  it('puts both 2026 clock changes on a Thursday of the engine’s week, a stated mismatch', () => {
-    expect(calendar.weekday[SPRING_DAY * 24]).toBe(3);
-    expect(calendar.weekday[AUTUMN_DAY * 24]).toBe(3);
+  it('puts both 2026 clock changes on a Sunday, as in the real year', () => {
+    expect(calendar.weekday[SPRING_DAY * 24]).toBe(6);
+    expect(calendar.weekday[AUTUMN_DAY * 24]).toBe(6);
   });
 
   it('moves local time one hour ahead of UTC on the right dates', () => {
@@ -73,7 +75,7 @@ describe('the calendar', () => {
     const summerHour = 150 * 24 + 23;
     expect(calendar.localDayOfYear[summerHour]).toBe(151);
     expect(calendar.localHourOfDay[summerHour]).toBe(0);
-    expect(calendar.hourOfWeek[summerHour]).toBe((151 % 7) * 24);
+    expect(calendar.hourOfWeek[summerHour]).toBe(((151 + 3) % 7) * 24);
   });
 });
 
@@ -104,7 +106,7 @@ describe('local-time profiles on engine hours', () => {
     const series = expandWeekly(weekdayOnly, calendar);
     expect(series).toHaveLength(HOURS_PER_YEAR);
     expect(series[12]).toBe(1);
-    expect(series[5 * 24 + 12]).toBe(0);
+    expect(series[2 * 24 + 12]).toBe(0); // 3 January 2026 is a Saturday
     expect(series.reduce((total, value) => total + value, 0)).toBe(Array.from(calendar.weekday).filter((day) => day < 5).length);
   });
 

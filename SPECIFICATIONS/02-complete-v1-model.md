@@ -329,7 +329,7 @@ C \frac{dT_{in}}{dt} = Q_{heat}(t) + G_{solar}(t) + G_{internal}(t) - H\,\big(T_
 ### Time base
 
 - **Engine hours** are UTC hours 0–8759 of the PVGIS typical year.
-- **Day of the week:** the typical year's months come from different years, so weekdays are assigned by a fixed rule (a method setting): 1 January is a Monday, and the days follow on from there. The report states this.
+- **Day of the week:** the typical year's months come from different years, so weekdays are taken from the reference year (a method setting): 1 January is a Thursday, as in 2026, and the days follow on from there, so the clock changes fall on Sundays. The report states this (Magnus, 19 October 2026; see the time-base ADR).
 - **Local time:** schedules and tariff periods are in UK local time. The calendar module converts them to UTC hours using the UK clock-change rule (last Sunday in March and in October), applied to a reference year (2026). Cosy's periods stay fixed in local time across clock changes.
 - **Agile:**
   - the last full 12 months of half-hourly London rates are mapped onto the typical year by calendar date (month and day), with 29 February dropped;
@@ -559,7 +559,7 @@ Run `/review-pr` on each.
 
 ## Technical debt
 
-Closed by this phase: [#7](https://github.com/mannepanne/energy-sim/issues/7), [#9](https://github.com/mannepanne/energy-sim/issues/9), [#13](https://github.com/mannepanne/energy-sim/issues/13), [#18](https://github.com/mannepanne/energy-sim/issues/18) and [#20](https://github.com/mannepanne/energy-sim/issues/20). [#15](https://github.com/mannepanne/energy-sim/issues/15) also closes, if the heat pump schedule is sourced.
+Closed by this phase: [#7](https://github.com/mannepanne/energy-sim/issues/7), [#9](https://github.com/mannepanne/energy-sim/issues/9) (its MCS cross-check moves to [#24](https://github.com/mannepanne/energy-sim/issues/24)), [#13](https://github.com/mannepanne/energy-sim/issues/13), [#18](https://github.com/mannepanne/energy-sim/issues/18) and [#20](https://github.com/mannepanne/energy-sim/issues/20). [#15](https://github.com/mannepanne/energy-sim/issues/15) also closes, if the heat pump schedule is sourced.
 
 Carried forward:
 - [#8](https://github.com/mannepanne/energy-sim/issues/8): verify the 2026 gas carbon factor. It is quick, and done in the tariffs PR if the DESNZ file is available.
@@ -567,13 +567,16 @@ Carried forward:
 - [#15](https://github.com/mannepanne/energy-sim/issues/15): if the heat pump schedule can't be sourced.
 - [#16](https://github.com/mannepanne/energy-sim/issues/16): one fixed weather year. Phase 2 adds a price scenario.
 - [#17](https://github.com/mannepanne/energy-sim/issues/17): the annual grid carbon factor.
+- [#24](https://github.com/mannepanne/energy-sim/issues/24): cross-check the derived geometry against an MCS heat loss calculator (split from #9).
+- [#26](https://github.com/mannepanne/energy-sim/issues/26): window areas use the RdSAP 2012 formula, because RdSAP 10 has none.
+- [#27](https://github.com/mannepanne/energy-sim/issues/27): the air change rate is an estimate by age band, not RdSAP's ventilation worksheet.
 
 New, tracked when their code lands:
 - a simple output cap rather than heat pump sizing, and no backup heat;
 - one location;
 - undiscounted payback, assuming the boiler needs replacing now;
 - Agile represented by a past year on typical weather;
-- weekdays assigned by rule;
+- weekdays taken from the 2026 reference year ([#25](https://github.com/mannepanne/energy-sim/issues/25));
 - no carbon credit for export.
 
 ---

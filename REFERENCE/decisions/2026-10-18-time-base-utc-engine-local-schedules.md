@@ -1,7 +1,7 @@
 # ADR: UTC engine hours, with schedules and tariffs in UK local time
 
 **Date:** 2026-10-18
-**Status:** Active (confirmed by Magnus on 18 October 2026)
+**Status:** Active (confirmed by Magnus on 18 October 2026; weekday rule amended on 19 October 2026, see below)
 **Supersedes:** N/A
 
 ---
@@ -14,9 +14,9 @@
   - On the day the clocks go forward, local 01:00 has no engine hour.
   - On the day they go back, local 01:00 has two, and a profile applies its 01:00 value to both.
   - Cosy's periods stay fixed in local time across the change.
-- **Weekdays follow a fixed rule:** 1 January is a Monday, and the days follow on from there. A local day's weekday comes from its local date, so 23:00 UTC in summer already belongs to the next day.
+- **Weekdays come from the reference year:** 1 January is a Thursday, as in 2026, and the days follow on from there. So the 2026 clock changes fall on Sundays, as they do in reality. A local day's weekday comes from its local date, so 23:00 UTC in summer already belongs to the next day.
 - **Agile half-hours** are matched to the typical year by UTC calendar date and time (month, day, hour, minute). 29 February is dropped. Each engine hour's rate is the mean of its two half-hours.
-- **The reference year (2026) and the Monday rule are method settings in code**, as the register ADR's amendment allows.
+- **The reference year (2026) is a method setting in code**, and sets both the clock-change dates and the weekdays,, as the register ADR's amendment allows.
 
 ## Context
 
@@ -35,7 +35,9 @@ Mixing time bases between modules would shift every time-of-use cost by an hour 
   - Why not: weekdays would jump at every month boundary, and a "week" could have two Mondays.
 - **Apply no clock changes (treat local time as GMT all year):**
   - Why not: summer evening peaks and Cosy's periods would sit an hour off for seven months.
-- **UTC engine, local-time profiles, a fixed reference year and a Monday rule:**
+- **Weekdays from a fixed rule, 1 January a Monday:**
+  - Why not: in 2026 the clock changes would fall on a Thursday of the engine's week, a caveat the report would have to state. This was the first version of this ADR (see the amendment below).
+- **UTC engine, local-time profiles, and a reference year that sets both clock changes and weekdays:**
   - **Chosen:** one conversion point, deterministic, and testable.
 
 ## Reasoning
@@ -50,9 +52,14 @@ Mixing time bases between modules would shift every time-of-use cost by an hour 
 
 ## Trade-offs accepted
 
-- **The weekday rule and the clock-change dates disagree with each other.** In 2026, 29 March and 25 October are Sundays. Under the Monday rule they fall on a Thursday of the engine's week. The report states this.
 - **Agile's past weekdays don't line up with the engine's weekdays.** Matching by date keeps the season and the clock changes, but a real Saturday price can land on an engine weekday. The spec accepts this and the report states it.
 - **One reference year.** The clock-change dates move a few days between years. That is small next to the other approximations of a typical year.
+
+## Amendment (19 October 2026): weekdays from the reference year
+
+**Decision (Magnus, while reviewing the phase 2 archetypes PR):** 1 January is a Thursday, as in 2026, not a Monday.
+
+**Why:** with a Monday, the 2026 clock changes (both Sundays) fell on a Thursday of the engine's week. The architecture review pointed out that taking the weekdays from the same reference year removes that mismatch at no cost, because no module used the calendar yet. `firstDayWeekday(year)` derives the weekday from the year, so the clock-change dates and the weekdays can never disagree.
 
 ## Implications
 

@@ -86,7 +86,7 @@ Cross-row rules (duplicates, dependencies) run only once every row is valid on i
 
 ## The rows
 
-**Archetypes.** Ten house types, each keyed to one RdSAP age band (see the [phase 2 spec](../SPECIFICATIONS/02-complete-v1-model.md), "House types and geometry"). The 1930s semi is the phase 1 house: about 90 m², two storeys, 100 mm of loft insulation and double glazing installed before 2002. Its cavity walls are filled by default (phase 1 had them unfilled; the `asBuilt` answer gives that house).
+**Archetypes.** Ten house types, each keyed to one RdSAP age band (see the [phase 2 spec](../SPECIFICATIONS/02-complete-v1-model.md), "House types and geometry"). The 1930s semi is the phase 1 house: about 90 m², two storeys, 100 mm of loft insulation and double glazing installed before 2002. Its cavity walls are filled by default, because 73% of owner-occupied cavity-walled homes have cavity wall insulation (English Housing Survey 2024 to 2025). Phase 1 had them unfilled; the `asBuilt` answer gives that house.
 
 | Section | Rows |
 | --- | --- |
@@ -108,15 +108,17 @@ The `solar`, `costs` and `tariffs` sections exist in the schema and are filled b
 - **Thermal bridging:** RdSAP adds y × the exposed area (Table 21), which phase 1 left out.
 - **g-values:** Table 24 gives g⊥ (0.76 for double glazing before 2002, not 0.63), and SAP's 0.9 for non-normal incidence applies on top.
 - **Window U-values:** curtains are added (SAP 10.2 §3.2).
-- **Window areas:** RdSAP 10 measures windows and has no default formula. Phase 1's 0.122 × floor area + 6.875 comes from RdSAP 2012 Table S4, which is now the cited source.
+- **Window areas:** RdSAP 10 measures windows and has no default formula. Phase 1's 0.122 × floor area + 6.875 comes from RdSAP 2012 Table S4, which is the cited source.
 - **Loft insulation:** Table 18 assumes 100 mm for bands A–G when the thickness is unknown. Phase 1 had called "no insulation" RdSAP's default for the band.
 - **The ground floor:** the U-value is computed by ISO 13370 ([#7](https://github.com/mannepanne/energy-sim/issues/7)). Table 19 gives band C a solid floor, so the 1930s semi's floor is solid at 0.66 W/m²K, not suspended timber at 0.75.
+
+**Correlations** cover uncertain rows only, not table cells, though cells have draw keys. Every house must read both rows of a correlation, or sampling throws; the one correlation names two rows every house reads.
 
 The rows still `to-verify` are the fabric quality factor, the heat pump SPF and the gas carbon factor ([#8](https://github.com/mannepanne/energy-sim/issues/8)).
 
 ## Overrides
 
-Rows marked `overridable` are the ones a visitor will be able to replace with their own figure in phase 3. Floor area is now an input to the engine, which derives every area and the volume from it, so a visitor's floor area flows through. User overrides of other fixed rows and cells still need their own path into the engine; that is a phase 3 decision (see [SPECIFICATIONS/CLAUDE.md](../SPECIFICATIONS/CLAUDE.md)).
+Rows marked `overridable` are the ones a visitor will be able to replace with their own figure in phase 3. Floor area is an input to the engine, which derives every area and the volume from it, so a visitor's floor area flows through. User overrides of other fixed rows and cells still need their own path into the engine; that is a phase 3 decision (see [SPECIFICATIONS/CLAUDE.md](../SPECIFICATIONS/CLAUDE.md)).
 
 ## The mean internal temperature calibration
 

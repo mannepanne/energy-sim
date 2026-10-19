@@ -590,8 +590,8 @@
       "label": "Default wall insulation answer of each archetype",
       "unit": "answer",
       "status": "approximate",
-      "rationale": "\"Cavity filled\" for the cavity archetypes built before 1991 (bands C–G), because most cavity walls in England have since been filled. \"As built\" for the solid brick archetypes, whose walls are mostly uninsulated, and for bands K and L, which were insulated as built. Decided by Magnus on 18 October 2026 after the first archetype table had run with unfilled cavities, so the choice was made with both results in view (see scripts/archetypes/README.md).",
-      "lastChecked": "2026-10-18",
+      "rationale": "\"Cavity filled\" for the cavity archetypes built before 1991 (bands C–G). In 2024, 73% of owner-occupied dwellings with cavity walls had cavity wall insulation (60% of private rented and 79% of social housing), so filled is the most common answer. The survey gives no split by age band; the same share is assumed for every band C–G. \"As built\" for the solid brick archetypes, whose walls are mostly uninsulated, and for bands K and L, which were insulated as built (the survey, like SAP, assumes cavity walls built after 1995 are insulated). Decided by Magnus on 18 October 2026 after the first archetype table had run with unfilled cavities, so the choice was made with both results in view (see scripts/archetypes/README.md). Source checked on 19 October 2026.",
+      "lastChecked": "2026-10-19",
       "refreshCadence": "static",
       "overridable": false,
       "overrideHint": null,
@@ -638,7 +638,11 @@
           "key": "midTerrace2010s",
           "value": "asBuilt"
         }
-      ]
+      ],
+      "source": {
+        "title": "MHCLG: English Housing Survey 2024 to 2025, headline findings on housing quality and energy efficiency, Chapter 2 (Figure 2.8, Annex Table 2.10)",
+        "url": "https://www.gov.uk/government/statistics/chapters-for-english-housing-survey-2024-to-2025-headline-findings-on-housing-quality-and-energy-efficiency/chapter-2-energy-efficiency"
+      }
     },
     {
       "id": "archetypes.defaultGlazingAnswer",

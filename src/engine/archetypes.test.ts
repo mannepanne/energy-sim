@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { createAccessor } from '../register/access.ts';
 import { loadRegister } from '../register/load.ts';
+import type { TableKeyKind } from '../register/schema.ts';
 import {
   ARCHETYPE_KEYS,
   archetypeFacts,
@@ -15,37 +16,60 @@ import {
   LOFT_ANSWERS,
   sapOccupancy,
   wallAnswers,
+  WALL_ANSWERS,
+  WALL_CONSTRUCTIONS,
 } from './archetypes.ts';
 import { readInputs } from './inputs.ts';
 import { fixtureAccessor } from './testing/fixtureRegister.ts';
 
 const register = loadRegister(JSON.parse(readFileSync(new URL('../../data/register.json', import.meta.url), 'utf8')) as unknown);
 const access = createAccessor(register);
-const tableKeys = (keyedBy: string): Map<string, string[]> =>
-  new Map(register.rows.flatMap((row) => (row.kind === 'table' && row.keyedBy === keyedBy ? [[row.id, row.cells.map((cell) => cell.key)]] : [])));
-const bandsUsed = [...new Set(ARCHETYPE_KEYS.map((key) => access.cellString('archetypes.ageBand', key)))].toSorted();
+const sorted = (keys: Iterable<string>): string[] => [...new Set(keys)].toSorted();
+const facts = ARCHETYPE_KEYS.map((key) => archetypeFacts(access, key));
+const bandsUsed = sorted(facts.map((fact) => fact.ageBand));
+
+/**
+ * The keys each kind of table must hold exactly, or undefined for kinds whose keys are fixed by the engine's own
+ * reads (coefficients and parameters, which every archetype reads in the test below).
+ */
+const EXPECTED_KEYS: Record<TableKeyKind, string[] | undefined> = {
+  archetype: sorted(ARCHETYPE_KEYS),
+  'age band': bandsUsed,
+  construction: sorted(facts.map((fact) => fact.wallConstruction)),
+  'construction/age band': sorted(facts.map((fact) => `${fact.wallConstruction}/${fact.ageBand}`)),
+  'age band/construction/answer': undefined,
+  'loft answer': sorted(LOFT_ANSWERS),
+  'glazing answer': sorted(GLAZING_ANSWERS),
+  coefficient: undefined,
+  parameter: undefined,
+};
 
 describe('table key parity on the real register', () => {
-  it('gives every archetype-keyed row exactly the archetype keys', () => {
-    const rows = tableKeys('archetype');
-    expect(rows.size).toBeGreaterThanOrEqual(11);
-    for (const [id, keys] of rows) expect({ id, keys: keys.toSorted() }).toEqual({ id, keys: [...ARCHETYPE_KEYS].toSorted() });
+  it('gives every table exactly the keys its kind needs', () => {
+    const tables = register.rows.flatMap((row) => (row.kind === 'table' ? [row] : []));
+    expect(tables.length).toBeGreaterThanOrEqual(27);
+    const checked = tables.flatMap((row) => {
+      const expected = EXPECTED_KEYS[row.keyedBy];
+      return expected ? [{ id: row.id, keys: sorted(row.cells.map((cell) => cell.key)), expected }] : [];
+    });
+    expect(checked.length).toBeGreaterThanOrEqual(24);
+    for (const { id, keys, expected } of checked) expect({ id, keys }).toEqual({ id, keys: expected });
   });
 
-  it('gives every band-keyed row exactly the bands the archetypes use', () => {
-    const rows = tableKeys('age band');
-    expect(rows.size).toBeGreaterThanOrEqual(8);
-    for (const [id, keys] of rows) expect({ id, keys: keys.toSorted() }).toEqual({ id, keys: bandsUsed });
+  it('gives the wall table an "as built" value for every archetype, and only answers and bands that exist', () => {
+    const keys = access.table('fabric.wallUValue').cells.map((cell) => cell.key);
+    for (const fact of facts) expect(keys).toContain(`${fact.ageBand}/${fact.wallConstruction}/asBuilt`);
+    for (const key of keys) {
+      const [band, construction, answer] = key.split('/');
+      expect({ key, band: bandsUsed.includes(band!), construction: WALL_CONSTRUCTIONS.some((value) => value === construction), answer: WALL_ANSWERS.some((value) => value === answer) }).toEqual({ key, band: true, construction: true, answer: true });
+    }
   });
 
   it('gives every quick-facts answer a value, and every archetype a wall thickness', () => {
     expect(access.table('fabric.roofUValue').cells.map((cell) => cell.key).toSorted()).toEqual([...LOFT_ANSWERS].toSorted());
     expect(access.table('fabric.windowUValue').cells.map((cell) => cell.key).toSorted()).toEqual([...GLAZING_ANSWERS].toSorted());
     expect(access.table('gains.windowGValue').cells.map((cell) => cell.key).toSorted()).toEqual([...GLAZING_ANSWERS].toSorted());
-    for (const archetype of ARCHETYPE_KEYS) {
-      const facts = archetypeFacts(access, archetype);
-      expect(access.cellNumber('archetypes.wallThickness', `${facts.wallConstruction}/${facts.ageBand}`)).toBeGreaterThan(0);
-    }
+    for (const fact of facts) expect(access.cellNumber('archetypes.wallThickness', `${fact.wallConstruction}/${fact.ageBand}`)).toBeGreaterThan(0);
   });
 
   it('reads every archetype at its defaults, and with every loft and glazing answer', () => {

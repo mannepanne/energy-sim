@@ -206,7 +206,7 @@ At the same floor area, a mid-terrace has less exposed wall than an end-terrace,
 ## Checks against outside references
 
 - **Solar geometry** (accepted by Magnus on 18 October 2026 in place of a published vertical-wall example): Duffie and Beckman's Example 1.6.1 (beam incidence of 35° on a 45° surface facing 15° west of south, Madison, 13 February, 10:30) and Example 1.6.2 (zenith angles of 66.5° and 79.6°), to within 2%. A south wall at an equinox noon receives beam at cos θ = sin(latitude), exactly. London's midsummer noon sun sits at 61.9°.
-- **The HEM check:** the engine is given HEM's own element areas and inputs for the benchmark archetype (values copied from `scripts/benchmark/draftValues.ts`, not derived geometry, so both sides describe the same house), with no party wall loss, thermal bridging or curtains, as HEM's input has none. Run at 17.8 °C air on the PVGIS weather, it gives 12,999 kWh of annual space heat. That is 4.8% below HEM's `thermostat-17` run (13,660 kWh), inside the 10% regression guard, and the test pins 12,999 kWh. Phase 1 gave 12,847 kWh (6.0% below); SAP's 0.9 for non-normal incidence, now applied to solar gains, accounts for the change. The fixture uses a solar access factor of 1, because the HEM input has no overshading.
+- **The HEM check:** the engine is given HEM's own element areas and inputs for the benchmark archetype (values copied from `scripts/benchmark/draftValues.ts`, not derived geometry, so both sides describe the same house), with no party wall loss, thermal bridging or curtains, as HEM's input has none. Run at 17.8 °C air on the PVGIS weather, it gives 12,999 kWh of annual space heat. That is 4.8% below HEM's `thermostat-17` run (13,660 kWh), inside the 10% regression guard, and the test pins 12,999 kWh. Phase 1's check gave 12,847 kWh (6.0% below); SAP's 0.9 for non-normal incidence on solar gains accounts for the difference. The fixture uses a solar access factor of 1, because the HEM input has no overshading.
 
 ## The 1930s semi's central results
 
@@ -223,7 +223,7 @@ These are central values only, measured on 18 October 2026 and not pinned by a t
 
 `npm run archetypes` prints each archetype's central and sampled (200 samples, seed 1) gas use and running costs on the price cap, next to its two pre-registered NEED readings, its gap and the flag. The readings, the rule and the reasons for them are in [scripts/archetypes/README.md](../scripts/archetypes/README.md), committed before any archetype was run. The logic is in `scripts/archetypes/table.ts`.
 
-On 18 October 2026, with the default answers Magnus chose (filled cavity walls for bands C–G), nine archetypes sat inside or within 13% of their interval:
+As a snapshot on 18 October 2026 (not pinned by a test; rerun `npm run archetypes` for current figures), with the default answers Magnus chose (filled cavity walls for bands C–G), nine archetypes sat inside or within 13% of their interval:
 - the bungalow was 2% above it and the 1967–75 mid-terrace 3% above;
 - the 2007–11 semi was 1% below and the 2012 onwards mid-terrace 13% below;
 - the pre-1900 end-terrace was 39% above, so it is **flagged**.
@@ -235,7 +235,7 @@ The end-terrace's solid brick walls (U 1.7, as built) cover more exposed wall th
 `calendar.ts` holds the time base; the reasons are in the [time-base ADR](./decisions/2026-10-18-time-base-utc-engine-local-schedules.md).
 - **Engine hours** are UTC hours 0–8,759 of the PVGIS typical year.
 - **Local time** is UTC + 1 from 01:00 UTC on the last Sunday in March to 01:00 UTC on the last Sunday in October, on the reference year 2026: 29 March and 25 October. On 29 March local 01:00 has no engine hour; on 25 October it has two.
-- **Weekdays:** 1 January is a Monday (a method setting), and a local day's weekday comes from its local date. Both 2026 clock changes therefore fall on a Thursday of the engine's week.
+- **Weekdays** come from the reference year: 1 January is a Thursday, as in 2026, and a local day's weekday comes from its local date. Both clock changes therefore fall on Sundays, as they really do.
 - **Profiles:** `expandWeekly(values, calendar)` turns an `hour-of-week` profile (168 values, Monday 00:00 local first) into 8,760 engine-hour values; `expandDaily` does the same for 24 values.
 - **Agile:** `typicalYearHalfHour(utc)` matches a real half-hour to the typical year by month, day and time, and returns undefined for 29 February. `hourlyFromHalfHourly` averages each engine hour's two half-hours.
 
@@ -255,7 +255,7 @@ const table = sensitivity(access, weather);
 ### Sampling
 
 - **What is sampled:** the seven uncertain rows in `UNCERTAIN_ROW_IDS`, plus any uncertain table cell the house reads (none in the register yet). `uncertainDraws(access, house)` lists them, and `sampleOverrides(access, plan, house)` draws them. Every other row is fixed. The fabric quality factor is one shared multiplier, so fabric uncertainty is not averaged away.
-- **Correlated rows:** a Gaussian copula pairs the rows named by each `correlation` row. The anchor (the first row named) keeps its own uniform u_a. The partner's normal score becomes z = ρ Φ⁻¹(u_a) + √(1 − ρ²) Φ⁻¹(u_p), and its uniform is Φ(z), clipped to the same open interval as every other uniform. So ρ is a correlation of normal scores; the correlation of the drawn values is slightly lower. Rows outside a pair draw exactly as before. Φ is Hart's double-precision approximation (as given by West, 2005). The one pair is the per-occupant gains and hot water terms, at 0.5, an estimate. A test checks the sample correlation within 0.05 of ρ over 100,000 draws.
+- **Correlated rows:** a Gaussian copula pairs the rows named by each `correlation` row. The anchor (the first row named) keeps its own uniform u_a. The partner's normal score becomes z = ρ Φ⁻¹(u_a) + √(1 − ρ²) Φ⁻¹(u_p), and its uniform is Φ(z), clipped to the same open interval as every other uniform. So ρ is a correlation of normal scores; the correlation of the drawn values is slightly lower. Rows outside a pair keep their own independent draws. Φ is Hart's double-precision approximation (as given by West, 2005). The one pair is the per-occupant gains and hot water terms, at 0.5, an estimate. A test checks the sample correlation within 0.05 of ρ over 100,000 draws.
 - **Stable draws:** each value comes from its own uniform number, `u = (hash32("seed|sample|rowId") + 0.5) ÷ 2³²`, so u is never 0 or 1. An uncertain table cell uses `rowId|key` in place of the row id. `hash32` is FNV-1a followed by the murmur3 finaliser, in plain TypeScript, so it runs in the browser too. Because a draw depends only on (seed, sample, row id), adding or reordering rows never moves another row's draws. A test pins some hash values, so a change to the hash fails loudly.
 - **Inverse distribution functions:** a triangular row uses its default as the mode. A lognormal row gives `median × exp(sigma × Φ⁻¹(u))`, clipped to its low and high, with Φ⁻¹ from Acklam's approximation (relative error below 1.2 × 10⁻⁹). A row whose low equals its high always returns its default.
 - **Memory:** `runPaired` keeps only the annual totals for each sample (space heat, hot water, gas, electricity, cost, carbon) in one `Float64Array` per metric. Each full result holds about 350 KB of hourly arrays, so these are dropped straight away.
@@ -292,7 +292,7 @@ The phase 1 and phase 2 specs list these as technical debt:
 - one SPF for the year, no heat pump capacity limit and no backup heater;
 - no boiler auxiliary electricity;
 - constant internal gains, and windows split equally over four orientations;
-- the air change rate is an estimate by age band, not RdSAP's ventilation worksheet;
-- window areas use the RdSAP 2012 formula, because RdSAP 10 has none;
-- weekdays are assigned by rule (1 January is a Monday), not taken from a real year;
+- the air change rate is an estimate by age band, not RdSAP's ventilation worksheet ([#27](https://github.com/mannepanne/energy-sim/issues/27));
+- window areas use the RdSAP 2012 formula, because RdSAP 10 has none ([#26](https://github.com/mannepanne/energy-sim/issues/26));
+- weekdays are taken from the 2026 reference year, not from each month's source year ([#25](https://github.com/mannepanne/energy-sim/issues/25));
 - only the per-occupant gains and hot water terms are correlated, at an estimated 0.5.
