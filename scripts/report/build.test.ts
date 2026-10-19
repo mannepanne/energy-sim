@@ -58,7 +58,9 @@ describe('buildReport', () => {
 
   it('lists every uncertain row in the sensitivity table', () => {
     const rows = report.slice(report.indexOf('## Sensitivity'), report.indexOf('## How the ranges are made'));
-    for (const row of register.rows.filter((candidate) => candidate.kind === 'uncertain')) expect(rows).toContain(row.label);
+    // The well-installed SPF is read only in its own scenario, which the phase 2 report shows.
+    const fieldTrialRows = register.rows.filter((candidate) => candidate.kind === 'uncertain' && candidate.id !== 'heating.heatPumpSpfWellInstalled');
+    for (const row of fieldTrialRows) expect(rows).toContain(row.label);
   });
 
   it('states the benchmark gaps and the decisions, including that the rule was amended after the result', () => {

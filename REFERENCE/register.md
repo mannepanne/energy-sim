@@ -52,7 +52,7 @@ Any row may carry a `rationale`, and most do. Any row may also carry `validUntil
 | `fixed` | `value` | |
 | `series` | `file`, `schema`, `columns` | `schema` names a snapshot schema (`pvgis-tmy`) |
 | `profile` | `values`, `resolution` | `hour-of-day` needs 24 values, `hour-of-week` 168 (Monday 00:00 local first), `month` 12 |
-| `table` | `keyedBy`, `cells` | Each cell is `{ key, value }` (a number, or a string for a categorical fact) or an uncertain cell `{ key, default, low, high, distribution, … }`. Keys are unique and contain no `\|`. |
+| `table` | `keyedBy`, `cells` | Each cell is `{ key, value }` (a number, or a string for a categorical fact) or an uncertain cell `{ key, default, low, high, distribution, … }`. Keys are unique and contain no `\|`. A compound key joins its parts with `/` in one order: age band, then construction, then answer (`C/cavity`, `C/cavity/cavityFilled`). |
 | `correlation` | `value`, `between` | A correlation in normal-score space, strictly between −1 and 1, between two uncertain rows. The first is the anchor. |
 
 Unknown fields are rejected, so a typo such as `defualt` fails.
@@ -91,12 +91,12 @@ Cross-row rules (duplicates, dependencies) run only once every row is valid on i
 | Section | Rows |
 | --- | --- |
 | weather | The PVGIS typical year (series); an outdoor-temperature offset (0 K, for tests); the minute past each hour that the irradiance values describe (10) |
-| archetypes | By archetype: house type, age band, storeys, wall construction, default floor area (English Housing Survey 2012), bedrooms (NEED), aspect ratio, party walls and default quick-facts answers. By age band: room height, window area formula (RdSAP 2012 Table S4), ground floor construction and insulation (RdSAP 10 Table 19). Wall thickness by construction and band (Table 3); the upper-storey allowance (0.25 m); SAP's occupancy formula |
+| archetypes | By archetype: house type, age band, storeys, wall construction, default floor area (English Housing Survey 2012), bedrooms (NEED), aspect ratio, party walls and default quick-facts answers. By age band: room height, window area formula (RdSAP 2012 Table S4), ground floor construction and insulation (RdSAP 10 Table 19). Wall thickness by band and construction (Table 3); the upper-storey allowance (0.25 m); SAP's occupancy formula |
 | geometry | The door area (1.85 m²) |
 | fabric | U-values from RdSAP 10: walls by band, construction and wall answer (Table 6 and §5.7–5.8), party walls by construction (Table 15), windows by glazing answer (Table 24), doors by band (Table 26), roofs by loft answer (Table 16); the curtain resistance (SAP 10.2 §3.2); thermal bridging by band (Table 21); the ISO 13370 ground floor parameters (§5.12); the air change rate by band (approximate); the uncertain fabric quality factor (0.75–1.15) |
 | gains | Internal gains per m² (fixed) and per occupant (uncertain, 75–140 W); their correlation with hot water per occupant (0.5); g⊥ by glazing answer (Table 24), SAP's 0.9 for non-normal incidence, the frame factor (0.7) and solar access factor (0.77); ground reflectance (0.2) |
-| heating | Mean internal temperature (16.3 °C, calibrated, see below); boiler seasonal efficiency (0.80–0.89); heat pump SPF (lognormal, median 2.8, sigma 0.145, clipped to 2.0–4.0, including hot water) |
-| hotWater | Litres a day: 36 per household plus 25 per occupant (uncertain, 17–35); delivery and cold-feed temperatures; cylinder standing loss (heat pump setup only) |
+| heating | Mean internal temperature (16.3 °C, calibrated, see below); boiler seasonal efficiency (0.80–0.89); boiler pump and fan electricity (86 kWh a year, SAP 10.2 Table 4f); heat pump SPF (Electrification of Heat SPFH4: lognormal, median 2.8, sigma 0.145, clipped to 2.0–4.0, including hot water) and the well-installed scenario's SPF (HeatpumpMonitor.org: median 3.9, sigma 0.14, clipped to 2.8–5.4); the COP curve's lift allowance (10 K), shape clamp (4–15) and ceiling (7); the compensation line's outdoor endpoints (−2 and 15 °C) and its flow temperatures (uncertain: 35–50 °C at design, 25–35 °C mild) |
+| hotWater | Litres a day: 36 per household plus 25 per occupant (uncertain, 17–35); delivery and cold-feed temperatures; the hourly draw-off profile (Energy Saving Trust, 2008; local time, shares summing to 1); for the heat pump setups, the hot water flow temperature (50 °C), and the cylinder's volume (200 litres), setpoint (50 °C), reheat trigger (45 °C) and standing loss |
 | prices | Ofgem price cap, GB average by Direct Debit, 1 October–31 December 2026, checked on 17 October 2026 |
 | carbon | Natural gas factor (gross CV; to verify); grid electricity factor 0.14396 kgCO₂e/kWh (DESNZ 2026 set, electricity consumed, including transmission and distribution losses) |
 | electricity | Base electricity use, from Ofgem's 2026 typical consumption values (1,600–3,800 kWh, mode 2,500) |
@@ -112,9 +112,11 @@ The `solar`, `costs` and `tariffs` sections exist in the schema and are filled b
 - **Loft insulation:** Table 18 assumes 100 mm for bands A–G when the thickness is unknown. Phase 1 had called "no insulation" RdSAP's default for the band.
 - **The ground floor:** the U-value is computed by ISO 13370 ([#7](https://github.com/mannepanne/energy-sim/issues/7)). Table 19 gives band C a solid floor, so the 1930s semi's floor is solid at 0.66 W/m²K, not suspended timber at 0.75.
 
+**The heat pump rows (19 October 2026).** The SPF rows and the draw-off profile are sourced. The COP curve, the flow temperatures and the cylinder rows are approximate, the flow temperatures checked against the Electrification of Heat trial and HeatpumpMonitor.org: each gives its reason in its rationale, and the ordering a test enforces (hot water flow above the design flow's high, setpoint above the reheat trigger above the cold feed). On the price cap the curve rows change when the heat pump uses electricity, not how much, because k scales the year to the sampled SPF. `heating.heatPumpSpfWellInstalled` is read only in the well-installed scenario, so it is not among the default draws or in the phase 1 report's sensitivity table. See [engine.md](./engine.md#the-heat-pump-over-the-year).
+
 **Correlations** cover uncertain rows only, not table cells, though cells have draw keys. Every house must read both rows of a correlation, or sampling throws; the one correlation names two rows every house reads.
 
-The rows still `to-verify` are the fabric quality factor, the heat pump SPF and the gas carbon factor ([#8](https://github.com/mannepanne/energy-sim/issues/8)).
+The rows still `to-verify` are the fabric quality factor and the gas carbon factor ([#8](https://github.com/mannepanne/energy-sim/issues/8)). The heat pump SPF is sourced: the trial's interim report confirms its boundary is H4 (checked 19 October 2026).
 
 ## Overrides
 

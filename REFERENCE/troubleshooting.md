@@ -36,6 +36,17 @@ Add an entry here when a problem takes more than a few minutes to work out.
 
 **"Register row … has no cell with key …".** The engine read a table key that isn't there, often a wall answer that doesn't fit the archetype's construction (such as `cavityFilled` on solid brick). Use `wallAnswers(access, archetype)` for the answers an archetype offers, or add the missing cell with its source.
 
+**"The SPF (…) must be below the COP ceiling (…)".** The k solve can't reach an SPF at or above `heating.copCeiling`, because no hour may run above the ceiling. Check the SPF row's high (and the well-installed row's) against the ceiling row.
+
+**"The hot water draw-off profile must be non-negative shares summing to 1".** `hotWater.drawOffProfile` holds each local hour's share of the day's hot water. Rescale its 24 values so they sum to 1.
+
+**"The compensation line's …" or "The COP shape clamp needs 0 < floor < ceiling".** The heat pump curve rows are out of order: the design outdoor temperature must be below the mild one, the design flow at or above the mild flow, and the shape floor below its ceiling.
+
+**The COP curve tests on the real register fail** (`src/engine/heatPump.test.ts`).
+- *The 0.1% SPF check:* the k solve no longer matches the year to the sampled SPF. Look for heat counted in the solve but not in the electricity (or the other way round), such as cylinder reheats left out of the load.
+- *"The ceiling binds in a few samples":* a curve or SPF row change means the ceiling never binds in the 200 samples, so the iterative solve goes untested on real data. That is physically fine. If the change was intended, rely on the constructed-load tests for the iterative solve, drop the real-register assertion, and say so in the PR.
+- *The flow ordering:* the hot water flow must stay at or above the high of `heating.flowTemperatureAtDesign`, and the cylinder's setpoint above its reheat trigger. Fix the rows, not the test.
+
 **The calibration test fails** (`scripts/calibration/meanInternalTemperature.test.ts`). A change to a row the 1930s semi's gas setup reads, such as an archetype fact, a U-value, the windows or the weather, has moved central gas use away from its calibration target. Re-solve the `heating.meanInternalTemperature` row with `npm run calibrate`, as [register.md](./register.md#the-mean-internal-temperature-calibration) describes, then regenerate the report.
 
 ## The report and CI

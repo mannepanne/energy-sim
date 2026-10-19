@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { annualCarbonKg, annualCost } from './costCarbon.ts';
 import { readInputs } from './inputs.ts';
-import { fuelForHeat, pencePerKwhOfHeat } from './supply.ts';
+import { auxiliaryElectricity, fuelForHeat, pencePerKwhOfHeat } from './supply.ts';
 import { fixtureAccessor } from './testing/fixtureRegister.ts';
 
 describe('the worked price check (spec, October–December 2026 price cap)', () => {
@@ -65,5 +65,16 @@ describe('annualCost', () => {
 describe('annualCarbonKg', () => {
   it('is gas kWh × gas factor + electricity kWh × grid factor', () => {
     expect(annualCarbonKg({ gasKwh: 10_000, electricityKwh: 3_000 }, readInputs(fixtureAccessor()))).toBeCloseTo(2300, 9);
+  });
+});
+
+describe('auxiliaryElectricity', () => {
+  it('spreads the year’s pump and fan electricity in proportion to each hour’s gas', () => {
+    expect([...auxiliaryElectricity(Float64Array.from([0, 1, 3]), 80)]).toEqual([0, 20, 60]);
+  });
+
+  it('gives none when the boiler never fires, and rejects a negative amount', () => {
+    expect([...auxiliaryElectricity(new Float64Array(2), 80)]).toEqual([0, 0]);
+    expect(() => auxiliaryElectricity(new Float64Array(2), -1)).toThrow('must not be negative');
   });
 });

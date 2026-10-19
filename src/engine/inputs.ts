@@ -5,16 +5,19 @@ import type { RegisterAccessor } from '../register/access.ts';
 import type { RowId } from '../register/ids.ts';
 import {
   archetypeFacts,
+  bandConstructionKey,
   checkHouse,
   defaultHouse,
   GROUND_FLOOR_CONSTRUCTIONS,
   oneOf,
   REFERENCE_ARCHETYPE,
   wallKey,
+  type ArchetypeFacts,
   type House,
 } from './archetypes.ts';
 import { deriveGeometry } from './geometry.ts';
 import { groundFloorParameters, groundFloorUValue } from './groundFloor.ts';
+import { checkCompensation, checkCurve, type CompensationLine, type CopCurve } from './heatPump.ts';
 import type { UncertainSpec } from './sampling.ts';
 
 /** The uncertain rows the engine reads. Sampling draws them, and any uncertain table cell a house reads. */
@@ -24,6 +27,9 @@ export const UNCERTAIN_ROW_IDS = [
   'heating.meanInternalTemperature',
   'heating.boilerSeasonalEfficiency',
   'heating.heatPumpSpf',
+  'heating.heatPumpSpfWellInstalled',
+  'heating.flowTemperatureAtDesign',
+  'heating.flowTemperatureAtMild',
   'hotWater.litresPerOccupant',
   'electricity.baseUse',
 ] as const satisfies readonly RowId[];
@@ -87,13 +93,23 @@ export interface EngineInputs {
 
   meanInternalTemperatureC: number;
   boilerSeasonalEfficiency: number;
+  boilerAuxiliaryElectricityKwhPerYear: number;
+  /** The sampled SPF of the chosen scenario: field trial or well-installed. */
   heatPumpSpf: number;
+  copCurve: CopCurve;
+  compensation: CompensationLine;
 
   /** Fixed part plus occupants × the per-occupant term. */
   hotWaterLitresPerDay: number;
   hotWaterDeliveryTemperatureC: number;
   coldFeedTemperatureC: number;
   cylinderStandingLossKwhPerDay: number;
+  hotWaterFlowTemperatureC: number;
+  cylinderVolumeLitres: number;
+  cylinderSetpointC: number;
+  cylinderMinimumC: number;
+  /** The share of each day's hot water drawn in each local hour, 0–23. Sums to 1. */
+  hotWaterDrawProfile: readonly number[];
 
   electricityUnitRatePence: number;
   electricityStandingChargePencePerDay: number;
@@ -106,10 +122,24 @@ export interface EngineInputs {
   baseElectricityKwhPerYear: number;
 }
 
+/**
+ * Which SPF distribution the heat pump uses. `fieldTrial` is the Electrification of Heat field data;
+ * `wellInstalled` is anchored on HeatpumpMonitor.org, a self-selected sample.
+ */
+export const SPF_SCENARIOS = ['fieldTrial', 'wellInstalled'] as const;
+export type SpfScenario = (typeof SPF_SCENARIOS)[number];
+
+const SPF_ROW: Record<SpfScenario, UncertainRowId> = {
+  fieldTrial: 'heating.heatPumpSpf',
+  wellInstalled: 'heating.heatPumpSpfWellInstalled',
+};
+
 export interface ReadInputsOptions {
   /** The house to read. Defaults to the reference archetype (the 1930s semi) with its default answers. */
   house?: House;
   overrides?: UncertainOverrides;
+  /** Defaults to `fieldTrial`. */
+  spfScenario?: SpfScenario;
 }
 
 /** Reads values, applying overrides, and records each uncertain value it reads. */
@@ -146,11 +176,27 @@ class Reader {
   text(id: RowId, key: string): string {
     return this.access.cellString(id, key);
   }
+
+  profile(id: RowId): readonly number[] {
+    return this.access.profile(id).values;
+  }
 }
 
-function read(access: RegisterAccessor, house: House, reader: Reader): EngineInputs {
-  checkHouse(access, house);
-  const facts = archetypeFacts(access, house.archetype);
+type GeometryInputs = Pick<
+  EngineInputs,
+  | 'heatedVolumeM3'
+  | 'exposedPerimeterM'
+  | 'externalWallAreaM2'
+  | 'partyWallAreaM2'
+  | 'windowAreaM2'
+  | 'doorAreaM2'
+  | 'roofAreaM2'
+  | 'groundFloorAreaM2'
+  | 'groundFloorUValue'
+>;
+
+/** Derived geometry, and the ground floor U-value, which depends on it. */
+function readGeometry(access: RegisterAccessor, reader: Reader, house: House, facts: ArchetypeFacts): GeometryInputs {
   const band = facts.ageBand;
   const geometry = deriveGeometry({
     floorAreaM2: house.floorAreaM2,
@@ -163,7 +209,7 @@ function read(access: RegisterAccessor, house: House, reader: Reader): EngineInp
     windowAreaInterceptM2: reader.cell('archetypes.windowAreaIntercept', band),
     doorAreaM2: reader.fixed('geometry.doorArea'),
   });
-  const wallThicknessMm = reader.cell('archetypes.wallThickness', `${facts.wallConstruction}/${band}`);
+  const wallThicknessMm = reader.cell('archetypes.wallThickness', bandConstructionKey(facts));
   const groundFloor = groundFloorUValue(
     {
       construction: oneOf(GROUND_FLOOR_CONSTRUCTIONS, reader.text('archetypes.groundFloorConstruction', band), 'ground floor construction'),
@@ -174,15 +220,7 @@ function read(access: RegisterAccessor, house: House, reader: Reader): EngineInp
     },
     groundFloorParameters(access),
   );
-  const windowUValueBare = reader.cell('fabric.windowUValue', house.glazing);
-  const curtainResistance = reader.fixed('fabric.windowCurtainResistance');
-
   return {
-    house,
-
-    outdoorTemperatureOffsetK: reader.fixed('weather.outdoorTemperatureOffset'),
-    irradianceSampleMinute: reader.fixed('weather.irradianceSampleMinute'),
-
     heatedVolumeM3: geometry.heatedVolumeM3,
     exposedPerimeterM: geometry.exposedPerimeterM,
     externalWallAreaM2: geometry.externalWallAreaM2,
@@ -191,42 +229,157 @@ function read(access: RegisterAccessor, house: House, reader: Reader): EngineInp
     doorAreaM2: geometry.doorAreaM2,
     roofAreaM2: geometry.roofAreaM2,
     groundFloorAreaM2: geometry.groundFloorAreaM2,
+    groundFloorUValue: groundFloor,
+  };
+}
 
+type FabricInputs = Pick<
+  EngineInputs,
+  | 'wallUValue'
+  | 'partyWallUValue'
+  | 'windowUValue'
+  | 'doorUValue'
+  | 'roofUValue'
+  | 'thermalBridgingWPerM2K'
+  | 'airChangesPerHour'
+  | 'fabricQualityFactor'
+>;
+
+function readFabric(reader: Reader, house: House, facts: ArchetypeFacts): FabricInputs {
+  const band = facts.ageBand;
+  const windowUValueBare = reader.cell('fabric.windowUValue', house.glazing);
+  const curtainResistance = reader.fixed('fabric.windowCurtainResistance');
+  return {
     wallUValue: reader.cell('fabric.wallUValue', wallKey(facts, house.walls)),
     partyWallUValue: reader.cell('fabric.partyWallUValue', facts.wallConstruction),
     windowUValue: 1 / (1 / windowUValueBare + curtainResistance),
     doorUValue: reader.cell('fabric.doorUValue', band),
     roofUValue: reader.cell('fabric.roofUValue', house.loft),
-    groundFloorUValue: groundFloor,
     thermalBridgingWPerM2K: reader.cell('fabric.thermalBridging', band),
     airChangesPerHour: reader.cell('fabric.airChangeRate', band),
     fabricQualityFactor: reader.uncertain('fabric.qualityFactor'),
+  };
+}
 
+type GainsInputs = Pick<
+  EngineInputs,
+  'internalGainsW' | 'windowGValue' | 'nonNormalIncidenceFactor' | 'windowFrameFactor' | 'solarAccessFactor' | 'groundReflectance'
+>;
+
+function readGains(reader: Reader, house: House): GainsInputs {
+  return {
     internalGainsW: reader.fixed('gains.perFloorArea') * house.floorAreaM2 + reader.uncertain('gains.perOccupant') * house.occupants,
     windowGValue: reader.cell('gains.windowGValue', house.glazing),
     nonNormalIncidenceFactor: reader.fixed('gains.nonNormalIncidenceFactor'),
     windowFrameFactor: reader.fixed('gains.windowFrameFactor'),
     solarAccessFactor: reader.fixed('gains.solarAccessFactor'),
     groundReflectance: reader.fixed('gains.groundReflectance'),
+  };
+}
 
+type HeatingInputs = Pick<
+  EngineInputs,
+  'meanInternalTemperatureC' | 'boilerSeasonalEfficiency' | 'boilerAuxiliaryElectricityKwhPerYear' | 'heatPumpSpf' | 'copCurve' | 'compensation'
+>;
+
+function readHeating(reader: Reader, spfScenario: SpfScenario): HeatingInputs {
+  const copCurve: CopCurve = {
+    liftAllowanceK: reader.fixed('heating.copLiftAllowance'),
+    shapeFloor: reader.fixed('heating.copShapeFloor'),
+    shapeCeiling: reader.fixed('heating.copShapeCeiling'),
+    copCeiling: reader.fixed('heating.copCeiling'),
+  };
+  const compensation: CompensationLine = {
+    designOutdoorC: reader.fixed('heating.compensationDesignOutdoorTemperature'),
+    designFlowC: reader.uncertain('heating.flowTemperatureAtDesign'),
+    mildOutdoorC: reader.fixed('heating.compensationMildOutdoorTemperature'),
+    mildFlowC: reader.uncertain('heating.flowTemperatureAtMild'),
+  };
+  checkCurve(copCurve);
+  checkCompensation(compensation);
+  return {
     meanInternalTemperatureC: reader.uncertain('heating.meanInternalTemperature'),
     boilerSeasonalEfficiency: reader.uncertain('heating.boilerSeasonalEfficiency'),
-    heatPumpSpf: reader.uncertain('heating.heatPumpSpf'),
+    boilerAuxiliaryElectricityKwhPerYear: reader.fixed('heating.boilerAuxiliaryElectricity'),
+    heatPumpSpf: reader.uncertain(SPF_ROW[spfScenario]),
+    copCurve,
+    compensation,
+  };
+}
 
+type HotWaterInputs = Pick<
+  EngineInputs,
+  | 'hotWaterLitresPerDay'
+  | 'hotWaterDeliveryTemperatureC'
+  | 'coldFeedTemperatureC'
+  | 'cylinderStandingLossKwhPerDay'
+  | 'hotWaterFlowTemperatureC'
+  | 'cylinderVolumeLitres'
+  | 'cylinderSetpointC'
+  | 'cylinderMinimumC'
+  | 'hotWaterDrawProfile'
+>;
+
+/** How far the draw-off shares may sum from 1 before reading fails. */
+const PROFILE_SUM_TOLERANCE = 1e-9;
+
+function readHotWater(reader: Reader, house: House): HotWaterInputs {
+  const hotWaterDrawProfile = reader.profile('hotWater.drawOffProfile');
+  const total = hotWaterDrawProfile.reduce((sum, share) => sum + share, 0);
+  if (hotWaterDrawProfile.some((share) => share < 0) || Math.abs(total - 1) > PROFILE_SUM_TOLERANCE) {
+    throw new Error(`The hot water draw-off profile must be non-negative shares summing to 1, got a sum of ${total}`);
+  }
+  return {
     hotWaterLitresPerDay: reader.fixed('hotWater.litresBase') + reader.uncertain('hotWater.litresPerOccupant') * house.occupants,
     hotWaterDeliveryTemperatureC: reader.fixed('hotWater.deliveryTemperature'),
     coldFeedTemperatureC: reader.fixed('hotWater.coldFeedTemperature'),
     cylinderStandingLossKwhPerDay: reader.fixed('hotWater.cylinderStandingLoss'),
+    hotWaterFlowTemperatureC: reader.fixed('hotWater.heatPumpFlowTemperature'),
+    cylinderVolumeLitres: reader.fixed('hotWater.cylinderVolume'),
+    cylinderSetpointC: reader.fixed('hotWater.cylinderSetpoint'),
+    cylinderMinimumC: reader.fixed('hotWater.cylinderMinimum'),
+    hotWaterDrawProfile,
+  };
+}
 
+type PriceInputs = Pick<
+  EngineInputs,
+  | 'electricityUnitRatePence'
+  | 'electricityStandingChargePencePerDay'
+  | 'gasUnitRatePence'
+  | 'gasStandingChargePencePerDay'
+  | 'gasCarbonKgPerKwh'
+  | 'gridCarbonKgPerKwh'
+  | 'baseElectricityKwhPerYear'
+>;
+
+/** Prices, carbon factors and base electricity use. */
+function readPrices(reader: Reader): PriceInputs {
+  return {
     electricityUnitRatePence: reader.fixed('prices.electricityUnitRate'),
     electricityStandingChargePencePerDay: reader.fixed('prices.electricityStandingCharge'),
     gasUnitRatePence: reader.fixed('prices.gasUnitRate'),
     gasStandingChargePencePerDay: reader.fixed('prices.gasStandingCharge'),
-
     gasCarbonKgPerKwh: reader.fixed('carbon.gasFactor'),
     gridCarbonKgPerKwh: reader.fixed('carbon.gridElectricityFactor'),
-
     baseElectricityKwhPerYear: reader.uncertain('electricity.baseUse'),
+  };
+}
+
+/** Reads every subsystem in a fixed order, which sets the order `uncertainDraws` returns. */
+function read(access: RegisterAccessor, house: House, reader: Reader, spfScenario: SpfScenario): EngineInputs {
+  checkHouse(access, house);
+  const facts = archetypeFacts(access, house.archetype);
+  return {
+    house,
+    outdoorTemperatureOffsetK: reader.fixed('weather.outdoorTemperatureOffset'),
+    irradianceSampleMinute: reader.fixed('weather.irradianceSampleMinute'),
+    ...readGeometry(access, reader, house, facts),
+    ...readFabric(reader, house, facts),
+    ...readGains(reader, house),
+    ...readHeating(reader, spfScenario),
+    ...readHotWater(reader, house),
+    ...readPrices(reader),
   };
 }
 
@@ -235,13 +388,13 @@ function read(access: RegisterAccessor, house: House, reader: Reader): EngineInp
  * wrong kind, if the house is invalid, or if an override names a value the house does not read.
  */
 export function readInputs(access: RegisterAccessor, options: ReadInputsOptions = {}): EngineInputs {
-  const { overrides = {} } = options;
+  const { overrides = {}, spfScenario = 'fieldTrial' } = options;
   const house = options.house ?? defaultHouse(access, REFERENCE_ARCHETYPE);
   for (const [key, value] of Object.entries(overrides)) {
     if (!Number.isFinite(value)) throw new Error(`Override for "${key}" must be a finite number, got ${value}`);
   }
   const reader = new Reader(access, overrides);
-  const inputs = read(access, house, reader);
+  const inputs = read(access, house, reader, spfScenario);
   const drawn = new Set<string>(reader.draws.keys());
   for (const key of Object.keys(overrides)) {
     if (!drawn.has(key)) throw new Error(`Override for "${key}" names no uncertain value this house reads`);
@@ -249,9 +402,13 @@ export function readInputs(access: RegisterAccessor, options: ReadInputsOptions 
   return inputs;
 }
 
-/** Every uncertain row and cell a house reads, in the order the engine reads them. */
-export function uncertainDraws(access: RegisterAccessor, house: House = defaultHouse(access, REFERENCE_ARCHETYPE)): UncertainDraw[] {
+/** Every uncertain row and cell a house reads under an SPF scenario, in the order the engine reads them. */
+export function uncertainDraws(
+  access: RegisterAccessor,
+  house: House = defaultHouse(access, REFERENCE_ARCHETYPE),
+  spfScenario: SpfScenario = 'fieldTrial',
+): UncertainDraw[] {
   const reader = new Reader(access, {});
-  read(access, house, reader);
+  read(access, house, reader, spfScenario);
   return [...reader.draws.values()];
 }

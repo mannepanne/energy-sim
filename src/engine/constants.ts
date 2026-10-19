@@ -10,6 +10,9 @@ export const MINUTES_PER_HOUR = 60;
 /** Volumetric heat capacity of air, in Wh per m³ per K (SAP's 0.33). */
 export const AIR_HEAT_CAPACITY_WH_PER_M3K = 0.33;
 
+/** Add to a temperature in °C to give kelvin. */
+export const KELVIN_OFFSET = 273.15;
+
 /** Specific heat of water, in kJ per kg per K, with one litre taken as one kilogram. */
 export const WATER_SPECIFIC_HEAT_KJ_PER_KGK = 4.18;
 

@@ -17,7 +17,7 @@ Row kinds and fields (including `table` and `correlation`), the integrity rules 
 ### [engine.md](./engine.md)
 **When to read:** Changing the physics, reading engine results, adding an engine input, or checking how a number is calculated.
 
-The hourly engine's files and API, houses and quick facts, derived geometry, the ISO 13370 ground floor, the heat loss, space heat, solar, hot water, supply, cost and carbon formulas, the hand-calculated fixture house and two archetypes, the checks against Duffie and Beckman and HEM, the archetype table, the time base, the seeded sampling with its copula, the paired comparison and sensitivity table, and how the phase 1 report is generated.
+The hourly engine's files and API, houses and quick facts, derived geometry, the ISO 13370 ground floor, the heat loss, space heat, solar, hot water and cylinder, supply, the heat pump COP curve, cost and carbon formulas, the hand-calculated fixture house and two archetypes, the checks against Duffie and Beckman and HEM, the archetype table, the time base, the seeded sampling with its copula, the paired comparison and sensitivity table, and how the phase 1 report is generated.
 
 ### [environment-setup.md](./environment-setup.md)
 **When to read:** Setting up local development, configuring secrets, or deploying to production.

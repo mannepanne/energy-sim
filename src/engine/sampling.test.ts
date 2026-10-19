@@ -232,7 +232,8 @@ describe('sampleOverrides', () => {
   it('draws every uncertain row the engine reads', () => {
     const access = fixtureAccessor({}, { 'heating.heatPumpSpf': { low: 2, high: 3.5, sigma: 0.15 } });
     const [first] = sampleOverrides(access, { seed: 1, count: 1 });
-    expect(Object.keys(first!).toSorted()).toEqual(UNCERTAIN_ROW_IDS.toSorted());
+    const fieldTrial = UNCERTAIN_ROW_IDS.filter((id) => id !== 'heating.heatPumpSpfWellInstalled');
+    expect(Object.keys(first!).toSorted()).toEqual(fieldTrial.toSorted());
     expect(first!['fabric.qualityFactor']).toBe(1);
     expect(first!['heating.heatPumpSpf']).not.toBe(2.5);
   });

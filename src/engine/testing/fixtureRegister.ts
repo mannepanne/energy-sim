@@ -13,18 +13,22 @@ const isUncertain = (id: RowId): id is UncertainRowId => UNCERTAIN_IDS.has(id);
 
 const SERIES_ID = 'weather.pvgisTypicalYearLondon';
 const CORRELATION_ID = 'gains.perOccupantHotWaterCorrelation';
+const PROFILE_IDS: ReadonlySet<RowId> = new Set<RowId>(['hotWater.drawOffProfile']);
+
+/** An even hour-of-day profile: 1/24 in every hour. */
+export const EVEN_DAILY_PROFILE: readonly number[] = Array.from({ length: 24 }, () => 1 / 24);
 
 /** Every age band an archetype uses. A fixture table keyed by band has a cell for each. */
 export const FIXTURE_BANDS = ['A', 'C', 'D', 'E', 'F', 'G', 'K', 'L'] as const;
 
 /** A table value: one value for every key, or a value for each key. */
-export type FixtureCells = number | string | Readonly<Record<string, number | string>>;
+export type FixtureCells = number | string | readonly number[] | Readonly<Record<string, number | string>>;
 
 
 const archetypeKeyed = [...ARCHETYPE_KEYS];
 const bandKeyed = [...FIXTURE_BANDS];
 const wallKeys = FIXTURE_BANDS.flatMap((band) => WALL_CONSTRUCTIONS.flatMap((construction) => WALL_ANSWERS.map((answer) => `${band}/${construction}/${answer}`)));
-const constructionBandKeys = WALL_CONSTRUCTIONS.flatMap((construction) => FIXTURE_BANDS.map((band) => `${construction}/${band}`));
+const bandConstructionKeys = FIXTURE_BANDS.flatMap((band) => WALL_CONSTRUCTIONS.map((construction) => `${band}/${construction}`));
 
 /** The keys of each table row, with what they are keyed by. */
 const TABLE_KEYS: Readonly<Partial<Record<RowId, { keyedBy: TableKeyKind; keys: readonly string[] }>>> = {
@@ -42,7 +46,7 @@ const TABLE_KEYS: Readonly<Partial<Record<RowId, { keyedBy: TableKeyKind; keys: 
   'archetypes.roomHeight': { keyedBy: 'age band', keys: bandKeyed },
   'archetypes.windowAreaSlope': { keyedBy: 'age band', keys: bandKeyed },
   'archetypes.windowAreaIntercept': { keyedBy: 'age band', keys: bandKeyed },
-  'archetypes.wallThickness': { keyedBy: 'construction/age band', keys: constructionBandKeys },
+  'archetypes.wallThickness': { keyedBy: 'age band/construction', keys: bandConstructionKeys },
   'archetypes.groundFloorConstruction': { keyedBy: 'age band', keys: bandKeyed },
   'archetypes.groundFloorInsulation': { keyedBy: 'age band', keys: bandKeyed },
   'archetypes.occupancy': { keyedBy: 'coefficient', keys: ['base', 'saturation', 'curvature', 'slope', 'minimumFloorArea'] },
@@ -134,8 +138,25 @@ export const FIXTURE_HOUSE: Readonly<Record<Exclude<RowId, typeof SERIES_ID>, Fi
   'heating.meanInternalTemperature': 20,
   'heating.boilerSeasonalEfficiency': 0.8,
   'heating.heatPumpSpf': 2.5,
+  'heating.heatPumpSpfWellInstalled': 3.5,
+  'heating.copLiftAllowance': 10,
+  'heating.copShapeFloor': 4,
+  'heating.copShapeCeiling': 15,
+  'heating.copCeiling': 7,
+  'heating.compensationDesignOutdoorTemperature': -2,
+  'heating.compensationMildOutdoorTemperature': 15,
+  'heating.flowTemperatureAtDesign': 45,
+  'heating.flowTemperatureAtMild': 30,
+  // Zero, so the gas setup's electricity is base use alone; the auxiliary tests set it.
+  'heating.boilerAuxiliaryElectricity': 0,
   'hotWater.litresBase': 20,
   'hotWater.litresPerOccupant': 20,
+  'hotWater.heatPumpFlowTemperature': 55,
+  'hotWater.cylinderVolume': 200,
+  'hotWater.cylinderSetpoint': 50,
+  'hotWater.cylinderMinimum': 45,
+  // Even, so the combi's hot water is the same in every hour.
+  'hotWater.drawOffProfile': EVEN_DAILY_PROFILE,
   'hotWater.deliveryTemperature': 50,
   'hotWater.coldFeedTemperature': 10,
   'hotWater.cylinderStandingLoss': 1.5,
@@ -167,6 +188,13 @@ function uncertainFields(value: number, range: FixtureRange | undefined): Record
     : { default: value, low, high, distribution: 'lognormal', median: value, sigma };
 }
 
+const isValueList = (value: FixtureCells | undefined): value is readonly number[] => Array.isArray(value);
+
+function profileValues(id: RowId, value: FixtureCells | undefined): readonly number[] {
+  if (!isValueList(value)) throw new Error(`Fixture row "${id}" needs an array of values`);
+  return value;
+}
+
 function numberValue(id: RowId, value: FixtureCells | undefined): number {
   if (typeof value !== 'number') throw new Error(`Fixture row "${id}" needs a number`);
   return value;
@@ -174,6 +202,7 @@ function numberValue(id: RowId, value: FixtureCells | undefined): number {
 
 function cells(id: RowId, value: FixtureCells | undefined, keys: readonly string[]): Record<string, unknown>[] {
   if (value === undefined) throw new Error(`Fixture row "${id}" has no value`);
+  if (isValueList(value)) throw new Error(`Fixture row "${id}" is a table and needs a value or a value per key`);
   return keys.map((key) => {
     const cell = typeof value === 'object' ? value[key] : value;
     if (cell === undefined) throw new Error(`Fixture row "${id}" has no value for key "${key}"`);
@@ -203,6 +232,7 @@ function row(id: RowId, value: FixtureCells | undefined, ranges: FixtureRanges):
     const between = ['gains.perOccupant', 'hotWater.litresPerOccupant'];
     return { ...base, kind: 'correlation', value: numberValue(id, value), between, dependsOn: between };
   }
+  if (PROFILE_IDS.has(id)) return { ...base, kind: 'profile', values: profileValues(id, value), resolution: 'hour-of-day' };
   if (isUncertain(id)) return { ...base, kind: 'uncertain', ...uncertainFields(numberValue(id, value), ranges[id]) };
   const table = TABLE_KEYS[id];
   if (table) return { ...base, kind: 'table', keyedBy: table.keyedBy, cells: cells(id, value, table.keys) };

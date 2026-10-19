@@ -3,7 +3,7 @@
 
 import type { RegisterAccessor } from '../register/access.ts';
 import { defaultHouse, REFERENCE_ARCHETYPE, type House } from './archetypes.ts';
-import { readInputs } from './inputs.ts';
+import { readInputs, type SpfScenario } from './inputs.ts';
 import { sampleOverrides, type SamplingPlan } from './sampling.ts';
 import { simulate, type AnnualResult, type Setup } from './simulate.ts';
 import type { PreparedWeather } from './weather.ts';
@@ -20,6 +20,7 @@ export type SampleTotals = Record<Metric, Float64Array>;
 export interface PairedRun {
   plan: SamplingPlan;
   house: House;
+  spfScenario: SpfScenario;
   /** Every uncertain row at its default. */
   central: Record<Setup, Totals>;
   samples: Record<Setup, SampleTotals>;
@@ -51,29 +52,31 @@ const emptySampleTotals = (count: number): SampleTotals => byMetric(() => new Fl
 /**
  * Runs both setups on the central inputs and on each sample. Both setups in a sample share one set of inputs.
  * Only the annual totals are kept, because each full result holds about 350 KB of hourly arrays.
- * The weather must be prepared once, from the same register.
+ * The weather must be prepared once, from the same register. `spfScenario` picks the heat pump's SPF distribution;
+ * every other draw is the same in both scenarios, so they pair.
  */
 export function runPaired(
   access: RegisterAccessor,
   weather: PreparedWeather,
   plan: SamplingPlan,
   house: House = defaultHouse(access, REFERENCE_ARCHETYPE),
+  spfScenario: SpfScenario = 'fieldTrial',
 ): PairedRun {
-  const centralInputs = readInputs(access, { house });
+  const centralInputs = readInputs(access, { house, spfScenario });
   const central = {
     gas: totalsOf(simulate(centralInputs, weather, 'gas').annual),
     heatPump: totalsOf(simulate(centralInputs, weather, 'heatPump').annual),
   };
-  const draws = sampleOverrides(access, plan, house);
+  const draws = sampleOverrides(access, plan, house, spfScenario);
   const samples = { gas: emptySampleTotals(plan.count), heatPump: emptySampleTotals(plan.count) };
   draws.forEach((overrides, sample) => {
-    const inputs = readInputs(access, { house, overrides });
+    const inputs = readInputs(access, { house, overrides, spfScenario });
     for (const setup of ['gas', 'heatPump'] as const) {
       const totals = totalsOf(simulate(inputs, weather, setup).annual);
       for (const metric of METRICS) samples[setup][metric][sample] = totals[metric];
     }
   });
-  return { plan, house, central, samples };
+  return { plan, house, spfScenario, central, samples };
 }
 
 /**
