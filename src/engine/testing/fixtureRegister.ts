@@ -13,10 +13,20 @@ const isUncertain = (id: RowId): id is UncertainRowId => UNCERTAIN_IDS.has(id);
 
 const SERIES_ID = 'weather.pvgisTypicalYearLondon';
 const CORRELATION_ID = 'gains.perOccupantHotWaterCorrelation';
-const PROFILE_IDS: ReadonlySet<RowId> = new Set<RowId>(['hotWater.drawOffProfile']);
+const PROFILE_RESOLUTIONS: Readonly<Partial<Record<RowId, 'hour-of-day' | 'hour-of-week' | 'month'>>> = {
+  'hotWater.drawOffProfile': 'hour-of-day',
+  'electricity.baseProfileWeekly': 'hour-of-week',
+  'electricity.baseProfileMonthly': 'month',
+};
 
 /** An even hour-of-day profile: 1/24 in every hour. */
 export const EVEN_DAILY_PROFILE: readonly number[] = Array.from({ length: 24 }, () => 1 / 24);
+
+/** An even hour-of-week profile: 1 in every hour. */
+export const EVEN_WEEKLY_PROFILE: readonly number[] = Array.from({ length: 168 }, () => 1);
+
+/** An even month profile: 1 in every month. */
+export const EVEN_MONTHLY_PROFILE: readonly number[] = Array.from({ length: 12 }, () => 1);
 
 /** Every age band an archetype uses. A fixture table keyed by band has a cell for each. */
 export const FIXTURE_BANDS = ['A', 'C', 'D', 'E', 'F', 'G', 'K', 'L'] as const;
@@ -167,6 +177,19 @@ export const FIXTURE_HOUSE: Readonly<Record<Exclude<RowId, typeof SERIES_ID>, Fi
   'carbon.gasFactor': 0.2,
   'carbon.gridElectricityFactor': 0.1,
   'electricity.baseUse': 2920,
+  // Even, so base use is 2,920 ÷ 8,760 = 1/3 kWh in every hour.
+  'electricity.baseProfileWeekly': EVEN_WEEKLY_PROFILE,
+  'electricity.baseProfileMonthly': EVEN_MONTHLY_PROFILE,
+  // A 4 kWp south-facing system at 35°. No temperature effect and a 10% loss, so generation is 3.6 kWh per kWh/m² on
+  // the panel. The roof takes 50 ÷ cos 35° × ½ × 1 × 0.2 = 6.10 kWp, so 4 kWp is not clipped.
+  'solar.systemSize': 4,
+  'solar.tilt': 35,
+  'solar.azimuth': 0,
+  'solar.systemLoss': 0.1,
+  'solar.temperatureCoefficient': 0,
+  'solar.cellTemperatureRise': 0,
+  'solar.usableRoofFraction': 1,
+  'solar.peakPowerPerArea': 0.2,
 };
 
 export type FixtureValues = Partial<typeof FIXTURE_HOUSE>;
@@ -232,7 +255,8 @@ function row(id: RowId, value: FixtureCells | undefined, ranges: FixtureRanges):
     const between = ['gains.perOccupant', 'hotWater.litresPerOccupant'];
     return { ...base, kind: 'correlation', value: numberValue(id, value), between, dependsOn: between };
   }
-  if (PROFILE_IDS.has(id)) return { ...base, kind: 'profile', values: profileValues(id, value), resolution: 'hour-of-day' };
+  const resolution = PROFILE_RESOLUTIONS[id];
+  if (resolution) return { ...base, kind: 'profile', values: profileValues(id, value), resolution };
   if (isUncertain(id)) return { ...base, kind: 'uncertain', ...uncertainFields(numberValue(id, value), ranges[id]) };
   const table = TABLE_KEYS[id];
   if (table) return { ...base, kind: 'table', keyedBy: table.keyedBy, cells: cells(id, value, table.keys) };

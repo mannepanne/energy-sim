@@ -8,6 +8,7 @@ import { HOURS_PER_YEAR } from './constants.ts';
 import { defaultHouse } from './archetypes.ts';
 import { readInputs, type EngineInputs } from './inputs.ts';
 import { simulate } from './simulate.ts';
+import { sunPath } from './solar.ts';
 import { fixtureAccessor, type FixtureValues } from './testing/fixtureRegister.ts';
 import { prepareWeather, weatherFromSnapshot, type PreparedWeather } from './weather.ts';
 
@@ -33,6 +34,14 @@ const sum = (values: Float64Array): number => values.reduce((total, value) => to
 const flatWeather: PreparedWeather = {
   outdoorTemperatureC: new Float64Array(HOURS_PER_YEAR).fill(5),
   meanVerticalIrradiance: new Float64Array(HOURS_PER_YEAR),
+  irradiance: {
+    latitudeDeg: 51.5,
+    longitudeDeg: 0,
+    globalHorizontal: new Float64Array(HOURS_PER_YEAR),
+    beamNormal: new Float64Array(HOURS_PER_YEAR),
+    diffuseHorizontal: new Float64Array(HOURS_PER_YEAR),
+  },
+  sunPath: sunPath({ latitudeDeg: 51.5, longitudeDeg: 0 }, 10),
 };
 
 describe('the fixture house by hand (REFERENCE/engine.md)', () => {

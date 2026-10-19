@@ -73,16 +73,22 @@ export interface HeatPumpLoad {
 
 const cop = (k: number, shape: number, ceiling: number): number => Math.min(ceiling, k * shape);
 
-/** Heating electricity in each hour: each part's heat ÷ its COP, min(k × shape, ceiling). */
-export function heatPumpElectricity(load: HeatPumpLoad, scale: CopScale, curve: CopCurve): Float64Array {
+/** Heating electricity in each hour, split by part: each part's heat ÷ its COP, min(k × shape, ceiling). */
+export function heatPumpElectricityParts(load: HeatPumpLoad, scale: CopScale, curve: CopCurve): { spaceKwh: Float64Array; hotWaterKwh: Float64Array } {
   const { spaceHeatKwh, spaceShape, hotWaterHeatKwh, hotWaterShape } = load;
-  const electricity = new Float64Array(spaceHeatKwh.length);
-  for (let hour = 0; hour < electricity.length; hour += 1) {
-    electricity[hour] =
-      spaceHeatKwh[hour]! / cop(scale.k, spaceShape[hour]!, curve.copCeiling) +
-      hotWaterHeatKwh[hour]! / cop(scale.k, hotWaterShape[hour]!, curve.copCeiling);
+  const spaceKwh = new Float64Array(spaceHeatKwh.length);
+  const hotWaterKwh = new Float64Array(spaceHeatKwh.length);
+  for (let hour = 0; hour < spaceKwh.length; hour += 1) {
+    spaceKwh[hour] = spaceHeatKwh[hour]! / cop(scale.k, spaceShape[hour]!, curve.copCeiling);
+    hotWaterKwh[hour] = hotWaterHeatKwh[hour]! / cop(scale.k, hotWaterShape[hour]!, curve.copCeiling);
   }
-  return electricity;
+  return { spaceKwh, hotWaterKwh };
+}
+
+/** Heating electricity in each hour: the space heating and hot water parts added. */
+export function heatPumpElectricity(load: HeatPumpLoad, scale: CopScale, curve: CopCurve): Float64Array {
+  const { spaceKwh, hotWaterKwh } = heatPumpElectricityParts(load, scale, curve);
+  return spaceKwh.map((space, hour) => space + hotWaterKwh[hour]!);
 }
 
 /**

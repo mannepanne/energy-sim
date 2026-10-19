@@ -65,6 +65,8 @@ The low and high are the ends of each row’s range, not percentiles. For the he
 
 The two heat pump flow temperature rows move nothing here. On the price cap, the heat pump’s COP curve is scaled so the year matches the sampled SPF, so the flow temperatures change when the heat pump uses electricity, not how much. They matter only where hours are priced differently, as on time-of-use tariffs.
 
+The two roof solar rows move nothing here either, because this report compares the two setups without solar.
+
 | Row | Low to high | Gas boiler cost | Heat pump cost | Gas minus heat pump |
 | --- | --- | ---: | ---: | ---: |
 | Air source heat pump seasonal performance factor (space heat and hot water combined) | 2 to 4 | £2,050 | £2,420 to £1,640 | −£370 to £410 |
@@ -76,6 +78,8 @@ The two heat pump flow temperature rows move nothing here. On the price cap, the
 | Base electricity use (lights and appliances), the same in both setups | 1,600 to 3,800 kWh/year | £1,810 to £2,390 | £1,730 to £2,310 | £80 |
 | Heat pump space heating flow temperature at the design outdoor temperature | 35 to 50 °C | £2,050 | £1,970 | £80 |
 | Heat pump space heating flow temperature at the mild outdoor temperature | 25 to 35 °C | £2,050 | £1,970 | £80 |
+| Roof solar PV direction | −45 to 45 degrees from south, west positive | £2,050 | £1,970 | £80 |
+| Roof solar PV system size before the roof limit | 2.5 to 6 kWp | £2,050 | £1,970 | £80 |
 
 ## The variant with no loft insulation
 
@@ -83,7 +87,7 @@ With no loft insulation, the house needs more heat: 13,400 kWh of space heat a y
 
 ## How the ranges are made
 
-- **Samples:** 500 joint samples with seed 1. Each sample draws a value for every uncertain row: Fabric quality factor (one multiplier on every U-value and the air change rate); Internal gains per occupant; Heat pump space heating flow temperature at the design outdoor temperature; Heat pump space heating flow temperature at the mild outdoor temperature; Mean internal air temperature, heated continuously (calibrated to measured gas use); Gas combi boiler seasonal efficiency (space heat and hot water); Air source heat pump seasonal performance factor (space heat and hot water combined); Hot water use per occupant; Base electricity use (lights and appliances), the same in both setups. Every other number is fixed.
+- **Samples:** 500 joint samples with seed 1. Each sample draws a value for every uncertain row: Fabric quality factor (one multiplier on every U-value and the air change rate); Internal gains per occupant; Heat pump space heating flow temperature at the design outdoor temperature; Heat pump space heating flow temperature at the mild outdoor temperature; Mean internal air temperature, heated continuously (calibrated to measured gas use); Gas combi boiler seasonal efficiency (space heat and hot water); Air source heat pump seasonal performance factor (space heat and hot water combined); Hot water use per occupant; Base electricity use (lights and appliances), the same in both setups; Roof solar PV system size before the roof limit; Roof solar PV direction. Every other number is fixed.
 - **Stable draws:** each value comes from a hash of the seed, the sample number and the row id, passed through the row’s inverse distribution function. Triangular rows use their default as the mode. The SPF is lognormal and clipped to its low and high.
 - **Central** is the run with every row at its default. **Median** and the **10th to 90th percentile** come from the samples (linear interpolation between ranked samples).
 - **Fabric quality** is one shared factor on every U-value and the air change rate.
@@ -101,7 +105,7 @@ The benchmark checked annual **space heat** against the government’s Home Ener
 
 ## Data dates
 
-- **Register:** 71 rows (34 sourced, 2 to-verify, 35 approximate), last checked between 2026-10-17 and 2026-10-19. A sourced row has been checked against its source; a to-verify row is taken from a source but not yet checked line by line; an approximate row is an estimate with a written reason. See [register.md](../REFERENCE/register.md).
+- **Register:** 81 rows (36 sourced, 2 to-verify, 43 approximate), last checked between 2026-10-17 and 2026-10-19. A sourced row has been checked against its source; a to-verify row is taken from a source but not yet checked line by line; an approximate row is an estimate with a written reason. See [register.md](../REFERENCE/register.md).
 - **Weather:** the PVGIS typical year for 51.507, −0.128 (PVGIS-SARAH3), fetched on 2026-10-18. Source: PVGIS © European Union, 2001–2026. Reuse is authorised provided the source is acknowledged (Commission Decision 2011/833/EU). Trimmed to the columns the engine uses.
 - **Rows due for a fresh check** (the rest are static). A price row falls due when its price cap period ends:
 

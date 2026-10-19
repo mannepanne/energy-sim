@@ -149,6 +149,8 @@ function sensitivitySection(access: RegisterAccessor, rows: readonly Sensitivity
     '',
     'The two heat pump flow temperature rows move nothing here. On the price cap, the heat pump’s COP curve is scaled so the year matches the sampled SPF, so the flow temperatures change when the heat pump uses electricity, not how much. They matter only where hours are priced differently, as on time-of-use tariffs.',
     '',
+    'The two roof solar rows move nothing here either, because this report compares the two setups without solar.',
+    '',
     '| Row | Low to high | Gas boiler cost | Heat pump cost | Gas minus heat pump |',
     '| --- | --- | ---: | ---: | ---: |',
     ...lines,

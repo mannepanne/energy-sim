@@ -1,4 +1,4 @@
-// ABOUT: Solar position, isotropic-sky irradiance on tilted surfaces, and hourly mean vertical irradiance
+// ABOUT: Solar position, isotropic-sky irradiance on tilted surfaces, hourly mean vertical irradiance and the sun's path
 // ABOUT: Formulas follow Duffie and Beckman, Solar Engineering of Thermal Processes, chapters 1 and 2
 
 import {
@@ -149,6 +149,61 @@ export function meanVerticalIrradiance(series: IrradianceSeries, sampleMinute: n
       sum += tiltedIrradiance(irradiance, cosIncidence(latitude, sun, wall), sunAboveHorizon, wall.tilt, groundReflectance);
     }
     result[hour] = sum / FOUR_WALLS.length;
+  }
+  return result;
+}
+
+/**
+ * The sun's direction in each hour of the year, as three components of the unit vector towards it: up (cos zenith),
+ * towards the south and towards the west. The beam's incidence on any surface follows from these without more
+ * trigonometry per hour, so the path is computed once and reused for every roof direction.
+ */
+export interface SunPath {
+  cosZenith: Float64Array;
+  south: Float64Array;
+  west: Float64Array;
+}
+
+/**
+ * The sun's path over the series' year, `sampleMinute` minutes past each UTC hour. Rearranging Duffie and Beckman
+ * eq. 1.6.2, cos θ = cos β × cos zenith + sin β × (cos γ × south + sin γ × west), where
+ * south = cos δ sin φ cos ω − sin δ cos φ and west = cos δ sin ω.
+ */
+export function sunPath(series: Pick<IrradianceSeries, 'latitudeDeg' | 'longitudeDeg'>, sampleMinute: number): SunPath {
+  const latitude = series.latitudeDeg * RADIANS_PER_DEGREE;
+  const path: SunPath = {
+    cosZenith: new Float64Array(HOURS_PER_YEAR),
+    south: new Float64Array(HOURS_PER_YEAR),
+    west: new Float64Array(HOURS_PER_YEAR),
+  };
+  for (let hour = 0; hour < HOURS_PER_YEAR; hour += 1) {
+    const dayOfYear = Math.floor(hour / HOURS_PER_DAY) + 1;
+    const sun = sunAngles(dayOfYear, (hour % HOURS_PER_DAY) + sampleMinute / MINUTES_PER_HOUR, series.longitudeDeg);
+    const { declination: d, hourAngle: w } = sun;
+    path.cosZenith[hour] = cosZenith(latitude, sun);
+    path.south[hour] = Math.cos(d) * Math.sin(latitude) * Math.cos(w) - Math.sin(d) * Math.cos(latitude);
+    path.west[hour] = Math.cos(d) * Math.sin(w);
+  }
+  return path;
+}
+
+/**
+ * Hourly irradiance on one surface by the isotropic sky, W/m², using a precomputed sun path. The same sum as
+ * `tiltedIrradiance`, written out so the hourly loop allocates nothing.
+ */
+export function planeIrradiance(series: IrradianceSeries, path: SunPath, surface: Surface, groundReflectance: number): Float64Array {
+  const cosTilt = Math.cos(surface.tilt);
+  const sinTilt = Math.sin(surface.tilt);
+  const southWeight = sinTilt * Math.cos(surface.azimuth);
+  const westWeight = sinTilt * Math.sin(surface.azimuth);
+  const skyView = (1 + cosTilt) / 2;
+  const groundView = (groundReflectance * (1 - cosTilt)) / 2;
+  const result = new Float64Array(HOURS_PER_YEAR);
+  for (let hour = 0; hour < HOURS_PER_YEAR; hour += 1) {
+    const cosZ = path.cosZenith[hour]!;
+    const cosTheta = cosTilt * cosZ + southWeight * path.south[hour]! + westWeight * path.west[hour]!;
+    const beam = cosZ > 0 ? series.beamNormal[hour]! * Math.max(0, cosTheta) : 0;
+    result[hour] = beam + series.diffuseHorizontal[hour]! * skyView + series.globalHorizontal[hour]! * groundView;
   }
   return result;
 }
