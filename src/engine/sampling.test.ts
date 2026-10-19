@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { defaultHouse } from './archetypes.ts';
-import { UNCERTAIN_ROW_IDS } from './inputs.ts';
+import { rowsOutsideScenario, UNCERTAIN_ROW_IDS } from './inputs.ts';
 import {
   correlatedUniform,
   drawSamples,
@@ -232,7 +232,7 @@ describe('sampleOverrides', () => {
   it('draws every uncertain row the engine reads', () => {
     const access = fixtureAccessor({}, { 'heating.heatPumpSpf': { low: 2, high: 3.5, sigma: 0.15 } });
     const [first] = sampleOverrides(access, { seed: 1, count: 1 });
-    const fieldTrial = UNCERTAIN_ROW_IDS.filter((id) => id !== 'heating.heatPumpSpfWellInstalled');
+    const fieldTrial = UNCERTAIN_ROW_IDS.filter((id) => !rowsOutsideScenario('fieldTrial').includes(id));
     expect(Object.keys(first!).toSorted()).toEqual(fieldTrial.toSorted());
     expect(first!['fabric.qualityFactor']).toBe(1);
     expect(first!['heating.heatPumpSpf']).not.toBe(2.5);

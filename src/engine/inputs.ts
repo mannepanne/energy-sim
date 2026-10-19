@@ -28,6 +28,8 @@ export const UNCERTAIN_ROW_IDS = [
   'heating.boilerSeasonalEfficiency',
   'heating.heatPumpSpf',
   'heating.heatPumpSpfWellInstalled',
+  'heating.heatPumpStandbyShare',
+  'heating.heatPumpStandbyShareWellInstalled',
   'heating.flowTemperatureAtDesign',
   'heating.flowTemperatureAtMild',
   'hotWater.litresPerOccupant',
@@ -96,6 +98,8 @@ export interface EngineInputs {
   boilerAuxiliaryElectricityKwhPerYear: number;
   /** The sampled SPF of the chosen scenario: field trial or well-installed. */
   heatPumpSpf: number;
+  /** Controls, pumps and standby as a share of the year's heat pump electricity; inside the SPF's boundary. */
+  heatPumpStandbyShare: number;
   copCurve: CopCurve;
   compensation: CompensationLine;
 
@@ -129,10 +133,16 @@ export interface EngineInputs {
 export const SPF_SCENARIOS = ['fieldTrial', 'wellInstalled'] as const;
 export type SpfScenario = (typeof SPF_SCENARIOS)[number];
 
-const SPF_ROW: Record<SpfScenario, UncertainRowId> = {
-  fieldTrial: 'heating.heatPumpSpf',
-  wellInstalled: 'heating.heatPumpSpfWellInstalled',
-};
+/** The rows each SPF scenario reads: its SPF and its standby share, both from the same sample. */
+export const SCENARIO_ROWS = {
+  fieldTrial: { spf: 'heating.heatPumpSpf', standbyShare: 'heating.heatPumpStandbyShare' },
+  wellInstalled: { spf: 'heating.heatPumpSpfWellInstalled', standbyShare: 'heating.heatPumpStandbyShareWellInstalled' },
+} as const satisfies Record<SpfScenario, { spf: UncertainRowId; standbyShare: UncertainRowId }>;
+
+/** The uncertain rows a scenario never reads: the other scenario's SPF and standby share. */
+export function rowsOutsideScenario(spfScenario: SpfScenario): UncertainRowId[] {
+  return SPF_SCENARIOS.filter((other) => other !== spfScenario).flatMap((other) => Object.values(SCENARIO_ROWS[other]));
+}
 
 export interface ReadInputsOptions {
   /** The house to read. Defaults to the reference archetype (the 1930s semi) with its default answers. */
@@ -279,7 +289,13 @@ function readGains(reader: Reader, house: House): GainsInputs {
 
 type HeatingInputs = Pick<
   EngineInputs,
-  'meanInternalTemperatureC' | 'boilerSeasonalEfficiency' | 'boilerAuxiliaryElectricityKwhPerYear' | 'heatPumpSpf' | 'copCurve' | 'compensation'
+    | 'meanInternalTemperatureC'
+  | 'boilerSeasonalEfficiency'
+  | 'boilerAuxiliaryElectricityKwhPerYear'
+  | 'heatPumpSpf'
+  | 'heatPumpStandbyShare'
+  | 'copCurve'
+  | 'compensation'
 >;
 
 function readHeating(reader: Reader, spfScenario: SpfScenario): HeatingInputs {
@@ -301,7 +317,8 @@ function readHeating(reader: Reader, spfScenario: SpfScenario): HeatingInputs {
     meanInternalTemperatureC: reader.uncertain('heating.meanInternalTemperature'),
     boilerSeasonalEfficiency: reader.uncertain('heating.boilerSeasonalEfficiency'),
     boilerAuxiliaryElectricityKwhPerYear: reader.fixed('heating.boilerAuxiliaryElectricity'),
-    heatPumpSpf: reader.uncertain(SPF_ROW[spfScenario]),
+    heatPumpSpf: reader.uncertain(SCENARIO_ROWS[spfScenario].spf),
+    heatPumpStandbyShare: reader.uncertain(SCENARIO_ROWS[spfScenario].standbyShare),
     copCurve,
     compensation,
   };

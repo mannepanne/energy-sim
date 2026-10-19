@@ -1887,6 +1887,58 @@
       "value": 7
     },
     {
+      "id": "heating.heatPumpStandbyShare",
+      "kind": "uncertain",
+      "section": "heating",
+      "label": "Heat pump standby electricity, as a share of its yearly electricity (field trial)",
+      "unit": "share",
+      "status": "sourced",
+      "source": {
+        "title": "Electrification of Heat Demonstration Project: heat pump performance cleansed data, daily dataset 2020–2023 (UK Data Service SN 9210)",
+        "url": "https://datacatalogue.ukdataservice.ac.uk/studies/study/9210"
+      },
+      "rationale": "Controls, circulation pumps and standby (including any crankcase heater): what an air source heat pump system draws on days it delivers almost no heat (under 0.5 kWh). For each of 308 air source heat pumps in the trial's daily data with at least 10 such days, its median idle-day electricity × 365 ÷ its yearly whole-system electricity. Across homes: median 5.9%, interquartile range 3.3–9.4%, 90th percentile 19% (the median idle day is 0.56 kWh). A lognormal with median 0.059 and sigma 0.78 (from the interquartile range), clipped to 0.01–0.25. It sits inside the H4 boundary of heating.heatPumpSpf, so it does not add to the year's electricity: standby = this share × heat ÷ SPF, drawn evenly in every hour, and k is solved on the rest. A share, not kWh a day, so the solve works for every house size; small houses therefore get less standby in kWh than the trial's typical home, and their mild hours stay a little optimistic. The downloaded data is kept outside the repository under its end user licence; only these aggregates are recorded.",
+      "lastChecked": "2026-10-19",
+      "refreshCadence": "static",
+      "overridable": false,
+      "overrideHint": null,
+      "dependsOn": [
+        "heating.heatPumpSpf"
+      ],
+      "default": 0.059,
+      "low": 0.01,
+      "high": 0.25,
+      "distribution": "lognormal",
+      "median": 0.059,
+      "sigma": 0.78
+    },
+    {
+      "id": "heating.heatPumpStandbyShareWellInstalled",
+      "kind": "uncertain",
+      "section": "heating",
+      "label": "Heat pump standby electricity, as a share of its yearly electricity (well-installed scenario)",
+      "unit": "share",
+      "status": "sourced",
+      "source": {
+        "title": "HeatpumpMonitor.org public system statistics, last 365 days (fetched 19 October 2026)",
+        "url": "https://heatpumpmonitor.org/"
+      },
+      "rationale": "The same quantity for the well-installed scenario, so its standby matches its SPF's sample. For the 379 air source systems behind heating.heatPumpSpfWellInstalled: (combined electricity − electricity while running) ÷ combined electricity over the year. Median 2.5%, interquartile range 1.6–3.7%, 90th percentile 5.2%. A lognormal with median 0.025 and sigma 0.62, clipped to 0.005–0.10. Used only in the well-installed scenario, in place of heating.heatPumpStandbyShare. Self-selected, like the SPF it goes with.",
+      "lastChecked": "2026-10-19",
+      "refreshCadence": "yearly",
+      "overridable": false,
+      "overrideHint": null,
+      "dependsOn": [
+        "heating.heatPumpSpfWellInstalled"
+      ],
+      "default": 0.025,
+      "low": 0.005,
+      "high": 0.1,
+      "distribution": "lognormal",
+      "median": 0.025,
+      "sigma": 0.62
+    },
+    {
       "id": "heating.compensationDesignOutdoorTemperature",
       "kind": "fixed",
       "section": "heating",

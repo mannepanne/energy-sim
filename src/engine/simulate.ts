@@ -113,7 +113,7 @@ export function simulate(inputs: EngineInputs, weather: PreparedWeather, setup: 
     }).reheatKwh;
     const outdoorC = weather.outdoorTemperatureC.map((temperature) => temperature + inputs.outdoorTemperatureOffsetK);
     const load = heatPumpLoad(inputs, outdoorC, spaceHeatKwh, hotWaterKwh);
-    copScale = options.copScale ?? solveCopScale(load, inputs.heatPumpSpf, inputs.copCurve);
+    copScale = options.copScale ?? solveCopScale(load, inputs.heatPumpSpf, inputs.copCurve, inputs.heatPumpStandbyShare);
     gasKwh = new Float64Array(HOURS_PER_YEAR);
     heatingElectricityKwh = heatPumpElectricity(load, copScale, inputs.copCurve);
     auxiliaryElectricityKwh = new Float64Array(HOURS_PER_YEAR);
