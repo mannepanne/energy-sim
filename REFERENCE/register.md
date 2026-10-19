@@ -116,7 +116,7 @@ The `solar`, `costs` and `tariffs` sections exist in the schema and are filled b
 
 **Correlations** cover uncertain rows only, not table cells, though cells have draw keys. Every house must read both rows of a correlation, or sampling throws; the one correlation names two rows every house reads.
 
-The rows still `to-verify` are the fabric quality factor and the gas carbon factor ([#8](https://github.com/mannepanne/energy-sim/issues/8)). The heat pump SPF has been sourced since 19 October 2026, when the trial's interim report confirmed its boundary is H4.
+The rows still `to-verify` are the fabric quality factor and the gas carbon factor ([#8](https://github.com/mannepanne/energy-sim/issues/8)). The heat pump SPF is sourced: the trial's interim report confirms its boundary is H4 (checked 19 October 2026).
 
 ## Overrides
 

@@ -1,7 +1,7 @@
 # ADR: A heat pump COP curve anchored on the field-measured SPF
 
 **Date:** 2026-10-19
-**Status:** Proposed (waiting for Magnus's confirmation before the phase 2 heat pump curve PR merges)
+**Status:** Active (confirmed by Magnus on 19 October 2026)
 **Supersedes:** N/A (it replaces phase 1's single SPF applied to every hour)
 
 ---
@@ -64,7 +64,7 @@ The rows were not changed after the check. Details are in `REFERENCE/engine.md`.
 - **The shape is an assumption, not a measurement.** The lift allowance, the clamp and the compensation line are approximate rows. They are cross-checked against the Electrification of Heat trial's published performance by outdoor temperature (see `REFERENCE/engine.md`), but not fitted to it.
 - **Part-load and defrost are not modelled separately.** The shape's ceiling stands in for cycling losses in mild weather, and k absorbs average defrost and part-load losses over the year.
 - **No capacity limit or backup heater** until the output cap lands with the schedules PR.
-- **The reference run is the gas pattern.** If heat pump households heat differently (issue 15), the SPF is still matched on the gas pattern's hours, and the heat pump schedule then changes efficiency through the curve.
+- **The reference run is the gas pattern.** If heat pump households heat differently ([issue 15](https://github.com/mannepanne/energy-sim/issues/15)), the SPF is still matched on the gas pattern's hours, and the heat pump schedule then changes efficiency through the curve.
 
 ## Implications
 

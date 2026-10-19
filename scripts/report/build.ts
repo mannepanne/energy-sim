@@ -2,6 +2,7 @@
 // ABOUT: Pure and clock-free: the same inputs always give byte-identical Markdown
 
 import { compare, centralOutsideBand, runPaired, type Band, type Comparison, type Metric, type PairedRun } from '../../src/engine/compare.ts';
+import { PENCE_PER_POUND } from '../../src/engine/constants.ts';
 import { heatLoss } from '../../src/engine/geometry.ts';
 import {
   archetypeFacts,
@@ -131,6 +132,7 @@ function sensitivitySection(access: RegisterAccessor, rows: readonly Sensitivity
   const inputs = readInputs(access);
   const gasPence = inputs.gasUnitRatePence / inputs.boilerSeasonalEfficiency;
   const heatPumpPence = inputs.electricityUnitRatePence / inputs.heatPumpSpf;
+  const auxiliaryPounds = (inputs.boilerAuxiliaryElectricityKwhPerYear * inputs.electricityUnitRatePence) / PENCE_PER_POUND;
   const lines = rows.map((row) => {
     const unit = row.unit === 'ratio' ? '' : ` ${row.unit}`;
     const values = `${plainValue(row.low.value)} to ${plainValue(row.high.value)}${unit}`;
@@ -141,9 +143,11 @@ function sensitivitySection(access: RegisterAccessor, rows: readonly Sensitivity
     '',
     'Each uncertain row is run at its low and then its high value, with every other row at its default. The rows are ranked by how much they move the cost difference.',
     '',
-    `At the central values, a kWh of heat costs almost the same from either system: ${pence(gasPence)} from the boiler (${inputs.gasUnitRatePence}p ÷ ${inputs.boilerSeasonalEfficiency}) and ${pence(heatPumpPence)} from the heat pump (${inputs.electricityUnitRatePence}p ÷ ${inputs.heatPumpSpf}). So rows that change how much heat the house needs, such as fabric quality or the temperature, move both running costs by hundreds of pounds but barely move the difference. The difference turns on the SPF and the boiler efficiency, and on the gas standing charge the heat pump house does not pay. Base electricity use moves both setups equally.`,
+    `At the central values, a kWh of heat costs almost the same from either system: ${pence(gasPence)} from the boiler (${inputs.gasUnitRatePence}p ÷ ${inputs.boilerSeasonalEfficiency}) and ${pence(heatPumpPence)} from the heat pump (${inputs.electricityUnitRatePence}p ÷ ${inputs.heatPumpSpf}). So rows that change how much heat the house needs, such as fabric quality or the temperature, move both running costs by hundreds of pounds but barely move the difference. The difference turns on the SPF and the boiler efficiency, and on the gas standing charge the heat pump house does not pay. The boiler’s pump and fan electricity (${wholeNumber(inputs.boilerAuxiliaryElectricityKwhPerYear)} kWh a year) adds £${wholeNumber(Math.round(auxiliaryPounds))} to the gas setup’s bill, so it is part of the difference too. Base electricity use moves both setups equally.`,
     '',
     'The low and high are the ends of each row’s range, not percentiles. For the heat pump SPF, they are the clip limits of its lognormal distribution, far out in its tails, so its row shows an extreme spread.',
+    '',
+    'The two heat pump flow temperature rows move nothing here. On the price cap, the heat pump’s COP curve is scaled so the year matches the sampled SPF, so the flow temperatures change when the heat pump uses electricity, not how much. They matter only where hours are priced differently, as on time-of-use tariffs.',
     '',
     '| Row | Low to high | Gas boiler cost | Heat pump cost | Gas minus heat pump |',
     '| --- | --- | ---: | ---: | ---: |',

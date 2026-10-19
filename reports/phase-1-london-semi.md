@@ -59,9 +59,11 @@ Both setups run on the same samples, so each sample compares the same house and 
 
 Each uncertain row is run at its low and then its high value, with every other row at its default. The rows are ranked by how much they move the cost difference.
 
-At the central values, a kWh of heat costs almost the same from either system: 9.38p from the boiler (7.97p ÷ 0.85) and 9.40p from the heat pump (26.32p ÷ 2.8). So rows that change how much heat the house needs, such as fabric quality or the temperature, move both running costs by hundreds of pounds but barely move the difference. The difference turns on the SPF and the boiler efficiency, and on the gas standing charge the heat pump house does not pay. Base electricity use moves both setups equally.
+At the central values, a kWh of heat costs almost the same from either system: 9.38p from the boiler (7.97p ÷ 0.85) and 9.40p from the heat pump (26.32p ÷ 2.8). So rows that change how much heat the house needs, such as fabric quality or the temperature, move both running costs by hundreds of pounds but barely move the difference. The difference turns on the SPF and the boiler efficiency, and on the gas standing charge the heat pump house does not pay. The boiler’s pump and fan electricity (86 kWh a year) adds £23 to the gas setup’s bill, so it is part of the difference too. Base electricity use moves both setups equally.
 
 The low and high are the ends of each row’s range, not percentiles. For the heat pump SPF, they are the clip limits of its lognormal distribution, far out in its tails, so its row shows an extreme spread.
+
+The two heat pump flow temperature rows move nothing here. On the price cap, the heat pump’s COP curve is scaled so the year matches the sampled SPF, so the flow temperatures change when the heat pump uses electricity, not how much. They matter only where hours are priced differently, as on time-of-use tariffs.
 
 | Row | Low to high | Gas boiler cost | Heat pump cost | Gas minus heat pump |
 | --- | --- | ---: | ---: | ---: |

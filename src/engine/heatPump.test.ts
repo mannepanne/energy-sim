@@ -145,6 +145,12 @@ describe('the curve on the real register', () => {
     expect(bound).toBeGreaterThan(0);
   });
 
+  it('keeps every SPF a sample can draw below the COP ceiling, so the k solve can always reach it', () => {
+    // Draws are clipped to each row's low–high, so a row's high is the largest SPF any sample can give.
+    const ceiling = access.fixed('heating.copCeiling').value;
+    for (const id of ['heating.heatPumpSpf', 'heating.heatPumpSpfWellInstalled'] as const) expect(access.uncertain(id).high).toBeLessThan(ceiling);
+  });
+
   it('keeps the hot water flow at or above every space heating flow, and the cylinder rows in order', () => {
     const designFlow = access.uncertain('heating.flowTemperatureAtDesign');
     const hotWaterFlow = access.fixed('hotWater.heatPumpFlowTemperature').value;

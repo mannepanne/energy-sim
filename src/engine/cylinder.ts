@@ -43,6 +43,8 @@ export function checkCylinder(cylinder: Cylinder): void {
  * heat is then below the minimum, the heat pump reheats it to the setpoint within the hour. The store is one
  * temperature (no stratification), so the minimum is a reheat trigger, not a tap temperature: the draw-off is the
  * heat the taps need, whatever the cylinder's temperature. No immersion backup is modelled.
+ * The cylinder starts the year full and ends it wherever the last hour leaves it, so the year's reheats equal
+ * draw-off plus standing loss minus the fall in stored heat, which is at most the band between setpoint and minimum.
  */
 export function runCylinder(drawKwh: Float64Array, cylinder: Cylinder): CylinderRun {
   checkCylinder(cylinder);

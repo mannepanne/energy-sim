@@ -55,7 +55,8 @@ export interface SimulationResult {
 export interface SimulateOptions {
   /**
    * The heat pump's COP scale from the reference run (price cap, no control). When absent, k is solved on this run,
-   * which is right only when this run is the reference run. Until control and tariffs arrive, every run is.
+   * which is right only when this run is the reference run. A caller that applies control or a time-of-use tariff
+   * must pass the reference run's scale.
    */
   copScale?: CopScale;
 }
