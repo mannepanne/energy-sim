@@ -38,7 +38,7 @@ A curve from a datasheet or a physics model gives the right shape but the wrong 
 - **A manufacturer's COP map (by outdoor and flow temperature), used as is:**
   - Why not: its level is a laboratory figure, well above field performance, so the heat pump would look cheaper than measured homes show. Which manufacturer to pick is also a neutrality problem.
 - **Fit the curve's level to the Electrification of Heat data by outdoor temperature:**
-  - Why not: it fits one trial's installations, and the fit would need the trial's daily dataset, which may not be openly available. The trial's figures are used as a cross-check of the shape instead.
+  - Why not: it would fit one trial's installations, and fitting would let the curve chase that trial's quirks. The trial's report and daily dataset are used as a cross-check of the shape instead.
 - **Re-solve k on every run (each tariff, with and without control):**
   - Why not: every run would land on the sampled SPF again, which erases the very effect the curve is for.
 - **A Carnot-like shape scaled by k, solved once on a reference run:**
@@ -57,7 +57,11 @@ Against the Electrification of Heat interim analysis report, with the 1930s semi
 - **Cold weather:** on typical-year days with a mean near −0.4 °C, the engine's daily COP is 0.80–0.83 of the SPF; the trial's coldest-day median is 0.87 of its median SPF. The curve is a little steeper with outdoor temperature than the trial.
 - **Flow temperature:** the engine's heat-weighted mean flow is 38.2 °C for space heating (40.6 °C with hot water), against the trial's 38.3 °C mean while running. Moving the whole compensation line by 10 K changes the year's efficiency by about 1.5% per K. Comparisons between installations give about 0.7% per K (the trial) and 3.1% per K (HeatpumpMonitor.org), so the engine sits between them.
 
-The rows were not changed after the check. Details are in `REFERENCE/engine.md`.
+Against the trial's final report and daily dataset (SN 9210, kept outside git):
+- **Flow response:** the median COP(H2) ratio from a 35 °C flow to 55 °C is 0.68; the shape gives 0.71.
+- **Daily COP ÷ SPF by outdoor temperature:** the engine is too optimistic on mild days (1.14 against 0.93 at 14–16 °C) and too pessimistic on cold ones (0.79 against 0.87 at −2 to 0 °C). Most of the gap is the trial's standby electricity, a median of 0.58 kWh a day, which the engine spreads in proportion to heat. Whether to add it is Magnus's decision.
+
+The rows were not changed after either check. Details are in `REFERENCE/engine.md`.
 
 ## Trade-offs accepted
 
