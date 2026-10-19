@@ -170,3 +170,7 @@ service-account*.json
 # Example:
 # /data/
 # /uploads/
+
+# Downloaded source data kept locally for cross-checks (licence terms forbid
+# redistribution, e.g. UK Data Service SN 9210); only aggregates are recorded in docs
+/REFERENCE/data-downloads/

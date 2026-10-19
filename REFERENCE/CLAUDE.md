@@ -2,6 +2,8 @@
 
 Auto-loaded when working with files in this directory. How-it-works documentation for implemented features.
 
+**Skip `data-downloads/`.** It holds licensed raw data files, kept local and gitignored. They are not documentation, so docs sweeps and agents should not read them. See [environment-setup.md](./environment-setup.md#local-only-source-data).
+
 ## Files in this directory
 
 ### [testing-strategy.md](./testing-strategy.md)
