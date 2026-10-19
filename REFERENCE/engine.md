@@ -136,7 +136,7 @@ draw-off per day = L × 4.18 × (T_delivery − T_cold) ÷ 3,600      kWh
 draw-off in hour t = draw-off per day × profile[local hour of t]
 ```
 
-L is litres a day: 36 plus an uncertain 25 per occupant (17–35), SAP 2012's 25N + 36. That is 111 litres a day for the 1930s semi's 3 occupants. The per-occupant hot water and gains terms are correlated (see "Sampling"). The draw-off profile (`hotWater.drawOffProfile`) gives each local hour's share of the day; the shares must sum to 1, or reading the inputs fails. The calendar module converts local hours to engine hours, so on the night the clocks go back the 01:00 share is drawn twice, and on the night they go forward it is skipped; the year's total is unchanged.
+L is litres a day: 36 plus an uncertain 25 per occupant (17–35), SAP 2012's 25N + 36. That is 111 litres a day for the 1930s semi's 3 occupants. The per-occupant hot water and gains terms are correlated (see "Sampling"). The draw-off profile (`hotWater.drawOffProfile`) gives each local hour's share of the day, from the Energy Saving Trust's measurements in about 120 English homes (2008): peaks of 9.7% at 07:00 and 8.0% at 18:00, and under 1.5% an hour between midnight and 06:00; the shares must sum to 1, or reading the inputs fails. The calendar module converts local hours to engine hours, so on the night the clocks go back the 01:00 share is drawn twice, and on the night they go forward it is skipped; the year's total is unchanged.
 
 - **Gas setups** have a combi boiler, so the boiler heats the draw-off in the hour it is drawn.
 - **Heat pump setups** have a cylinder (`cylinder.ts`), held as one stored-energy state above the cold feed: 200 litres at a 50 °C setpoint stores 9.29 kWh. Each hour the draw-off and an hour's standing loss (1.5 kWh a day ÷ 24) come out. If the store is then below its minimum (45 °C), the heat pump reheats it to the setpoint within the hour, so it never ends an hour below the minimum and can't run out. The reheats are the heat pump's hot water heat. The store is one temperature, not stratified, so the minimum is a reheat trigger, not a tap temperature. No immersion backup is modelled. The cylinder starts the year full, so the year's reheats = draw-off + standing loss − the fall in stored heat over the year (at most 1.16 kWh); a test checks this balance.
@@ -158,16 +158,16 @@ shape(t)        = clamp((T_flow + 273.15) ÷ (T_flow − T_out + 10 K), 4, 15)
 COP(t)          = min(7, k × shape(t))
 ```
 
-- **T_out** is the weather's temperature plus the outdoor offset row, as for space heat. Hot water uses a fixed 55 °C flow, which a test keeps above the high of the design flow's range, so hot water's COP is never above space heating's in the same hour.
+- **T_out** is the weather's temperature plus the outdoor offset row, as for space heat. Hot water uses a fixed 50 °C flow, the mean over a reheat. A test keeps it at or above the high of the design flow's range, so hot water's COP is never above space heating's in the same hour, and below it at the default flows.
 - **The k solve** (`solveCopScale`) runs on the reference run: the price cap, no control, continuous heating. It makes the year's heat (space heat + cylinder reheats) ÷ heating electricity equal the sampled SPF.
   - **Without the ceiling:** k = SPF × Σ(heat ÷ shape) ÷ Σheat, exactly.
   - **With the ceiling:** hours where k × shape would reach 7 run at 7, and k is re-solved on the rest: k = Σ(uncapped heat ÷ shape) ÷ (Σheat ÷ SPF − capped heat ÷ 7). Capping raises k, which may cap more hours, so this repeats until no further hour is capped. Each step caps at least one more hour, so it ends, and at the end it is exact. `copScale.ceilingBound` says whether it bound.
   - It throws if the SPF is at or above the ceiling, or the run delivers no heat.
 - **On the reference run the curve changes when electricity is used, not how much.** So on the price cap, the flow temperature rows move nothing in the sensitivity table. They matter once control and tariffs move running between hours, which reuses the reference run's k.
-- **What the numbers look like** (19 October 2026, 200 samples, seed 1): k runs from 0.28 to 0.56 for the field-trial SPF (central 0.40). The ceiling binds in 1 sample of 200 for the field trial and 15 of 200 for the well-installed scenario. At the lowest SPF (2.0), k × the shape floor is still above 1, which a test checks.
-- **The well-installed scenario** reads `heating.heatPumpSpfWellInstalled` in place of the field SPF. It changes the curve's level, not its shape.
+- **What the numbers look like** (19 October 2026, 200 samples, seed 1): k runs from 0.27 to 0.55 for the field-trial SPF (central 0.39), and from 0.39 to 0.74 for the well-installed one. The ceiling binds in 1 sample of 200 for the field trial and 52 of 200 for the well-installed scenario, whose SPF reaches 5.4. At the lowest SPF (2.0), k × the shape floor is still above 1, which a test checks.
+- **The well-installed scenario** reads `heating.heatPumpSpfWellInstalled` (lognormal, median 3.9, sigma 0.14, clipped to 2.8–5.4, from 379 air source systems on HeatpumpMonitor.org with a full year of data) in place of the field SPF (median 2.8). It changes the curve's level, not its shape. The sample is self-selected, and the report labels the scenario so.
 
-**The Electrification of Heat cross-check.** The curve's shape and the compensation line are compared with the trial's published performance by outdoor temperature. It is a check, not a fit: see "Checks against outside references".
+**The Electrification of Heat cross-check.** The curve's shape and the compensation line are compared with the trial's published performance by outdoor and flow temperature. It is a check, not a fit: see "Checks against outside references".
 
 ### Cost and carbon
 
@@ -239,6 +239,16 @@ At the same floor area, a mid-terrace has less exposed wall than an end-terrace,
 
 - **Solar geometry** (accepted by Magnus on 18 October 2026 in place of a published vertical-wall example): Duffie and Beckman's Example 1.6.1 (beam incidence of 35° on a 45° surface facing 15° west of south, Madison, 13 February, 10:30) and Example 1.6.2 (zenith angles of 66.5° and 79.6°), to within 2%. A south wall at an equinox noon receives beam at cos θ = sin(latitude), exactly. London's midsummer noon sun sits at 61.9°.
 - **The HEM check:** the engine is given HEM's own element areas and inputs for the benchmark archetype (values copied from `scripts/benchmark/draftValues.ts`, not derived geometry, so both sides describe the same house), with no party wall loss, thermal bridging or curtains, as HEM's input has none. Run at 17.8 °C air on the PVGIS weather, it gives 12,999 kWh of annual space heat. That is 4.8% below HEM's `thermostat-17` run (13,660 kWh), inside the 10% regression guard, and the test pins 12,999 kWh. Phase 1's check gave 12,847 kWh (6.0% below); SAP's 0.9 for non-normal incidence on solar gains accounts for the difference. The fixture uses a solar access factor of 1, because the HEM input has no overshading.
+
+- **The heat pump curve against the Electrification of Heat trial** (19 October 2026; a check, not a fit). The trial's published interim analysis report (Energy Systems Catapult, 2023) was used; its daily dataset (UK Data Service SN 9210) was not. The 1930s semi at its central values, with k solved on the reference run:
+
+  | What | The trial | The engine | Reading |
+  | --- | --- | --- | --- |
+  | The coldest day's COP as a share of the year's SPF | 2.44 ÷ 2.80 = 0.87 (medians; coldest day −0.4 °C mean, n = 484; SPFH4, n = 291) | 0.80–0.83 on the five typical-year days with a mean of −1.5 to 0.7 °C | The curve is a little steeper with outdoor temperature than the trial |
+  | Mean flow temperature | 38.3 °C, the mean while running, over the year, including hot water | 38.2 °C heat-weighted for space heating, 40.6 °C including hot water | In line |
+  | The year's efficiency against flow temperature | Mean SPFH4 about 2.9 for mean flows of 25–35 °C and about 2.5 for 45–55 °C, so about −0.7% per K (between installations, Figure 8.7) | Moving the whole compensation line by ±10 K at the same k gives SPF 3.34 and 2.43 from 2.80, about −1.5% per K | Steeper than the trial's comparison between homes, flatter than HeatpumpMonitor.org's (−3.1% per K of mean space heating flow across 249 systems, 19 October 2026) |
+
+  The two comparisons between installations mix flow temperature with everything else that differs between homes, so neither is a clean slope. The engine sits between them. On the coldest days it uses somewhat more electricity than the trial suggests, which counts against any control that shifts running into cold hours, so it does not flatter the heat pump on time-of-use tariffs. The rows were not changed after this check.
 
 ## The 1930s semi's central results
 

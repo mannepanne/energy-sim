@@ -45,7 +45,7 @@ Add an entry here when a problem takes more than a few minutes to work out.
 **The COP curve tests on the real register fail** (`src/engine/heatPump.test.ts`).
 - *The 0.1% SPF check:* the k solve no longer matches the year to the sampled SPF. Look for heat counted in the solve but not in the electricity (or the other way round), such as cylinder reheats left out of the load.
 - *"The ceiling binds in a few samples":* a curve or SPF row change means the ceiling never binds in the 200 samples, so the iterative solve goes untested on real data. That is physically fine. If the change was intended, rely on the constructed-load tests for the iterative solve, drop the real-register assertion, and say so in the PR.
-- *The flow ordering:* the hot water flow must stay above the high of `heating.flowTemperatureAtDesign`, and the cylinder's setpoint above its reheat trigger. Fix the rows, not the test.
+- *The flow ordering:* the hot water flow must stay at or above the high of `heating.flowTemperatureAtDesign`, and the cylinder's setpoint above its reheat trigger. Fix the rows, not the test.
 
 **The calibration test fails** (`scripts/calibration/meanInternalTemperature.test.ts`). A change to a row the 1930s semi's gas setup reads, such as an archetype fact, a U-value, the windows or the weather, has moved central gas use away from its calibration target. Re-solve the `heating.meanInternalTemperature` row with `npm run calibrate`, as [register.md](./register.md#the-mean-internal-temperature-calibration) describes, then regenerate the report.
 

@@ -145,18 +145,26 @@ describe('the curve on the real register', () => {
     expect(bound).toBeGreaterThan(0);
   });
 
-  it('keeps the hot water flow above every space heating flow, and the cylinder rows in order', () => {
+  it('keeps the hot water flow at or above every space heating flow, and the cylinder rows in order', () => {
     const designFlow = access.uncertain('heating.flowTemperatureAtDesign');
     const hotWaterFlow = access.fixed('hotWater.heatPumpFlowTemperature').value;
     const setpoint = access.fixed('hotWater.cylinderSetpoint').value;
-    expect(hotWaterFlow).toBeGreaterThan(designFlow.high);
-    expect(hotWaterFlow).toBeGreaterThan(setpoint);
+    expect(hotWaterFlow).toBeGreaterThanOrEqual(designFlow.high);
+    expect(hotWaterFlow).toBeGreaterThan(designFlow.default);
+    // The hot water flow is a mean over each reheat, so it may equal the setpoint; it must not fall below the trigger.
+    expect(hotWaterFlow).toBeGreaterThan(access.fixed('hotWater.cylinderMinimum').value);
     expect(setpoint).toBeGreaterThan(access.fixed('hotWater.cylinderMinimum').value);
     expect(access.fixed('hotWater.cylinderMinimum').value).toBeGreaterThan(access.fixed('hotWater.coldFeedTemperature').value);
   });
 
-  it('puts hot water below space heating in every hour, at the design flow’s high', () => {
-    const inputs = readInputs(access, { overrides: { 'heating.flowTemperatureAtDesign': access.uncertain('heating.flowTemperatureAtDesign').high } });
+  it('puts hot water below space heating in every hour at the default flows, and never above it at the design flow’s high', () => {
+    const high = readInputs(access, { overrides: { 'heating.flowTemperatureAtDesign': access.uncertain('heating.flowTemperatureAtDesign').high } });
+    for (const temperature of weather.outdoorTemperatureC) {
+      const outdoor = temperature + high.outdoorTemperatureOffsetK;
+      const space = copShape(compensatedFlowC(outdoor, high.compensation), outdoor, high.copCurve);
+      expect(copShape(high.hotWaterFlowTemperatureC, outdoor, high.copCurve)).toBeLessThanOrEqual(space);
+    }
+    const inputs = readInputs(access);
     const { shapeFloor, shapeCeiling } = inputs.copCurve;
     for (const temperature of weather.outdoorTemperatureC) {
       const outdoor = temperature + inputs.outdoorTemperatureOffsetK;

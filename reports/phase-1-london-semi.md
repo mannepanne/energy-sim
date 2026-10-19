@@ -69,8 +69,8 @@ The low and high are the ends of each row’s range, not percentiles. For the he
 | Gas combi boiler seasonal efficiency (space heat and hot water) | 0.8 to 0.89 | £2,110 to £2,000 | £1,970 | £140 to £30 |
 | Fabric quality factor (one multiplier on every U-value and the air change rate) | 0.75 to 1.15 | £1,760 to £2,230 | £1,680 to £2,150 | £80 |
 | Mean internal air temperature, heated continuously (calibrated to measured gas use) | 15 to 17.4 °C | £1,870 to £2,210 | £1,790 to £2,140 | £80 |
-| Internal gains per occupant | 75 to 140 W per occupant | £2,100 to £2,000 | £2,020 to £1,920 | £80 |
 | Hot water use per occupant | 17 to 35 litres/day per occupant | £2,010 to £2,090 | £1,930 to £2,020 | £80 |
+| Internal gains per occupant | 75 to 140 W per occupant | £2,100 to £2,000 | £2,020 to £1,920 | £80 |
 | Base electricity use (lights and appliances), the same in both setups | 1,600 to 3,800 kWh/year | £1,810 to £2,390 | £1,730 to £2,310 | £80 |
 | Heat pump space heating flow temperature at the design outdoor temperature | 35 to 50 °C | £2,050 | £1,970 | £80 |
 | Heat pump space heating flow temperature at the mild outdoor temperature | 25 to 35 °C | £2,050 | £1,970 | £80 |
@@ -99,7 +99,7 @@ The benchmark checked annual **space heat** against the government’s Home Ener
 
 ## Data dates
 
-- **Register:** 71 rows (31 sourced, 3 to-verify, 37 approximate), last checked between 2026-10-17 and 2026-10-19. A sourced row has been checked against its source; a to-verify row is taken from a source but not yet checked line by line; an approximate row is an estimate with a written reason. See [register.md](../REFERENCE/register.md).
+- **Register:** 71 rows (34 sourced, 2 to-verify, 35 approximate), last checked between 2026-10-17 and 2026-10-19. A sourced row has been checked against its source; a to-verify row is taken from a source but not yet checked line by line; an approximate row is an estimate with a written reason. See [register.md](../REFERENCE/register.md).
 - **Weather:** the PVGIS typical year for 51.507, −0.128 (PVGIS-SARAH3), fetched on 2026-10-18. Source: PVGIS © European Union, 2001–2026. Reuse is authorised provided the source is acknowledged (Commission Decision 2011/833/EU). Trimmed to the columns the engine uses.
 - **Rows due for a fresh check** (the rest are static). A price row falls due when its price cap period ends:
 
@@ -111,7 +111,7 @@ The benchmark checked annual **space heat** against the government’s Home Ener
 | `prices.gasUnitRate` | 2026-10-17 | 2026-12-31 |
 | `carbon.gasFactor` | 2026-10-17 | 2027-10-17 |
 | `carbon.gridElectricityFactor` | 2026-10-17 | 2027-10-17 |
-| `heating.heatPumpSpf` | 2026-10-17 | 2027-10-17 |
+| `heating.heatPumpSpf` | 2026-10-19 | 2027-10-19 |
 | `heating.heatPumpSpfWellInstalled` | 2026-10-19 | 2027-10-19 |
 | `electricity.baseUse` | 2026-10-17 | 2029-10-17 |
 

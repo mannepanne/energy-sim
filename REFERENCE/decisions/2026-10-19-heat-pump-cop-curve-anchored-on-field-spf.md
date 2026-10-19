@@ -15,15 +15,15 @@
   ```
 
   - **The shape** is Carnot-like. Its lift allowance ΔT_lift and its clamp s_min to s_max are register rows. The clamp applies before scaling, and guards the hours when T_out nears T_flow.
-  - **COP_max is a physical ceiling** on the scaled COP, also a row (7).
+  - **COP_max is a physical ceiling** on the scaled COP, also a row (7). It binds in 1 of 200 field-trial samples and 52 of 200 well-installed ones.
 - **The shape sets *when* electricity is used. k sets *how much*.** k is solved once per sample on a **reference run**: the price cap, no control, and the gas setups' heating pattern (continuous heating until the schedules PR, then the gas schedule). On that run, total heat (space heat plus cylinder reheats) ÷ total electricity equals the sampled SPF.
   - **Without the ceiling,** the solve is closed-form: k = SPF × Σ(heat ÷ shape) ÷ Σheat.
   - **If k would put any hour above the ceiling,** those hours run at the ceiling and k is re-solved on the rest. This repeats until no further hour is capped, which gives the exact solution in a few steps. The run reports whether the ceiling bound, and the phase 2 report counts the samples in which it did.
 - **The same k is reused on every tariff and under control.** `simulate` takes k as an option, so a controlled run uses the reference run's k and never re-solves it. Running the heat pump in colder hours, or at a higher flow temperature, then costs efficiency through the curve.
 - **Flow temperatures:**
   - **Space heating** follows a weather-compensation line, from the design flow at the design outdoor temperature (−2 °C) to the mild flow at the mild outdoor temperature (15 °C), and flat beyond both ends. The two flow temperatures are uncertain rows.
-  - **Hot water** uses one fixed, higher flow temperature, which stays above the high of the design flow's range, so hot water is always the dearer duty.
-- **The well-installed scenario** swaps the SPF distribution for one anchored on HeatpumpMonitor.org. It is a labelled scenario, not a fifth setup, and the report says that sample is self-selected. Every other draw is shared, so the two scenarios pair sample by sample.
+  - **Hot water** uses one fixed flow temperature (50 °C, the mean over a reheat), at or above the high of the design flow's range, so hot water is never the cheaper duty.
+- **The well-installed scenario** swaps the SPF distribution for one anchored on HeatpumpMonitor.org (379 air source systems with a full year of data: median 3.9, so a lognormal with median 3.9 and sigma 0.14). It is a labelled scenario, not a fifth setup, and the report says that sample is self-selected. Every other draw is shared, so the two scenarios pair sample by sample.
 
 ## Context
 
@@ -50,6 +50,14 @@ A curve from a datasheet or a physics model gives the right shape but the wrong 
 - **Explainable.** The curve has five numbers, each a register row with a reason. The flow temperatures are the only uncertain ones, and on the price cap they move only *when* electricity is used.
 - **Clamp before scaling** keeps k a closed-form solve in the usual case. The ceiling after scaling stops k from implying an impossible COP in mild hours, and the iterative solve keeps the SPF exact when it binds.
 - **Tests guard the direction:** COP falls as outdoor temperature falls and as flow rises; hot water's COP is below space heating's in every hour; the scaled COP never exceeds the ceiling and stays above 1 at the lowest SPF; at a fixed k, moving the same heat into colder hours lowers the year's efficiency.
+
+## The cross-check (19 October 2026)
+
+Against the Electrification of Heat interim analysis report, with the 1930s semi at its central values:
+- **Cold weather:** on typical-year days with a mean near −0.4 °C, the engine's daily COP is 0.80–0.83 of the SPF; the trial's coldest-day median is 0.87 of its median SPF. The curve is a little steeper with outdoor temperature than the trial.
+- **Flow temperature:** the engine's heat-weighted mean flow is 38.2 °C for space heating (40.6 °C with hot water), against the trial's 38.3 °C mean while running. Moving the whole compensation line by 10 K changes the year's efficiency by about 1.5% per K. Comparisons between installations give about 0.7% per K (the trial) and 3.1% per K (HeatpumpMonitor.org), so the engine sits between them.
+
+The rows were not changed after the check. Details are in `REFERENCE/engine.md`.
 
 ## Trade-offs accepted
 
