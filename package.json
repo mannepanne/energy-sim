@@ -21,7 +21,8 @@
     "archetypes": "tsx scripts/archetypes.ts",
     "report": "tsx scripts/report.ts",
     "bench": "tsx scripts/bench.ts",
-    "derive:base-profile": "tsx scripts/derive-base-profile.ts"
+    "derive:base-profile": "tsx scripts/derive-base-profile.ts",
+    "fetch:pvcalc": "tsx scripts/fetch-pvcalc.ts"
   },
   "devDependencies": {
     "@types/node": "^24.19.2",

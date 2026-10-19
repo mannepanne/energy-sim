@@ -162,6 +162,114 @@ describe('a simulated year', () => {
   });
 });
 
+describe('roof solar on the fixture house by hand', () => {
+  // No beam, and 100 W/m² of diffuse and global in every hour, so the 35° roof gets the same irradiance every hour:
+  // 100 × (1 + cos 35°)/2 + 100 × 0.2 × (1 − cos 35°)/2 W/m². The fixture's 4 kWp with a 10% loss and no temperature
+  // effect then makes 4 × that ÷ 1,000 × 0.9 kWh an hour.
+  const cos35 = Math.cos((35 * Math.PI) / 180);
+  const onRoofW = (100 * (1 + cos35)) / 2 + (100 * 0.2 * (1 - cos35)) / 2;
+  const perHourKwh = (4 * onRoofW * 0.9) / 1000;
+  const diffuseWeather: PreparedWeather = {
+    ...flatWeather,
+    irradiance: { ...flatWeather.irradiance, globalHorizontal: new Float64Array(HOURS_PER_YEAR).fill(100), diffuseHorizontal: new Float64Array(HOURS_PER_YEAR).fill(100) },
+  };
+  const inputs = readInputs(fixtureAccessor());
+  const gas = simulate(inputs, diffuseWeather, 'gas', { solar: true });
+  const heatPump = simulate(inputs, diffuseWeather, 'heatPump', { solar: true });
+
+  it('generates the same every hour: 0.334 kWh, 2,926 kWh a year', () => {
+    expect(perHourKwh).toBeCloseTo(0.334, 3);
+    expect(gas.annual.generationKwh).toBeCloseTo(perHourKwh * HOURS_PER_YEAR, 6);
+    expect(gas.pvPeakPowerKw).toBe(4);
+  });
+
+  it('gas: solar covers the 1/3 kWh of base use in every hour, so nothing is imported and the rest is exported', () => {
+    expect(gas.annual.importKwh).toBe(0);
+    expect(gas.annual.exportKwh).toBeCloseTo((perHourKwh - 1 / 3) * HOURS_PER_YEAR, 6);
+    expect(gas.annual.solarUsedBy.baseKwh).toBeCloseTo(2920, 6);
+    expect(gas.annual.cost.electricityUnitPounds).toBe(0);
+    expect(gas.annual.carbonKg).toBeCloseTo(gas.annual.gasKwh * 0.2, 6);
+  });
+
+  it('heat pump: every kWh generated is used, so import is electricity minus generation', () => {
+    expect(heatPump.annual.exportKwh).toBe(0);
+    expect(heatPump.annual.importKwh).toBeCloseTo(heatPump.annual.electricityKwh - perHourKwh * HOURS_PER_YEAR, 6);
+    expect(heatPump.annual.solarUsedBy.baseKwh).toBeCloseTo(2920, 6);
+    expect(heatPump.annual.solarUsedBy.heatingKwh).toBeCloseTo((perHourKwh - 1 / 3) * HOURS_PER_YEAR, 6);
+    expect(heatPump.annual.solarUsedBy.cylinderKwh).toBe(0);
+    expect(heatPump.annual.cost.electricityUnitPounds).toBeCloseTo(heatPump.annual.importKwh * 0.25, 6);
+  });
+});
+
+describe('roof solar on the PVGIS year', () => {
+  const inputs = readInputs(fixtureAccessor());
+  const prepared = prepareWeather(weather, inputs);
+  const results = (['gas', 'heatPump'] as const).map((setup) => ({
+    without: simulate(inputs, prepared, setup),
+    with: simulate(inputs, prepared, setup, { solar: true }),
+  }));
+
+  it('changes nothing without solar: import is the electricity used, with no generation or export', () => {
+    for (const { without } of results) {
+      expect(without.solar).toBe(false);
+      expect(without.pvPeakPowerKw).toBe(0);
+      expect(without.hourly.importKwh).toBe(without.hourly.electricityKwh);
+      expect(without.annual.generationKwh).toBe(0);
+      expect(without.annual.exportKwh).toBe(0);
+      expect(without.annual.importKwh).toBe(without.annual.electricityKwh);
+    }
+  });
+
+  it('balances every hour, never exports more than it generates, and leaves heat and electricity use unchanged', () => {
+    for (const { without, with: solar } of results) {
+      for (let hour = 0; hour < HOURS_PER_YEAR; hour += 1) {
+        const generation = solar.hourly.generationKwh[hour]!;
+        expect(solar.hourly.exportKwh[hour]!).toBeGreaterThanOrEqual(0);
+        expect(solar.hourly.exportKwh[hour]!).toBeLessThanOrEqual(generation);
+        expect(generation + solar.hourly.importKwh[hour]!).toBeCloseTo(solar.hourly.electricityKwh[hour]! + solar.hourly.exportKwh[hour]!, 12);
+      }
+      expect(solar.annual.selfConsumedKwh + solar.annual.exportKwh).toBeCloseTo(solar.annual.generationKwh, 9);
+      expect(solar.annual.importKwh + solar.annual.selfConsumedKwh).toBeCloseTo(solar.annual.electricityKwh, 9);
+      const used = solar.annual.solarUsedBy;
+      expect(used.baseKwh + used.heatingKwh + used.cylinderKwh).toBeCloseTo(solar.annual.selfConsumedKwh, 9);
+      expect(solar.annual.heatKwh).toBe(without.annual.heatKwh);
+      expect(solar.annual.electricityKwh).toBe(without.annual.electricityKwh);
+    }
+  });
+
+  it('generates about 1,000 kWh per kWp, uses some and exports some', () => {
+    const solar = results[0]!.with;
+    expect(solar.annual.generationKwh / 4).toBeGreaterThan(900);
+    expect(solar.annual.generationKwh / 4).toBeLessThan(1150);
+    expect(solar.annual.selfConsumedKwh).toBeGreaterThan(0);
+    expect(solar.annual.exportKwh).toBeGreaterThan(0);
+  });
+
+  it('lowers cost and carbon by the imports saved, with no credit for export', () => {
+    for (const { without, with: solar } of results) {
+      const saved = without.annual.importKwh - solar.annual.importKwh;
+      expect(saved).toBeCloseTo(solar.annual.selfConsumedKwh, 9);
+      expect(without.annual.cost.totalPounds - solar.annual.cost.totalPounds).toBeCloseTo((saved * 25) / 100, 9);
+      expect(without.annual.carbonKg - solar.annual.carbonKg).toBeCloseTo(saved * 0.1, 9);
+    }
+  });
+
+  it('meets the cylinder only in the heat pump setup, and leaves k unchanged', () => {
+    const [gas, heatPump] = results;
+    expect(gas!.with.annual.solarUsedBy.cylinderKwh).toBe(0);
+    expect(heatPump!.with.annual.solarUsedBy.cylinderKwh).toBeGreaterThan(0);
+    expect(heatPump!.with.copScale).toEqual(heatPump!.without.copScale);
+  });
+
+  it('makes less on a roof facing south-west than south, and none on a system of zero size', () => {
+    const southWest = simulate({ ...inputs, pv: { ...inputs.pv, azimuth: Math.PI / 4 } }, prepared, 'gas', { solar: true });
+    expect(southWest.annual.generationKwh).toBeLessThan(results[0]!.with.annual.generationKwh);
+    const none = simulate({ ...inputs, pv: { ...inputs.pv, peakPowerKw: 0 } }, prepared, 'gas', { solar: true });
+    expect(none.annual.generationKwh).toBe(0);
+    expect(none.annual.importKwh).toBeCloseTo(none.annual.electricityKwh, 9);
+  });
+});
+
 describe('the HEM check (benchmark archetype at 17.8 °C air on the PVGIS year)', () => {
   // HEM's own inputs, copied from scripts/benchmark/draftValues.ts rather than imported, so the check stays
   // independent. The engine is given HEM's element areas directly, not derived geometry, so both sides describe

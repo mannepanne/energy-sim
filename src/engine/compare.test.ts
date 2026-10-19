@@ -99,6 +99,19 @@ describe('runPaired', () => {
     expect(runPaired(access, weather, { ...plan, seed: 12 }).samples.heatPump.costPounds).not.toEqual(run.samples.heatPump.costPounds);
   });
 
+  it('runs both setups with solar on request, on the same draws, so a run with solar pairs with one without', () => {
+    const withSolar = runPaired(access, weather, plan, undefined, 'fieldTrial', { solar: true });
+    expect(run.solar).toBe(false);
+    expect(withSolar.solar).toBe(true);
+    expect(run.samples.gas.generationKwh.every((value) => value === 0)).toBe(true);
+    expect(withSolar.samples.gas.generationKwh).toEqual(withSolar.samples.heatPump.generationKwh);
+    expect(withSolar.samples.gas.spaceHeatKwh).toEqual(run.samples.gas.spaceHeatKwh);
+    withSolar.samples.heatPump.importKwh.forEach((imported, sample) => {
+      expect(imported).toBeLessThan(run.samples.heatPump.importKwh[sample]!);
+      expect(withSolar.samples.heatPump.costPounds[sample]!).toBeLessThan(run.samples.heatPump.costPounds[sample]!);
+    });
+  });
+
   it('runs both setups on the same inputs in each sample, so space heat matches sample by sample', () => {
     expect(run.samples.gas.spaceHeatKwh).toEqual(run.samples.heatPump.spaceHeatKwh);
   });

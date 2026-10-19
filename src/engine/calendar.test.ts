@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildCalendar,
   expandDaily,
+  expandMonthly,
   expandWeekly,
   firstDayWeekday,
   hourlyFromHalfHourly,
@@ -110,7 +111,18 @@ describe('local-time profiles on engine hours', () => {
     expect(series.reduce((total, value) => total + value, 0)).toBe(Array.from(calendar.weekday).filter((day) => day < 5).length);
   });
 
+  it('expands a month profile by local date, so 31 March 23:30 UTC in summer time is April', () => {
+    const series = expandMonthly(Array.from({ length: 12 }, (_, month) => month), calendar);
+    expect(series[0]).toBe(0);
+    expect(series[31 * 24]).toBe(1); // 1 February 00:00 UTC
+    expect(series[89 * 24 + 23]).toBe(3); // 31 March 23:00 UTC is 1 April 00:00 local
+    expect(series[89 * 24 + 22]).toBe(2);
+    expect(series[HOURS_PER_YEAR - 1]).toBe(11);
+    expect(series.filter((month) => month === 1)).toHaveLength(28 * 24);
+  });
+
   it('rejects a profile of the wrong length', () => {
+    expect(() => expandMonthly([1], calendar)).toThrow('needs 12 values, got 1');
     expect(() => expandWeekly([1], calendar)).toThrow('needs 168 values, got 1');
     expect(() => expandDaily([1], calendar)).toThrow('needs 24 values, got 1');
   });

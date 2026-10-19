@@ -9,7 +9,17 @@ import { simulate, type AnnualResult, type Setup } from './simulate.ts';
 import type { PreparedWeather } from './weather.ts';
 
 /** The annual totals kept for each setup in each sample. */
-export const METRICS = ['spaceHeatKwh', 'hotWaterKwh', 'gasKwh', 'electricityKwh', 'costPounds', 'carbonKg'] as const;
+export const METRICS = [
+  'spaceHeatKwh',
+  'hotWaterKwh',
+  'gasKwh',
+  'electricityKwh',
+  'generationKwh',
+  'importKwh',
+  'exportKwh',
+  'costPounds',
+  'carbonKg',
+] as const;
 export type Metric = (typeof METRICS)[number];
 
 export type Totals = Record<Metric, number>;
@@ -21,6 +31,8 @@ export interface PairedRun {
   plan: SamplingPlan;
   house: House;
   spfScenario: SpfScenario;
+  /** Whether both setups have roof solar. */
+  solar: boolean;
   /** Every uncertain row at its default. */
   central: Record<Setup, Totals>;
   samples: Record<Setup, SampleTotals>;
@@ -32,6 +44,9 @@ export function totalsOf(annual: AnnualResult): Totals {
     hotWaterKwh: annual.hotWaterKwh,
     gasKwh: annual.gasKwh,
     electricityKwh: annual.electricityKwh,
+    generationKwh: annual.generationKwh,
+    importKwh: annual.importKwh,
+    exportKwh: annual.exportKwh,
     costPounds: annual.cost.totalPounds,
     carbonKg: annual.carbonKg,
   };
@@ -43,17 +58,26 @@ export const byMetric = <T>(make: (metric: Metric) => T): Record<Metric, T> => (
   hotWaterKwh: make('hotWaterKwh'),
   gasKwh: make('gasKwh'),
   electricityKwh: make('electricityKwh'),
+  generationKwh: make('generationKwh'),
+  importKwh: make('importKwh'),
+  exportKwh: make('exportKwh'),
   costPounds: make('costPounds'),
   carbonKg: make('carbonKg'),
 });
 
 const emptySampleTotals = (count: number): SampleTotals => byMetric(() => new Float64Array(count));
 
+export interface PairedOptions {
+  /** Gives both setups roof solar: gas with solar against the heat pump with solar. Defaults to false. */
+  solar?: boolean;
+}
+
 /**
  * Runs both setups on the central inputs and on each sample. Both setups in a sample share one set of inputs.
  * Only the annual totals are kept, because each full result holds about 350 KB of hourly arrays.
  * The weather must be prepared once, from the same register. `spfScenario` picks the heat pump's SPF distribution;
- * every other draw is the same in both scenarios, so they pair.
+ * every other draw is the same in both scenarios, so they pair. With `solar`, the solar rows' draws are the same as
+ * without, so a run with solar pairs with one without, sample by sample.
  */
 export function runPaired(
   access: RegisterAccessor,
@@ -61,22 +85,23 @@ export function runPaired(
   plan: SamplingPlan,
   house: House = defaultHouse(access, REFERENCE_ARCHETYPE),
   spfScenario: SpfScenario = 'fieldTrial',
+  { solar = false }: PairedOptions = {},
 ): PairedRun {
   const centralInputs = readInputs(access, { house, spfScenario });
   const central = {
-    gas: totalsOf(simulate(centralInputs, weather, 'gas').annual),
-    heatPump: totalsOf(simulate(centralInputs, weather, 'heatPump').annual),
+    gas: totalsOf(simulate(centralInputs, weather, 'gas', { solar }).annual),
+    heatPump: totalsOf(simulate(centralInputs, weather, 'heatPump', { solar }).annual),
   };
   const draws = sampleOverrides(access, plan, house, spfScenario);
   const samples = { gas: emptySampleTotals(plan.count), heatPump: emptySampleTotals(plan.count) };
   draws.forEach((overrides, sample) => {
     const inputs = readInputs(access, { house, overrides, spfScenario });
     for (const setup of ['gas', 'heatPump'] as const) {
-      const totals = totalsOf(simulate(inputs, weather, setup).annual);
+      const totals = totalsOf(simulate(inputs, weather, setup, { solar }).annual);
       for (const metric of METRICS) samples[setup][metric][sample] = totals[metric];
     }
   });
-  return { plan, house, spfScenario, central, samples };
+  return { plan, house, spfScenario, solar, central, samples };
 }
 
 /**
