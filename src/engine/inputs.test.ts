@@ -134,7 +134,7 @@ describe('readInputs', () => {
   it('reads the roof direction in degrees from south, west positive, as radians', () => {
     const access = fixtureAccessor({}, { 'solar.azimuth': { low: -45, high: 45 } });
     expect(readInputs(access, { overrides: { 'solar.azimuth': 45 } }).pv.azimuth).toBeCloseTo(Math.PI / 4, 12);
-    expect(uncertainDraws(access).map((draw) => draw.id)).toContain('solar.azimuth');
+    expect(uncertainDraws(access).map((draw) => draw.id)).toEqual(expect.arrayContaining(['solar.systemSize', 'solar.usableRoofFraction', 'solar.azimuth']));
   });
 
   it('rejects a base electricity profile that is negative or zero everywhere', () => {

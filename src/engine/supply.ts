@@ -1,7 +1,8 @@
 // ABOUT: Supply: gas for each hour's heat, the boiler's pump and fan electricity, and base electricity by hour
 // ABOUT: Gas = heat ÷ boiler seasonal efficiency, with unlimited capacity; the heat pump's electricity is in heatPump.ts
 
-import { HOURS_PER_WEEK, MONTHS_PER_YEAR, type Calendar } from './calendar.ts';
+import { checkProfileLength, HOURS_PER_WEEK, type Calendar } from './calendar.ts';
+import { MONTHS_PER_YEAR } from './constants.ts';
 import type { EngineInputs } from './inputs.ts';
 
 /** Divides each hour's heat by a seasonal efficiency. */
@@ -25,10 +26,6 @@ export function auxiliaryElectricity(gasKwh: Float64Array, kwhPerYear: number): 
   const totalGas = gasKwh.reduce((total, value) => total + value, 0);
   if (totalGas === 0) return new Float64Array(gasKwh.length);
   return gasKwh.map((gas) => (gas / totalGas) * kwhPerYear);
-}
-
-function checkProfileLength(values: readonly number[], expected: number, what: string): void {
-  if (values.length !== expected) throw new Error(`A ${what} profile needs ${expected} values, got ${values.length}`);
 }
 
 /**

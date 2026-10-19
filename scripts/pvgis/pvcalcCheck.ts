@@ -3,7 +3,7 @@
 
 import { RADIANS_PER_DEGREE, WH_PER_KWH } from '../../src/engine/constants.ts';
 import type { EngineInputs } from '../../src/engine/inputs.ts';
-import { pvGenerationKwh } from '../../src/engine/pv.ts';
+import { solarGeneration } from '../../src/engine/simulate.ts';
 import { planeIrradiance } from '../../src/engine/solar.ts';
 import type { PreparedWeather } from '../../src/engine/weather.ts';
 import type { PvcalcSnapshot } from './pvcalc.ts';
@@ -82,14 +82,16 @@ const sum = (values: Float64Array): number => values.reduce((total, value) => to
  */
 export function pvCheck(inputs: EngineInputs, weather: PreparedWeather, snapshot: PvcalcSnapshot): PvCheck {
   const system = { ...inputs.pv, peakPowerKw: REFERENCE_SYSTEM.peakPowerKw };
+  const reference = { ...inputs, pv: system };
   const matches =
     Math.abs(system.tilt / RADIANS_PER_DEGREE - REFERENCE_SYSTEM.tiltDeg) < 1e-9 &&
     Math.abs(system.azimuth / RADIANS_PER_DEGREE - REFERENCE_SYSTEM.aspectDeg) < 1e-9 &&
     Math.abs(system.systemLoss * 100 - REFERENCE_SYSTEM.lossPercent) < 1e-9;
   if (!matches) throw new Error('The register’s PV defaults (tilt, azimuth, system loss) no longer describe the pre-registered reference system');
+  // The same generation the solar setups run, so the check tests the engine's own path.
+  const engineKwh = sum(solarGeneration(reference, weather));
+  const withoutTemperature = sum(solarGeneration({ ...reference, pv: { ...system, temperatureCoefficientPerK: 0 } }, weather));
   const onRoof = planeIrradiance(weather.irradiance, weather.sunPath, system, inputs.groundReflectance);
-  const engineKwh = sum(pvGenerationKwh(onRoof, weather.outdoorTemperatureC, system));
-  const withoutTemperature = sum(pvGenerationKwh(onRoof, weather.outdoorTemperatureC, { ...system, temperatureCoefficientPerK: 0 }));
   const pvcalcKwh = snapshot.annualKwh;
   return {
     engineKwh,

@@ -35,7 +35,8 @@ When asked to remember anything, add project memory in this CLAUDE.md (project r
 - **Domain**: TBD
 
 **Key Integrations** (all fetched at build time, never from the browser):
-- PVGIS (EU JRC): hourly typical-year weather and solar
+- PVGIS (EU JRC): hourly typical-year weather and solar, and the PV calculator (`PVcalc`) for the PV check
+- Elexon: profile class 1 load profiles, for the hourly base electricity profile (downloaded by hand, values in the register)
 - Ofgem price cap; Octopus public tariff API (phase 2)
 - NESO carbon intensity API (deferred beyond v1; v1 uses an annual grid carbon factor)
 
@@ -138,7 +139,7 @@ npm run derive:base-profile -- <folder>  # Print the base electricity profile ro
 npm run calibrate            # Solve the mean internal temperature for the NEED gas target
 npm run archetypes           # Print the archetype table against the pre-registered NEED readings (offline)
 npm run report               # Write reports/phase-1-london-semi.md (offline; commit it, CI checks drift)
-npm run bench                # Time 500 samples × 2 setups; fails above 5 seconds
+npm run bench                # Time 500 samples × 2 setups, without and with solar; fails above 5 seconds
 ```
 
 Tests sit next to the code they test (`*.test.ts`), as the phase 1 spec lays out.

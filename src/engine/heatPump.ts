@@ -73,22 +73,32 @@ export interface HeatPumpLoad {
 
 const cop = (k: number, shape: number, ceiling: number): number => Math.min(ceiling, k * shape);
 
-/** Heating electricity in each hour, split by part: each part's heat ÷ its COP, min(k × shape, ceiling). */
-export function heatPumpElectricityParts(load: HeatPumpLoad, scale: CopScale, curve: CopCurve): { spaceKwh: Float64Array; hotWaterKwh: Float64Array } {
+export interface HeatPumpElectricity {
+  spaceKwh: Float64Array;
+  hotWaterKwh: Float64Array;
+  /** The two parts added. */
+  totalKwh: Float64Array;
+}
+
+/** Heating electricity in each hour, by part and in total: each part's heat ÷ its COP, min(k × shape, ceiling). */
+export function heatPumpElectricityParts(load: HeatPumpLoad, scale: CopScale, curve: CopCurve): HeatPumpElectricity {
   const { spaceHeatKwh, spaceShape, hotWaterHeatKwh, hotWaterShape } = load;
   const spaceKwh = new Float64Array(spaceHeatKwh.length);
   const hotWaterKwh = new Float64Array(spaceHeatKwh.length);
+  const totalKwh = new Float64Array(spaceHeatKwh.length);
   for (let hour = 0; hour < spaceKwh.length; hour += 1) {
-    spaceKwh[hour] = spaceHeatKwh[hour]! / cop(scale.k, spaceShape[hour]!, curve.copCeiling);
-    hotWaterKwh[hour] = hotWaterHeatKwh[hour]! / cop(scale.k, hotWaterShape[hour]!, curve.copCeiling);
+    const space = spaceHeatKwh[hour]! / cop(scale.k, spaceShape[hour]!, curve.copCeiling);
+    const hotWater = hotWaterHeatKwh[hour]! / cop(scale.k, hotWaterShape[hour]!, curve.copCeiling);
+    spaceKwh[hour] = space;
+    hotWaterKwh[hour] = hotWater;
+    totalKwh[hour] = space + hotWater;
   }
-  return { spaceKwh, hotWaterKwh };
+  return { spaceKwh, hotWaterKwh, totalKwh };
 }
 
 /** Heating electricity in each hour: the space heating and hot water parts added. */
 export function heatPumpElectricity(load: HeatPumpLoad, scale: CopScale, curve: CopCurve): Float64Array {
-  const { spaceKwh, hotWaterKwh } = heatPumpElectricityParts(load, scale, curve);
-  return spaceKwh.map((space, hour) => space + hotWaterKwh[hour]!);
+  return heatPumpElectricityParts(load, scale, curve).totalKwh;
 }
 
 /**

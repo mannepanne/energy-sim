@@ -11,9 +11,11 @@ export const PVGIS_SOURCE = {
   url: 'https://joint-research-centre.ec.europa.eu/photovoltaic-geographical-information-system-pvgis_en',
 };
 
-export const PVGIS_ATTRIBUTION =
-  'Source: PVGIS © European Union, 2001–2026. Reuse is authorised provided the source is acknowledged ' +
-  '(Commission Decision 2011/833/EU). Trimmed to the columns the engine uses.';
+/** PVGIS's reuse notice, shared by every PVGIS snapshot. */
+export const PVGIS_REUSE_NOTICE =
+  'Source: PVGIS © European Union, 2001–2026. Reuse is authorised provided the source is acknowledged (Commission Decision 2011/833/EU).';
+
+export const PVGIS_ATTRIBUTION = `${PVGIS_REUSE_NOTICE} Trimmed to the columns the engine uses.`;
 
 export function tmyRequestUrl(latitude: number, longitude: number): string {
   return `https://re.jrc.ec.europa.eu/api/${PVGIS_API_VERSION}/tmy?lat=${latitude}&lon=${longitude}&outputformat=json`;

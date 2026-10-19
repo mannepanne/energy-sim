@@ -1,8 +1,8 @@
 // ABOUT: Derives the base electricity profile rows from Elexon's average profile class 1 data
 // ABOUT: An hour-of-week shape and a month level, on the reference year's calendar, with Elexon's season rules
 
-import { DAYS_PER_WEEK, firstDayWeekday, MONTHS_PER_YEAR, REFERENCE_YEAR } from '../../src/engine/calendar.ts';
-import { DAYS_PER_YEAR, HOURS_PER_DAY } from '../../src/engine/constants.ts';
+import { DAYS_PER_WEEK, firstDayWeekday, REFERENCE_YEAR } from '../../src/engine/calendar.ts';
+import { DAYS_PER_YEAR, HOURS_PER_DAY, MONTHS_PER_YEAR } from '../../src/engine/constants.ts';
 
 export const SEASONS = ['Wtr', 'Spr', 'Smr', 'Hsr', 'Aut'] as const;
 export type Season = (typeof SEASONS)[number];

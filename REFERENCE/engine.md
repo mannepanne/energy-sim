@@ -40,7 +40,7 @@ const weather = prepareWeather(weatherFromSnapshot(loadPvgisSnapshot(snapshotJso
 const gas = simulate(inputs, weather, 'gas');
 const heatPump = simulate(inputs, weather, 'heatPump');
 const heatPumpWithSolar = simulate(inputs, weather, 'heatPump', { solar: true });
-gas.annual.gasKwh; // also spaceHeatKwh, hotWaterKwh, electricityKwh, importKwh, exportKwh, cost, carbonKg, and hourly arrays
+gas.annual.gasKwh; // also spaceHeatKwh, hotWaterKwh, electricityKwh, generationKwh, selfConsumedKwh, solarUsedBy, importKwh, exportKwh, cost, carbonKg, and hourly arrays
 ```
 
 - **Houses.** A `House` is an archetype key, a floor area, an occupant count (1–5) and three quick-facts answers: loft (`none`, `about100mm`, `270mmOrMore`), walls (`asBuilt`, `cavityFilled`, `solidWallInsulated`) and glazing (`single`, `olderDouble`, `newerDouble`). `defaultHouse` gives the archetype's defaults. `readInputs` with no house reads the 1930s semi (`REFERENCE_ARCHETYPE`), the house the behaviour rows are calibrated on.
@@ -48,11 +48,11 @@ gas.annual.gasKwh; // also spaceHeatKwh, hotWaterKwh, electricityKwh, importKwh,
 - **Overrides.** `readInputs(access, { overrides: { 'heating.heatPumpSpf': 3.2 } })` replaces an uncertain row's default, and is the hook for sampling. An uncertain table cell is overridden under `rowId|key`. A value that is not a finite number throws, and so does an override the house does not read (a typo, for example).
 - **The SPF scenario.** `spfScenario: 'wellInstalled'` reads `heating.heatPumpSpfWellInstalled` in place of `heating.heatPumpSpf`; every other value is the same. `sampleOverrides` and `runPaired` take the scenario too, and the two scenarios share every draw but the SPF, so they pair sample by sample.
 - **The heat pump's k.** `simulate` solves the COP scale k on its own run unless it is given one (`{ copScale }`), and returns the k it used as `copScale`. Solving on its own run is right only for the reference run (price cap, no control): a caller that applies control or a time-of-use tariff must pass the reference run's `copScale` (see "The heat pump over the year").
-- **Solar.** `{ solar: true }` adds roof solar to either setup, sized by `inputs.pv`. The four setups of the phase 2 spec are the two heating setups, each with and without it. Solar changes no heat, so it changes no k. Without solar, `importKwh` is `electricityKwh` and generation and export are zero, so every result without solar is unchanged by the solar code.
+- **Solar.** `{ solar: true }` adds roof solar to either setup, sized by `inputs.pv`. The four setups of the phase 2 spec are the two heating setups, each with and without it. Solar changes no heat, so it changes no k. Without solar, `importKwh` is `electricityKwh` and generation and export are zero, so a run without solar gives the same results as an engine with no solar model. `runPaired` computes the roof's generation once a sample and passes it to both setups (`{ generationKwh }`).
 - **Prepared weather** holds the outdoor temperature, the hourly mean wall irradiance, the horizontal irradiance and the sun's path. It depends only on fixed rows, so one preparation serves every sample. The roof's direction is sampled, so irradiance on the roof is computed on each solar run from the prepared sun path.
 - **Overrides are not user overrides.** The sampling hook follows row kind. The register's `overridable` flag, for what a visitor may change, also covers fixed rows (U-values, prices, cylinder loss), and excludes some uncertain ones (fabric quality factor, internal gains). How user overrides reach the engine is a phase 3 decision (see [SPECIFICATIONS/CLAUDE.md](../SPECIFICATIONS/CLAUDE.md)).
 - **Prepared weather must match the inputs.** `simulate` does not check that the weather was prepared with the same sample minute and ground reflectance. Both are fixed rows today; if either becomes uncertain, prepare the weather per sample.
-- **Speed.** `simulate` takes about 1–2 ms for a year on a recent Mac, and `prepareWeather` a few ms, run once. So 500 samples × 2 setups take about 1.4 seconds (19 October 2026). Each result holds five hourly arrays (about 350 KB), so a sampler should keep only the annual totals.
+- **Speed.** `simulate` takes about 1–2 ms for a year on a recent Mac, and `prepareWeather` a few ms, run once. So 500 samples × 2 setups take about 1.5 seconds (19 October 2026). Each result holds eight hourly arrays (about 560 KB), so a sampler should keep only the annual totals.
 
 ## The physics
 
@@ -165,8 +165,8 @@ roof maximum = footprint ÷ cos(pitch) × ½ × 0.7 usable × 0.2 kWp per m²
 - **Tilt** is a fixed row (35°), and also the roof pitch in the roof maximum, since the panels lie on the roof. **Direction** is uncertain: triangular, −45° to +45° from south, mode south, west positive (PVGIS's aspect uses the same convention).
 - **Temperature:** the cell runs above the air temperature in proportion to the irradiance on it (the NOCT relation for a module with a NOCT of 45 °C), and output falls 0.4% per K above 25 °C. Air temperature is the snapshot's, plus the outdoor offset row. Generation is never negative.
 - **System loss** (14%, PVGIS's suggested default) covers the inverter, cables, mismatch and soiling. Reflection at the glass and spectral effects are not modelled; the PVGIS check measures them.
-- **Size:** uncertain, 2.5–6 kWp with a mode of 4, clipped to what one roof slope takes. The roof footprint is the derived footprint. At their defaults, six of the ten archetypes are clipped below 4 kWp: the 1930s semi takes 3.85 kWp (45 m² of footprint), the 1970s mid-terrace 3.42 kWp; the end-terrace, bungalow and both detached houses take the full 4 kWp. The usable fraction (0.7) is an estimate and decides most of this.
-- **Use each hour** (`useSolar`): generation meets base use first, then heating (the heat pump's space heating electricity, or the boiler's pump and fan), then the heat pump's cylinder reheats; the rest is exported, and what the loads still need is imported. There is no control yet, so the order only says which load solar met; import and export would be the same in any order. Under the tariff PR's control rules, the cylinder may also be reheated to use surplus generation.
+- **Size:** uncertain, 2.5–6 kWp with a mode of 4, clipped to what one roof slope takes. The roof footprint is the derived footprint. At their defaults, six of the ten archetypes are clipped below 4 kWp: the pre-1900 mid-terrace (3.72 kWp), the 1930s semi (3.85), the 1950s semi (3.76), the 1970s mid-terrace (3.42), the 2000s semi (3.63) and the 2010s mid-terrace (3.67). The other four take the full 4 kWp. The usable share of the slope decides most of this, so it is uncertain too (0.5–0.85, mode 0.7): on a clipped house the spread of sizes is mostly the spread of that row. `pvRequestedPeakPowerKw` and `pvRoofMaximumKw` in the inputs say whether a size was clipped.
+- **Use each hour** (`useSolar`): generation meets base use first, then heating (the heat pump's space heating electricity, or the boiler's pump and fan), then the heat pump's cylinder reheats; the rest is exported, and what the loads still need is imported. With no control, the order only says which load solar met; import and export would be the same in any order. Under the tariffs PR's control rules (phase 2 spec, PR 6), the cylinder may also be reheated to use surplus generation.
 - **Exports never exceed generation**, and every hour balances: generation + import = electricity used + export. Tests check both.
 
 ### The heat pump over the year
@@ -193,8 +193,8 @@ COP(t)          = min(7, k × shape(t))
 ### Cost and carbon
 
 - Cost = kWh × unit rate + standing charges, at the flat price cap. Both setups pay the electricity standing charge. **The heat-pump-only house has no gas supply, so it pays no gas standing charge.**
-- **Electricity is costed on imports only.** Without solar, imports are all the electricity used. With solar, exported kWh earn nothing yet: the flat export rate arrives with the tariffs PR, so solar setups' costs are too high until then.
-- Carbon = gas kWh × gas factor + imported electricity kWh × the annual average grid factor. Exported kWh are reported but earn no carbon credit; the phase 2 report states this convention.
+- **Electricity is costed on imports only.** Without solar, imports are all the electricity used. With solar, exported kWh earn nothing until the flat export rate row lands (phase 2 spec, PR 4), so solar setups' costs are too high until then.
+- Carbon = gas kWh × gas factor + imported electricity kWh × the annual average grid factor. Exported kWh are reported but earn no carbon credit; the phase 2 report will state this convention.
 
 ## The fixture house
 
@@ -348,8 +348,8 @@ const table = sensitivity(access, weather);
 - **Correlated rows:** a Gaussian copula pairs the rows named by each `correlation` row. The anchor (the first row named) keeps its own uniform u_a. The partner's normal score becomes z = ρ Φ⁻¹(u_a) + √(1 − ρ²) Φ⁻¹(u_p), and its uniform is Φ(z), clipped to the same open interval as every other uniform. So ρ is a correlation of normal scores; the correlation of the drawn values is slightly lower. Rows outside a pair keep their own independent draws. Φ is Hart's double-precision approximation (as given by West, 2005). The one pair is the per-occupant gains and hot water terms, at 0.5, an estimate. A test checks the sample correlation within 0.05 of ρ over 100,000 draws.
 - **Stable draws:** each value comes from its own uniform number, `u = (hash32("seed|sample|rowId") + 0.5) ÷ 2³²`, so u is never 0 or 1. An uncertain table cell uses `rowId|key` in place of the row id. `hash32` is FNV-1a followed by the murmur3 finaliser, in plain TypeScript, so it runs in the browser too. Because a draw depends only on (seed, sample, row id), adding or reordering rows never moves another row's draws. A test pins some hash values, so a change to the hash fails loudly.
 - **Inverse distribution functions:** a triangular row uses its default as the mode. A lognormal row gives `median × exp(sigma × Φ⁻¹(u))`, clipped to its low and high, with Φ⁻¹ from Acklam's approximation (relative error below 1.2 × 10⁻⁹). A row whose low equals its high always returns its default.
-- **Memory:** `runPaired` keeps only the annual totals for each sample (space heat, hot water, gas, electricity, generation, import, export, cost, carbon) in one `Float64Array` per metric. Each full result holds about 350 KB of hourly arrays, so these are dropped straight away.
-- **Speed:** 500 samples × 2 setups take about 0.6 seconds. `npm run bench` times it, and CI fails above 5 seconds.
+- **Memory:** `runPaired` keeps only the annual totals for each sample (space heat, hot water, gas, electricity, generation, import, export, cost, carbon) in one `Float64Array` per metric. Each full result holds about 560 KB of hourly arrays, so these are dropped straight away.
+- **Speed:** 500 samples × 2 setups take about 1.5 seconds, without solar or with it (19 October 2026). `npm run bench` times both, and CI fails above 5 seconds.
 
 ### Summaries
 
@@ -359,7 +359,7 @@ const table = sensitivity(access, weather);
 
 ### Sensitivity
 
-`sensitivity` runs each uncertain row or cell at its low and then its high value, with every other row at its default, for both setups. It ignores correlations: each row moves alone. Rows are ranked by the swing in the cost difference (gas minus heat pump), largest first. Swings within £0.000001 count as a tie and are ordered by row id, so floating-point noise never decides the order. Base electricity use, for example, moves both costs equally and drops out of the difference. The table compares the two setups without solar, so the solar size and direction rows move nothing in it yet. A lognormal row's low and high are its clip limits (for the SPF, about its 1st and 99th percentiles), so its row shows an extreme spread.
+`sensitivity` runs each uncertain row or cell at its low and then its high value, with every other row at its default, for both setups. It ignores correlations: each row moves alone. Rows are ranked by the swing in the cost difference (gas minus heat pump), largest first. Swings within £0.000001 count as a tie and are ordered by row id, so floating-point noise never decides the order. Base electricity use, for example, moves both costs equally and drops out of the difference. The table compares the two setups without solar, so the three solar rows move nothing in it. The N-setup comparison (phase 2 spec, PR 4) adds a swing for solar against no solar, so the table shows how much roof direction matters. A lognormal row's low and high are its clip limits (for the SPF, about its 1st and 99th percentiles), so its row shows an extreme spread.
 
 ## The report
 
@@ -379,9 +379,9 @@ The phase 1 and phase 2 specs list these as technical debt:
 - no thermal mass, and continuous heating to one temperature;
 - one calibrated temperature for both setups and every archetype, which may also absorb fabric error ([#14](https://github.com/mannepanne/energy-sim/issues/14));
 - fixed prices, fixed weather and an annual average grid carbon factor;
-- no export income until the tariffs PR, and no carbon credit for export ([#34](https://github.com/mannepanne/energy-sim/issues/34));
-- roof solar on one slope, with an isotropic sky, no reflection or spectral losses, no shading and no inverter clipping; the usable roof fraction is an estimate;
-- base electricity is one weekly shape × a month level from profile class 1 (2013/14), which keeps the winter–summer level but not the small change of daily shape between seasons;
+- no export income until the export rate row lands (phase 2 spec, PR 4), and no carbon credit for export ([#34](https://github.com/mannepanne/energy-sim/issues/34));
+- roof solar on one slope facing between south-east and south-west, with an isotropic sky, no reflection or spectral losses, no shading and no inverter clipping; east–west roofs using both slopes are not modelled;
+- base electricity is one weekly shape × a month level from profile class 1 (2013/14), which keeps the winter–summer level but not the small change of daily shape between seasons; the class includes some electric heating, which raises winter use against summer, so solar self-consumption may be slightly understated;
 - the heat pump's COP curve is an approximate shape scaled to the field SPF, with no capacity limit and no backup heater;
 - the cylinder is one stored-energy state, not a stratified tank, with no immersion backup and no legionella cycle;
 - constant internal gains, and windows split equally over four orientations;

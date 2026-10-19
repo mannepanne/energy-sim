@@ -5,7 +5,7 @@ import type { RegisterAccessor } from '../register/access.ts';
 import { defaultHouse, REFERENCE_ARCHETYPE, type House } from './archetypes.ts';
 import { readInputs, type SpfScenario } from './inputs.ts';
 import { sampleOverrides, type SamplingPlan } from './sampling.ts';
-import { simulate, type AnnualResult, type Setup } from './simulate.ts';
+import { simulate, solarGeneration, type AnnualResult, type Setup } from './simulate.ts';
 import type { PreparedWeather } from './weather.ts';
 
 /** The annual totals kept for each setup in each sample. */
@@ -74,7 +74,7 @@ export interface PairedOptions {
 
 /**
  * Runs both setups on the central inputs and on each sample. Both setups in a sample share one set of inputs.
- * Only the annual totals are kept, because each full result holds about 350 KB of hourly arrays.
+ * Only the annual totals are kept, because each full result holds about 560 KB of hourly arrays.
  * The weather must be prepared once, from the same register. `spfScenario` picks the heat pump's SPF distribution;
  * every other draw is the same in both scenarios, so they pair. With `solar`, the solar rows' draws are the same as
  * without, so a run with solar pairs with one without, sample by sample.
@@ -96,8 +96,10 @@ export function runPaired(
   const samples = { gas: emptySampleTotals(plan.count), heatPump: emptySampleTotals(plan.count) };
   draws.forEach((overrides, sample) => {
     const inputs = readInputs(access, { house, overrides, spfScenario });
+    // Both setups share one roof, so its generation is computed once a sample.
+    const generationKwh = solar ? solarGeneration(inputs, weather) : undefined;
     for (const setup of ['gas', 'heatPump'] as const) {
-      const totals = totalsOf(simulate(inputs, weather, setup, { solar }).annual);
+      const totals = totalsOf(simulate(inputs, weather, setup, { solar, ...(generationKwh && { generationKwh }) }).annual);
       for (const metric of METRICS) samples[setup][metric][sample] = totals[metric];
     }
   });

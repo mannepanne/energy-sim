@@ -3,7 +3,7 @@
 
 import { z } from 'zod';
 import { httpsUrlSchema, isoDateSchema } from '../../src/register/schema.ts';
-import { PVGIS_ATTRIBUTION, type FetchDetails } from './trim.ts';
+import { PVGIS_REUSE_NOTICE, type FetchDetails } from './trim.ts';
 
 const MONTHS = 12;
 
@@ -69,7 +69,7 @@ export function trimPvcalcResponse(response: unknown, details: FetchDetails): Pv
   const months = outputs.monthly.fixed.toSorted((a, b) => a.month - b.month);
   return pvcalcSnapshotSchema.parse({
     schema: 'pvgis-pvcalc',
-    attribution: PVGIS_ATTRIBUTION.replace('Trimmed to the columns the engine uses.', 'Trimmed to the totals the PV check uses.'),
+    attribution: `${PVGIS_REUSE_NOTICE} Trimmed to the totals the PV check uses.`,
     requestUrl: details.requestUrl,
     fetchedOn: details.fetchedOn,
     responseSha256: details.responseSha256,

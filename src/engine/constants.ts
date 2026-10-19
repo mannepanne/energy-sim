@@ -5,6 +5,7 @@
 export const HOURS_PER_YEAR = 8760;
 export const HOURS_PER_DAY = 24;
 export const DAYS_PER_YEAR = 365;
+export const MONTHS_PER_YEAR = 12;
 export const MINUTES_PER_HOUR = 60;
 
 /** Volumetric heat capacity of air, in Wh per m³ per K (SAP's 0.33). */

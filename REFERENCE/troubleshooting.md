@@ -64,7 +64,7 @@ Add an entry here when a problem takes more than a few minutes to work out.
 
 **`npm run archetypes` shows an archetype newly flagged.** The flag rule and the NEED readings were fixed before any archetype ran ([scripts/archetypes/README.md](../scripts/archetypes/README.md)), so don't change them to clear a flag. A flag is an honest result. Check instead that the archetype's register rows are right, and record the gap as evidence on [#14](https://github.com/mannepanne/energy-sim/issues/14).
 
-**CI's "Bench" step fails.** 500 samples × 2 setups took longer than 5 seconds. On a recent Mac it takes about 1.4 seconds (19 October 2026, with the heat pump curve, the cylinder and the hourly base profile), and CI runners are somewhat slower, so a failure means a real slowdown, not noise. Look for a slowdown in the hourly loop: per-hour objects instead of typed arrays, or weather prepared again for every sample instead of once.
+**CI's "Bench" step fails.** 500 samples × 2 setups, without or with solar, took longer than 5 seconds. On a recent Mac each takes about 1.5 seconds (19 October 2026, with the heat pump curve, the cylinder, the hourly base profile and roof solar), and CI runners are somewhat slower, so a failure means a real slowdown, not noise. Look for a slowdown in the hourly loop: per-hour objects instead of typed arrays, or weather prepared again for every sample instead of once.
 
 ## The benchmark
 

@@ -2535,7 +2535,7 @@
       "label": "Roof solar PV system size before the roof limit",
       "unit": "kWp",
       "status": "approximate",
-      "rationale": "The spec's default of 4 kWp, a common size for a domestic roof in England; 2.5 to 6 kWp spans the systems typically fitted to houses. The sampled size is clipped to the roof's maximum (see solar.usableRoofFraction), so on a small roof the upper part of the range gives the roof's maximum.",
+      "rationale": "The spec's default of 4 kWp, a common size for a domestic roof in England; 2.5 to 6 kWp spans the systems typically fitted to houses. The sampled size is clipped to the roof's maximum (see solar.usableRoofFraction), so on a small roof the upper part of the range gives the roof's maximum, and the usable roof fraction's range then sets the spread of sizes.",
       "lastChecked": "2026-10-19",
       "refreshCadence": "static",
       "overridable": true,
@@ -2630,18 +2630,21 @@
     },
     {
       "id": "solar.usableRoofFraction",
-      "kind": "fixed",
+      "kind": "uncertain",
       "section": "solar",
       "label": "Share of one roof slope that panels can cover",
       "unit": "share",
       "status": "approximate",
-      "rationale": "Panels keep clear of the roof's edges, ridge and hips, and of vents and roof windows. 70% of one slope is an estimate for a simple pitched roof. Hipped roofs and dormers leave less.",
+      "rationale": "Panels keep clear of the roof's edges, ridge and hips, and of vents and roof windows. 70% of one slope is an estimate for a simple pitched roof; 50% allows for a hipped roof, a dormer or roof windows, and 85% for a plain gable roof laid out edge to edge. It is uncertain because it decides the roof's maximum, which clips the system size on most of the house types.",
       "lastChecked": "2026-10-19",
       "refreshCadence": "static",
       "overridable": false,
       "overrideHint": null,
       "dependsOn": [],
-      "value": 0.7
+      "default": 0.7,
+      "low": 0.5,
+      "high": 0.85,
+      "distribution": "triangular"
     },
     {
       "id": "solar.peakPowerPerArea",

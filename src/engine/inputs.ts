@@ -36,6 +36,7 @@ export const UNCERTAIN_ROW_IDS = [
   'electricity.baseUse',
   'solar.systemSize',
   'solar.azimuth',
+  'solar.usableRoofFraction',
 ] as const satisfies readonly RowId[];
 
 export type UncertainRowId = (typeof UNCERTAIN_ROW_IDS)[number];
@@ -66,6 +67,8 @@ export interface EngineInputs {
   irradianceSampleMinute: number;
 
   heatedVolumeM3: number;
+  /** Floor area ÷ storeys: the roof's plan area for PV, and the roof and ground floor areas. */
+  footprintM2: number;
   exposedPerimeterM: number;
   externalWallAreaM2: number;
   partyWallAreaM2: number;
@@ -199,6 +202,7 @@ class Reader {
 type GeometryInputs = Pick<
   EngineInputs,
   | 'heatedVolumeM3'
+  | 'footprintM2'
   | 'exposedPerimeterM'
   | 'externalWallAreaM2'
   | 'partyWallAreaM2'
@@ -236,6 +240,7 @@ function readGeometry(access: RegisterAccessor, reader: Reader, house: House, fa
   );
   return {
     heatedVolumeM3: geometry.heatedVolumeM3,
+    footprintM2: geometry.footprintM2,
     exposedPerimeterM: geometry.exposedPerimeterM,
     externalWallAreaM2: geometry.externalWallAreaM2,
     partyWallAreaM2: geometry.partyWallAreaM2,
@@ -400,7 +405,7 @@ function readSolar(reader: Reader, roofFootprintM2: number): SolarInputs {
   const roofMaximum = roofMaximumKw({
     footprintM2: roofFootprintM2,
     pitch: tilt,
-    usableFraction: reader.fixed('solar.usableRoofFraction'),
+    usableFraction: reader.uncertain('solar.usableRoofFraction'),
     kwpPerM2: reader.fixed('solar.peakPowerPerArea'),
   });
   const pv: PvSystem = {
@@ -430,7 +435,7 @@ function read(access: RegisterAccessor, house: House, reader: Reader, spfScenari
     ...readHeating(reader, spfScenario),
     ...readHotWater(reader, house),
     ...readPrices(reader),
-    ...readSolar(reader, geometry.roofAreaM2),
+    ...readSolar(reader, geometry.footprintM2),
   };
 }
 
