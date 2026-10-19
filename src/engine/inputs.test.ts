@@ -63,8 +63,30 @@ describe('readInputs', () => {
     expect(draw).toMatchObject({ low: 0.6, high: 1.2, label: 'Fixture fabric.airChangeRate (C)', unit: 'fixture' });
   });
 
-  it('lists every uncertain row the house reads, in reading order', () => {
-    expect(uncertainDraws(fixtureAccessor()).map((draw) => draw.id).toSorted()).toEqual([...UNCERTAIN_ROW_IDS].toSorted());
+  it('lists every uncertain row the house reads, with the SPF row of the chosen scenario only', () => {
+    const fieldTrial = UNCERTAIN_ROW_IDS.filter((id) => id !== 'heating.heatPumpSpfWellInstalled');
+    expect(uncertainDraws(fixtureAccessor()).map((draw) => draw.id).toSorted()).toEqual(fieldTrial.toSorted());
+    const wellInstalled = UNCERTAIN_ROW_IDS.filter((id) => id !== 'heating.heatPumpSpf');
+    const house = defaultHouse(fixtureAccessor(), 'semi1930s');
+    expect(uncertainDraws(fixtureAccessor(), house, 'wellInstalled').map((draw) => draw.id).toSorted()).toEqual(wellInstalled.toSorted());
+  });
+
+  it('reads the well-installed SPF in its scenario, and keeps every other value', () => {
+    const fieldTrial = readInputs(fixtureAccessor());
+    const wellInstalled = readInputs(fixtureAccessor(), { spfScenario: 'wellInstalled' });
+    expect(fieldTrial.heatPumpSpf).toBe(2.5);
+    expect(wellInstalled.heatPumpSpf).toBe(3.5);
+    expect({ ...wellInstalled, heatPumpSpf: 2.5 }).toEqual(fieldTrial);
+  });
+
+  it('rejects a draw-off profile that does not sum to 1, and a compensation line or COP curve out of order', () => {
+    const profile = Array.from({ length: 24 }, () => 0.05);
+    expect(() => readInputs(fixtureAccessor({ 'hotWater.drawOffProfile': profile }))).toThrow('summing to 1, got a sum of 1.2');
+    expect(() => readInputs(fixtureAccessor({ 'heating.flowTemperatureAtMild': 50 }))).toThrow('must not be below its mild one');
+    expect(() => readInputs(fixtureAccessor({ 'heating.compensationMildOutdoorTemperature': -5 }))).toThrow('must be below its mild one');
+    expect(() => readInputs(fixtureAccessor({ 'heating.copShapeFloor': 20 }))).toThrow('0 < floor < ceiling');
+    expect(() => readInputs(fixtureAccessor({ 'heating.copLiftAllowance': 0 }))).toThrow('lift allowance must be positive');
+    expect(() => readInputs(fixtureAccessor({ 'heating.copCeiling': 1 }))).toThrow('ceiling must be above 1');
   });
 
   it('rejects an override that is not a finite number, or that names a value the house does not read', () => {

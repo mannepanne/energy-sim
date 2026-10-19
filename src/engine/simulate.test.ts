@@ -24,6 +24,9 @@ const run = (values: FixtureValues, setup: 'gas' | 'heatPump' = 'gas') => {
 /** The engine's result on the HEM check, pinned so a change to the solar or heat loss method shows up here. */
 const HEM_CHECK_ENGINE_KWH = 12_999;
 
+/** The fixture house's hot water: 100 litres a day heated by 40 K. */
+const hotWaterPerDay = (100 * 4.18 * 40) / 3600;
+
 const sum = (values: Float64Array): number => values.reduce((total, value) => total + value, 0);
 
 /** Constant 5 °C and no sun, so every hour of the fixture house can be worked by hand. */
@@ -36,7 +39,6 @@ describe('the fixture house by hand (REFERENCE/engine.md)', () => {
   const inputs: EngineInputs = readInputs(fixtureAccessor());
   const gas = simulate(inputs, flatWeather, 'gas');
   const heatPump = simulate(inputs, flatWeather, 'heatPump');
-  const hotWaterPerDay = (100 * 4.18 * 40) / 3600;
 
   it('needs 3.275 kWh of space heat every hour, 28,689 kWh a year', () => {
     expect(gas.annual.spaceHeatKwh).toBeCloseTo(3.275 * 8760, 6);
@@ -53,6 +55,8 @@ describe('the fixture house by hand (REFERENCE/engine.md)', () => {
   });
 
   it('heat pump setup: (space heat + hot water + 1.5 kWh a day of cylinder loss) ÷ 2.5, plus base electricity', () => {
+    // The even draw and loss (0.256 kWh an hour) empty the 1.16 kWh band every 5 hours, and 8,760 hours is a whole
+    // number of 5-hour cycles, so the cylinder ends the year full and its reheats equal draw plus loss exactly.
     const heat = 28_689 + 365 * (hotWaterPerDay + 1.5);
     expect(heatPump.annual.heatKwh).toBeCloseTo(heat, 6);
     expect(heatPump.annual.gasKwh).toBe(0);
@@ -78,9 +82,8 @@ describe('a simulated year', () => {
     for (let hour = 0; hour < HOURS_PER_YEAR; hour += 1) {
       const demand = gas.hourly.spaceHeatKwh[hour]! + gas.hourly.hotWaterKwh[hour]!;
       expect(gas.hourly.gasKwh[hour]! * 0.8).toBeCloseTo(demand, 12);
-      const heatPumpDemand = heatPump.hourly.spaceHeatKwh[hour]! + heatPump.hourly.hotWaterKwh[hour]!;
-      expect((heatPump.hourly.electricityKwh[hour]! - 2920 / HOURS_PER_YEAR) * 2.5).toBeCloseTo(heatPumpDemand, 12);
     }
+    expect(heatPump.annual.heatKwh / heatPump.annual.heatingElectricityKwh).toBeCloseTo(2.5, 12);
   });
 
   it('has hours of zero space heat in summer, and space heat in every winter night hour', () => {
@@ -106,6 +109,41 @@ describe('a simulated year', () => {
       expect(electricity).toBeLessThan(previous);
       previous = electricity;
     }
+  });
+
+  it('adds the boiler’s pump and fan electricity to the gas setup only, in proportion to its gas use', () => {
+    const withAuxiliary = run({ 'heating.boilerAuxiliaryElectricity': 100 });
+    expect(withAuxiliary.annual.auxiliaryElectricityKwh).toBeCloseTo(100, 9);
+    expect(withAuxiliary.annual.electricityKwh).toBeCloseTo(2920 + 100, 9);
+    expect(withAuxiliary.annual.gasKwh).toBe(gas.annual.gasKwh);
+    for (const hour of [0, 4000]) {
+      const auxiliary = withAuxiliary.hourly.electricityKwh[hour]! - 2920 / HOURS_PER_YEAR;
+      expect(auxiliary).toBeCloseTo((withAuxiliary.hourly.gasKwh[hour]! / withAuxiliary.annual.gasKwh) * 100, 12);
+    }
+    expect(run({ 'heating.boilerAuxiliaryElectricity': 100 }, 'heatPump').annual.auxiliaryElectricityKwh).toBe(0);
+  });
+
+  it('draws hot water in local time: an 07:00 draw is at 07:00 UTC in January and 06:00 UTC in July', () => {
+    const atSeven = Array.from({ length: 24 }, (_, hour) => (hour === 7 ? 1 : 0));
+    const result = run({ 'hotWater.drawOffProfile': atSeven });
+    const january = 10 * 24;
+    const july = 190 * 24;
+    expect(result.hourly.hotWaterKwh[january + 7]).toBeCloseTo(hotWaterPerDay, 12);
+    expect(result.hourly.hotWaterKwh[july + 6]).toBeCloseTo(hotWaterPerDay, 12);
+    expect(result.hourly.hotWaterKwh[july + 7]).toBe(0);
+    expect(result.annual.hotWaterKwh).toBeCloseTo(365 * hotWaterPerDay, 9);
+  });
+
+  it('solves k on its own run unless given one, and a k from another run changes the year’s efficiency', () => {
+    expect(gas.copScale).toBeUndefined();
+    const scale = heatPump.copScale!;
+    expect(simulate(readInputs(fixtureAccessor()), prepareWeather(weather, readInputs(fixtureAccessor())), 'heatPump', { copScale: scale }).annual).toEqual(
+      heatPump.annual,
+    );
+    const lower = run({ 'heating.heatPumpSpf': 2 }, 'heatPump').copScale!;
+    const inputs = readInputs(fixtureAccessor());
+    const atLowerK = simulate(inputs, prepareWeather(weather, inputs), 'heatPump', { copScale: lower });
+    expect(atLowerK.annual.heatKwh / atLowerK.annual.heatingElectricityKwh).toBeCloseTo(2, 9);
   });
 
   it('scales gas use exactly with 1 ÷ boiler efficiency', () => {

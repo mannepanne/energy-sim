@@ -4,7 +4,7 @@
 import type { RegisterAccessor } from '../register/access.ts';
 import type { UncertainRow } from '../register/schema.ts';
 import type { House } from './archetypes.ts';
-import { uncertainDraws, type UncertainOverrides } from './inputs.ts';
+import { uncertainDraws, type SpfScenario, type UncertainOverrides } from './inputs.ts';
 
 /** The fields of an uncertain row that a draw needs. */
 export type UncertainSpec = Pick<UncertainRow, 'id' | 'default' | 'low' | 'high' | 'distribution' | 'median' | 'sigma'>;
@@ -179,8 +179,9 @@ export function correlationSpecs(access: RegisterAccessor): CorrelationSpec[] {
 
 /**
  * Joint draws of every uncertain row and cell the house reads, ready to pass to `readInputs` as overrides.
- * The draws depend on the house only through which values it reads, so houses that read the same rows share draws.
+ * The draws depend on the house and scenario only through which values they read, so houses that read the same rows
+ * share draws, and the two SPF scenarios share every draw but the SPF.
  */
-export function sampleOverrides(access: RegisterAccessor, plan: SamplingPlan, house?: House): UncertainOverrides[] {
-  return drawSamples(uncertainDraws(access, house), plan, correlationSpecs(access));
+export function sampleOverrides(access: RegisterAccessor, plan: SamplingPlan, house?: House, spfScenario?: SpfScenario): UncertainOverrides[] {
+  return drawSamples(uncertainDraws(access, house, spfScenario), plan, correlationSpecs(access));
 }

@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { HOURS_PER_YEAR } from './constants.ts';
-import { dailyHotWaterKwh, evenHourly, hourlySpaceHeatKwh, solarGainsW } from './demand.ts';
+import { dailyHotWaterKwh, hourlySpaceHeatKwh, solarGainsW } from './demand.ts';
 import { readInputs } from './inputs.ts';
 import { fixtureAccessor } from './testing/fixtureRegister.ts';
 
@@ -52,11 +52,5 @@ describe('hot water', () => {
   it('is L × 4.18 × (T_delivery − T_cold) ÷ 3,600: 100 litres heated by 40 K is 4.644 kWh a day', () => {
     expect(dailyHotWaterKwh(inputs)).toBeCloseTo((100 * 4.18 * 40) / 3600, 12);
     expect(dailyHotWaterKwh(inputs)).toBeCloseTo(4.6444, 4);
-  });
-
-  it('spreads a daily amount evenly over the hours', () => {
-    const hourly = evenHourly(24);
-    expect(hourly).toHaveLength(HOURS_PER_YEAR);
-    expect(hourly.every((value) => value === 1)).toBe(true);
   });
 });

@@ -140,3 +140,24 @@ describe('runPaired', () => {
     variant.samples.gas.spaceHeatKwh.forEach((kwh, sample) => expect(kwh).toBeGreaterThan(run.samples.gas.spaceHeatKwh[sample]!));
   });
 });
+
+describe('the well-installed SPF scenario', () => {
+  const ranges: FixtureRanges = { ...RANGES, 'heating.heatPumpSpfWellInstalled': { low: 3, high: 4.5, sigma: 0.1 } };
+  const access = fixtureAccessor({}, ranges);
+  const fieldTrial = runPaired(access, weather, plan);
+  const wellInstalled = runPaired(access, weather, plan, undefined, 'wellInstalled');
+
+  it('shares every draw but the SPF, so the gas setup is identical in both scenarios', () => {
+    expect(fieldTrial.spfScenario).toBe('fieldTrial');
+    expect(wellInstalled.spfScenario).toBe('wellInstalled');
+    for (const metric of METRICS) expect(wellInstalled.samples.gas[metric]).toEqual(fieldTrial.samples.gas[metric]);
+    expect(wellInstalled.samples.heatPump.spaceHeatKwh).toEqual(fieldTrial.samples.heatPump.spaceHeatKwh);
+  });
+
+  it('runs the heat pump on the well-installed SPF, which is higher here in every sample', () => {
+    expect(wellInstalled.central.heatPump.electricityKwh).toBeLessThan(fieldTrial.central.heatPump.electricityKwh);
+    wellInstalled.samples.heatPump.electricityKwh.forEach((electricity, sample) => {
+      expect(electricity).toBeLessThan(fieldTrial.samples.heatPump.electricityKwh[sample]!);
+    });
+  });
+});

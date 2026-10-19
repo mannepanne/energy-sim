@@ -25,9 +25,9 @@ Semi-detached, cavity, 1930–49, in London (RdSAP age band C): 90 m² over 2 st
 | Space heat | 9,400 kWh | 8,800 kWh | 7,200 kWh to 10,500 kWh |
 | Hot water heat | 1,900 kWh | 1,900 kWh | 1,700 kWh to 2,200 kWh |
 | Gas | 13,300 kWh | 12,700 kWh | 10,800 kWh to 14,700 kWh |
-| Electricity | 2,500 kWh | 2,600 kWh | 2,100 kWh to 3,400 kWh |
-| Running cost | £2,020 | £2,020 | £1,810 to £2,250 |
-| Carbon (kgCO₂e) | 2,790 kg | 2,720 kg | 2,330 kg to 3,090 kg |
+| Electricity | 2,600 kWh | 2,700 kWh | 2,200 kWh to 3,400 kWh |
+| Running cost | £2,050 | £2,040 | £1,830 to £2,270 |
+| Carbon (kgCO₂e) | 2,800 kg | 2,730 kg | 2,340 kg to 3,100 kg |
 
 ### Heat pump
 
@@ -48,10 +48,10 @@ Both setups run on the same samples, so each sample compares the same house and 
 
 | Gas minus heat pump, a year | Central | Median | 10th to 90th percentile |
 | --- | ---: | ---: | ---: |
-| Running cost | £50 | £60 | −£170 to £220 |
-| Carbon (kgCO₂e) | 1,820 kg | 1,730 kg | 1,460 kg to 2,030 kg |
+| Running cost | £80 | £80 | −£150 to £240 |
+| Carbon (kgCO₂e) | 1,830 kg | 1,740 kg | 1,470 kg to 2,040 kg |
 
-**The heat pump is cheaper to run in 65% of samples** (rounded to the nearest 5%; an exact tie counts as half). With 500 samples, this share carries sampling noise of about ±4 percentage points. That is noise from the method, not the real-world uncertainty, which the ranges above show.
+**The heat pump is cheaper to run in 70% of samples** (rounded to the nearest 5%; an exact tie counts as half). With 500 samples, this share carries sampling noise of about ±4 percentage points. That is noise from the method, not the real-world uncertainty, which the ranges above show.
 
 **This running-cost comparison leans in the heat pump’s favour.** One calibrated mean internal temperature, taken from gas-heated homes, applies to both setups. Heat pump households often heat for longer, so the heat pump’s running cost is likely too low here, and the share of samples in which it is cheaper too high ([issue 15](https://github.com/mannepanne/energy-sim/issues/15)). The model does not yet give the two setups different temperatures.
 
@@ -65,21 +65,23 @@ The low and high are the ends of each row’s range, not percentiles. For the he
 
 | Row | Low to high | Gas boiler cost | Heat pump cost | Gas minus heat pump |
 | --- | --- | ---: | ---: | ---: |
-| Air source heat pump seasonal performance factor (space heat and hot water combined) | 2 to 4 | £2,020 | £2,420 to £1,640 | −£390 to £390 |
-| Gas combi boiler seasonal efficiency (space heat and hot water) | 0.8 to 0.89 | £2,090 to £1,980 | £1,970 | £120 to £10 |
-| Fabric quality factor (one multiplier on every U-value and the air change rate) | 0.75 to 1.15 | £1,740 to £2,200 | £1,680 to £2,150 | £50 |
-| Mean internal air temperature, heated continuously (calibrated to measured gas use) | 15 to 17.4 °C | £1,850 to £2,190 | £1,790 to £2,140 | £50 |
-| Internal gains per occupant | 75 to 140 W per occupant | £2,080 to £1,970 | £2,020 to £1,920 | £50 |
-| Hot water use per occupant | 17 to 35 litres/day per occupant | £1,990 to £2,070 | £1,930 to £2,020 | £50 |
-| Base electricity use (lights and appliances), the same in both setups | 1,600 to 3,800 kWh/year | £1,790 to £2,370 | £1,730 to £2,310 | £50 |
+| Air source heat pump seasonal performance factor (space heat and hot water combined) | 2 to 4 | £2,050 | £2,420 to £1,640 | −£370 to £410 |
+| Gas combi boiler seasonal efficiency (space heat and hot water) | 0.8 to 0.89 | £2,110 to £2,000 | £1,970 | £140 to £30 |
+| Fabric quality factor (one multiplier on every U-value and the air change rate) | 0.75 to 1.15 | £1,760 to £2,230 | £1,680 to £2,150 | £80 |
+| Mean internal air temperature, heated continuously (calibrated to measured gas use) | 15 to 17.4 °C | £1,870 to £2,210 | £1,790 to £2,140 | £80 |
+| Internal gains per occupant | 75 to 140 W per occupant | £2,100 to £2,000 | £2,020 to £1,920 | £80 |
+| Hot water use per occupant | 17 to 35 litres/day per occupant | £2,010 to £2,090 | £1,930 to £2,020 | £80 |
+| Base electricity use (lights and appliances), the same in both setups | 1,600 to 3,800 kWh/year | £1,810 to £2,390 | £1,730 to £2,310 | £80 |
+| Heat pump space heating flow temperature at the design outdoor temperature | 35 to 50 °C | £2,050 | £1,970 | £80 |
+| Heat pump space heating flow temperature at the mild outdoor temperature | 25 to 35 °C | £2,050 | £1,970 | £80 |
 
 ## The variant with no loft insulation
 
-With no loft insulation, the house needs more heat: 13,400 kWh of space heat a year, central. Gas minus heat pump running cost is £50 central (−£250 to £280), and the heat pump is cheaper in 60% of samples. The same samples and the same bias (issue 15) apply.
+With no loft insulation, the house needs more heat: 13,400 kWh of space heat a year, central. Gas minus heat pump running cost is £80 central (−£220 to £300), and the heat pump is cheaper in 65% of samples. The same samples and the same bias (issue 15) apply.
 
 ## How the ranges are made
 
-- **Samples:** 500 joint samples with seed 1. Each sample draws a value for every uncertain row: Fabric quality factor (one multiplier on every U-value and the air change rate); Internal gains per occupant; Mean internal air temperature, heated continuously (calibrated to measured gas use); Gas combi boiler seasonal efficiency (space heat and hot water); Air source heat pump seasonal performance factor (space heat and hot water combined); Hot water use per occupant; Base electricity use (lights and appliances), the same in both setups. Every other number is fixed.
+- **Samples:** 500 joint samples with seed 1. Each sample draws a value for every uncertain row: Fabric quality factor (one multiplier on every U-value and the air change rate); Internal gains per occupant; Heat pump space heating flow temperature at the design outdoor temperature; Heat pump space heating flow temperature at the mild outdoor temperature; Mean internal air temperature, heated continuously (calibrated to measured gas use); Gas combi boiler seasonal efficiency (space heat and hot water); Air source heat pump seasonal performance factor (space heat and hot water combined); Hot water use per occupant; Base electricity use (lights and appliances), the same in both setups. Every other number is fixed.
 - **Stable draws:** each value comes from a hash of the seed, the sample number and the row id, passed through the row’s inverse distribution function. Triangular rows use their default as the mode. The SPF is lognormal and clipped to its low and high.
 - **Central** is the run with every row at its default. **Median** and the **10th to 90th percentile** come from the samples (linear interpolation between ranked samples).
 - **Fabric quality** is one shared factor on every U-value and the air change rate.
@@ -97,7 +99,7 @@ The benchmark checked annual **space heat** against the government’s Home Ener
 
 ## Data dates
 
-- **Register:** 56 rows (30 sourced, 3 to-verify, 23 approximate), last checked between 2026-10-17 and 2026-10-19. A sourced row has been checked against its source; a to-verify row is taken from a source but not yet checked line by line; an approximate row is an estimate with a written reason. See [register.md](../REFERENCE/register.md).
+- **Register:** 71 rows (31 sourced, 3 to-verify, 37 approximate), last checked between 2026-10-17 and 2026-10-19. A sourced row has been checked against its source; a to-verify row is taken from a source but not yet checked line by line; an approximate row is an estimate with a written reason. See [register.md](../REFERENCE/register.md).
 - **Weather:** the PVGIS typical year for 51.507, −0.128 (PVGIS-SARAH3), fetched on 2026-10-18. Source: PVGIS © European Union, 2001–2026. Reuse is authorised provided the source is acknowledged (Commission Decision 2011/833/EU). Trimmed to the columns the engine uses.
 - **Rows due for a fresh check** (the rest are static). A price row falls due when its price cap period ends:
 
@@ -110,15 +112,15 @@ The benchmark checked annual **space heat** against the government’s Home Ener
 | `carbon.gasFactor` | 2026-10-17 | 2027-10-17 |
 | `carbon.gridElectricityFactor` | 2026-10-17 | 2027-10-17 |
 | `heating.heatPumpSpf` | 2026-10-17 | 2027-10-17 |
+| `heating.heatPumpSpfWellInstalled` | 2026-10-19 | 2027-10-19 |
 | `electricity.baseUse` | 2026-10-17 | 2029-10-17 |
 
 ## Limitations
 
 - **One calibrated temperature applies to both setups.** It comes from gas-heated homes, and heat pump households often heat for longer, so the heat pump’s running cost is biased low ([issue 15](https://github.com/mannepanne/energy-sim/issues/15)). It may also absorb errors in the default U-values ([issue 14](https://github.com/mannepanne/energy-sim/issues/14)).
 - **No thermal mass, and continuous heating** to one temperature ([issue 13](https://github.com/mannepanne/energy-sim/issues/13)).
-- **One SPF for the whole year.** The heat pump has no capacity limit and no backup heater; its performance in cold weather is phase 2 work.
+- **The heat pump’s hourly COP follows a curve scaled to the sampled SPF.** On the price cap with continuous heating, the curve changes when electricity is used, not how much: the year’s heat ÷ electricity equals the sampled SPF. The heat pump has no capacity limit and no backup heater.
 - **Fixed prices and one typical weather year** ([issue 16](https://github.com/mannepanne/energy-sim/issues/16)), and an **annual average grid carbon factor** ([issue 17](https://github.com/mannepanne/energy-sim/issues/17)).
-- **The boiler’s own pump and fan electricity is left out** ([issue 18](https://github.com/mannepanne/energy-sim/issues/18)).
 - **Only the per-occupant gains and hot water terms are correlated.** Their correlation (0.5) is an estimate with no source. Every other uncertain row is drawn independently.
 - **Constant internal gains**, and windows split equally over four orientations.
 - The gas carbon factor still needs a line-by-line check against its source ([issue 8](https://github.com/mannepanne/energy-sim/issues/8)).

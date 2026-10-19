@@ -1,7 +1,7 @@
-// ABOUT: Hourly space heat at a mean internal temperature, solar and internal gains, and daily hot water
+// ABOUT: Hourly space heat at a mean internal temperature, solar and internal gains, and the day's hot water
 // ABOUT: Q(t) = max(0, H (T_mean − T_out(t) − offset) − G_solar(t) − G_internal), over 8,760 hours in typed arrays
 
-import { HOURS_PER_DAY, HOURS_PER_YEAR, KJ_PER_KWH, WATER_SPECIFIC_HEAT_KJ_PER_KGK, WH_PER_KWH } from './constants.ts';
+import { HOURS_PER_YEAR, KJ_PER_KWH, WATER_SPECIFIC_HEAT_KJ_PER_KGK, WH_PER_KWH } from './constants.ts';
 import type { EngineInputs } from './inputs.ts';
 
 /**
@@ -40,9 +40,4 @@ export function hourlySpaceHeatKwh(
 export function dailyHotWaterKwh(inputs: EngineInputs): number {
   const riseK = inputs.hotWaterDeliveryTemperatureC - inputs.coldFeedTemperatureC;
   return (inputs.hotWaterLitresPerDay * WATER_SPECIFIC_HEAT_KJ_PER_KGK * riseK) / KJ_PER_KWH;
-}
-
-/** A daily amount spread evenly over the hours of every day, in kWh per hour. */
-export function evenHourly(kwhPerDay: number): Float64Array {
-  return new Float64Array(HOURS_PER_YEAR).fill(kwhPerDay / HOURS_PER_DAY);
 }

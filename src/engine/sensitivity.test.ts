@@ -28,7 +28,9 @@ describe('sensitivity', () => {
   const table = sensitivity(access, weather);
 
   it('has one row for every uncertain row', () => {
-    expect(table.map((row) => row.id).toSorted()).toEqual(UNCERTAIN_ROW_IDS.toSorted());
+    // The well-installed SPF is read only in its own scenario.
+    const fieldTrial = UNCERTAIN_ROW_IDS.filter((id) => id !== 'heating.heatPumpSpfWellInstalled');
+    expect(table.map((row) => row.id).toSorted()).toEqual(fieldTrial.toSorted());
   });
 
   it('runs a house other than the default when given one', () => {
