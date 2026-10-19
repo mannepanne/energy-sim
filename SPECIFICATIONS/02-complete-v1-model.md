@@ -578,7 +578,7 @@ New, tracked when their code lands:
 - Agile represented by a past year on typical weather;
 - weekdays taken from the 2026 reference year ([#25](https://github.com/mannepanne/energy-sim/issues/25));
 - no carbon credit for export;
-- the heat pump's standby electricity is spread in proportion to heat, so mild hours look too efficient against the Electrification of Heat daily data (see `REFERENCE/engine.md`); adding a standby row is Magnus's decision.
+- the heat pump's standby is a share of its electricity, not kWh a day, so small houses get less of it and their mild hours stay a little optimistic against the Electrification of Heat daily data (see `REFERENCE/engine.md`).
 
 ---
 

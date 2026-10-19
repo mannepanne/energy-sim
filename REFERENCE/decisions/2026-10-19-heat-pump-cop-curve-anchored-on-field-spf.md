@@ -15,9 +15,10 @@
   ```
 
   - **The shape** is Carnot-like. Its lift allowance ΔT_lift and its clamp s_min to s_max are register rows. The clamp applies before scaling, and guards the hours when T_out nears T_flow.
-  - **COP_max is a physical ceiling** on the scaled COP, also a row (7). It binds in 1 of 200 field-trial samples and 52 of 200 well-installed ones.
+  - **COP_max is a physical ceiling** on the scaled COP, also a row (7). How often it binds is in `REFERENCE/engine.md`.
+- **Standby electricity is inside the SPF.** A share of the year's heat pump electricity (a register row per scenario, median 5.9% from the trial's daily data) is drawn evenly in every hour, and k is solved on what is left for the heat. The share is drawn per sample; the standby kWh it gives is fixed on the reference run and carried with k. Amendment, 19 October 2026: see below.
 - **The shape sets *when* electricity is used. k sets *how much*.** k is solved once per sample on a **reference run**: the price cap, no control, and the gas setups' heating pattern (continuous heating until the schedules PR, then the gas schedule). On that run, total heat (space heat plus cylinder reheats) ÷ total electricity equals the sampled SPF.
-  - **Without the ceiling,** the solve is closed-form: k = SPF × Σ(heat ÷ shape) ÷ Σheat.
+  - **Without the ceiling,** the solve is closed-form: k = Σ(heat ÷ shape) ÷ ((1 − standby share) × Σheat ÷ SPF).
   - **If k would put any hour above the ceiling,** those hours run at the ceiling and k is re-solved on the rest. This repeats until no further hour is capped, which gives the exact solution in a few steps. The run reports whether the ceiling bound, and the phase 2 report counts the samples in which it did.
 - **The same k is reused on every tariff and under control.** `simulate` takes k as an option, so a controlled run uses the reference run's k and never re-solves it. Running the heat pump in colder hours, or at a higher flow temperature, then costs efficiency through the curve.
 - **Flow temperatures:**
@@ -47,7 +48,7 @@ A curve from a datasheet or a physics model gives the right shape but the wrong 
 ## Reasoning
 
 - **Anchored on the field.** On the reference run the result is the sampled SPF to within floating-point error. A test checks this to within 0.1% in every one of 200 samples, in both SPF scenarios, on the real register.
-- **Explainable.** The curve has five numbers, each a register row with a reason. The flow temperatures are the only uncertain ones, and on the price cap they move only *when* electricity is used.
+- **Explainable.** The curve has five numbers, each a register row with a reason. The flow temperatures are its only uncertain rows. They, and the standby share, move only *when* electricity is used on the price cap.
 - **Clamp before scaling** keeps k a closed-form solve in the usual case. The ceiling after scaling stops k from implying an impossible COP in mild hours, and the iterative solve keeps the SPF exact when it binds.
 - **Tests guard the direction:** COP falls as outdoor temperature falls and as flow rises; hot water's COP is below space heating's in every hour; the scaled COP never exceeds the ceiling and stays above 1 at the lowest SPF; at a fixed k, moving the same heat into colder hours lowers the year's efficiency.
 
@@ -59,9 +60,17 @@ Against the Electrification of Heat interim analysis report, with the 1930s semi
 
 Against the trial's final report and daily dataset (SN 9210, kept outside git):
 - **Flow response:** the median COP(H2) ratio from a 35 °C flow to 55 °C is 0.68; the shape gives 0.71.
-- **Daily COP ÷ SPF by outdoor temperature:** the engine is too optimistic on mild days (1.14 against 0.93 at 14–16 °C) and too pessimistic on cold ones (0.79 against 0.87 at −2 to 0 °C). Most of the gap is the trial's standby electricity, a median of 0.58 kWh a day, which the engine spreads in proportion to heat. Whether to add it is Magnus's decision.
+- **Daily COP ÷ SPF by outdoor temperature:** with no standby, the engine was too optimistic on mild days (1.14 against 0.93 at 14–16 °C) and too pessimistic on cold ones (0.79 against 0.87 at −2 to 0 °C). Most of the gap was the trial's standby electricity, a median of 0.56 kWh a day, which the engine spread in proportion to heat. With the standby share (the amendment below), the gaps are 1.01 against 0.93 and 0.83 against 0.87.
 
-The rows were not changed after either check. Details are in `REFERENCE/engine.md`.
+No curve row was changed after either check.
+
+## Amendment (19 October 2026): standby inside the SPF
+
+**Decision (Magnus, after the daily-data cross-check):** add the heat pump's standby electricity, inside the SPF's H4 boundary, as a share of the year's electricity rather than a fixed kWh a day.
+
+**Why a share:** with an exact SPF match, a fixed kWh a day forces the heat-only COP higher as a house's heat falls. For small, low-heat homes (the 2007–11 semi or the 2012 onwards mid-terrace with one occupant) it would exceed the ceiling, and the solve would fail. A share can fail only if it reaches 1 − SPF ÷ ceiling, which is a register condition a test enforces, whatever the house. The alternative, letting the SPF fall for smaller houses, is more physical, but it would change price-cap results and the exact SPF match this ADR rests on, so it is not taken here.
+
+**Trade-off:** small houses get less standby in kWh than the trial's typical home, so their mild hours stay a little optimistic. Details are in `REFERENCE/engine.md`.
 
 ## Trade-offs accepted
 

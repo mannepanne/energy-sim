@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { loadPvgisSnapshot } from '../snapshots/pvgisSchema.ts';
 import { defaultHouse } from './archetypes.ts';
-import { readInputs, UNCERTAIN_ROW_IDS } from './inputs.ts';
+import { readInputs, rowsOutsideScenario, UNCERTAIN_ROW_IDS } from './inputs.ts';
 import { sensitivity } from './sensitivity.ts';
 import { simulate } from './simulate.ts';
 import { fixtureAccessor } from './testing/fixtureRegister.ts';
@@ -28,8 +28,8 @@ describe('sensitivity', () => {
   const table = sensitivity(access, weather);
 
   it('has one row for every uncertain row', () => {
-    // The well-installed SPF is read only in its own scenario.
-    const fieldTrial = UNCERTAIN_ROW_IDS.filter((id) => id !== 'heating.heatPumpSpfWellInstalled');
+    // The well-installed SPF and standby share are read only in their own scenario.
+    const fieldTrial = UNCERTAIN_ROW_IDS.filter((id) => !rowsOutsideScenario('fieldTrial').includes(id));
     expect(table.map((row) => row.id).toSorted()).toEqual(fieldTrial.toSorted());
   });
 

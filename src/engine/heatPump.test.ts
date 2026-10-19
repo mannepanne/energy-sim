@@ -18,6 +18,7 @@ import {
   type CopCurve,
   type HeatPumpLoad,
 } from './heatPump.ts';
+import { ARCHETYPE_KEYS, defaultHouse } from './archetypes.ts';
 import { readInputs, type SpfScenario, type UncertainOverrides } from './inputs.ts';
 import { sampleOverrides } from './sampling.ts';
 import { simulate } from './simulate.ts';
@@ -77,7 +78,7 @@ describe('the COP shape', () => {
 describe('the k solve', () => {
   it('is closed-form when the ceiling does not bind: k = SPF × Σ(heat ÷ shape) ÷ Σheat', () => {
     const run = load([1, 2, 3], [5, 6, 8]);
-    const scale = solveCopScale(run, 3, curve);
+    const scale = solveCopScale(run, 3, curve, 0);
     expect(scale.k).toBeCloseTo((3 * (1 / 5 + 2 / 6 + 3 / 8)) / 6, 12);
     expect(scale.ceilingBound).toBe(false);
     expect(seasonalPerformance(run, scale, curve)).toBeCloseTo(3, 12);
@@ -85,7 +86,7 @@ describe('the k solve', () => {
 
   it('counts hot water heat at its own shape in the same balance', () => {
     const run = load([1, 0], [8, 8], [0, 1], [4, 4]);
-    const scale = solveCopScale(run, 3, curve);
+    const scale = solveCopScale(run, 3, curve, 0);
     expect(scale.k).toBeCloseTo((3 * (1 / 8 + 1 / 4)) / 2, 12);
     expect(seasonalPerformance(run, scale, curve)).toBeCloseTo(3, 12);
   });
@@ -93,7 +94,7 @@ describe('the k solve', () => {
   it('caps hours at the ceiling and re-solves k, so the year still matches the SPF', () => {
     // Closed-form k = 5 × (1/4 + 1/15) ÷ 2 = 0.79, which would put the second hour at 11.9.
     const run = load([1, 1], [4, 15]);
-    const scale = solveCopScale(run, 5, curve);
+    const scale = solveCopScale(run, 5, curve, 0);
     expect(scale.ceilingBound).toBe(true);
     // The second hour runs at 7, so the first needs 1 ÷ (2/5 − 1/7) = 3.889, and k = 3.889 ÷ 4.
     expect(scale.k).toBeCloseTo(1 / (2 / 5 - 1 / 7) / 4, 12);
@@ -104,21 +105,46 @@ describe('the k solve', () => {
 
   it('settles when capping one hour pushes another over the ceiling', () => {
     const run = load([1, 1, 1, 1], [4, 9, 12, 15]);
-    const scale = solveCopScale(run, 5.5, curve);
+    const scale = solveCopScale(run, 5.5, curve, 0);
     expect(scale.ceilingBound).toBe(true);
     expect(seasonalPerformance(run, scale, curve)).toBeCloseTo(5.5, 12);
     for (const value of heatPumpElectricity(run, scale, curve)) expect(1 / value).toBeLessThanOrEqual(7 + 1e-12);
   });
 
   it('rejects an SPF the ceiling can never reach, a non-positive SPF, and a run with no heat', () => {
-    expect(() => solveCopScale(load([1], [5]), 7, curve)).toThrow('must be below the COP ceiling');
-    expect(() => solveCopScale(load([1], [5]), 0, curve)).toThrow('must be positive');
-    expect(() => solveCopScale(load([0, 0], [5, 5]), 3, curve)).toThrow('delivers no heat');
+    expect(() => solveCopScale(load([1], [5]), 7, curve, 0)).toThrow('below 1 − SPF ÷ COP ceiling');
+    expect(() => solveCopScale(load([1], [5]), 0, curve, 0)).toThrow('must be positive');
+    expect(() => solveCopScale(load([0, 0], [5, 5]), 3, curve, 0)).toThrow('delivers no heat');
+  });
+
+  it('counts standby inside the SPF: k is solved on what the heat needs after standby, and every hour draws it', () => {
+    // 2 kWh of heat at SPF 2 is 1 kWh of electricity; a 20% share is 0.2 kWh of standby (0.1 an hour), leaving 0.8.
+    const run = load([2, 0], [5, 5]);
+    const scale = solveCopScale(run, 2, curve, 0.2);
+    expect(scale.standbyKwhPerHour).toBeCloseTo(0.1, 12);
+    expect(scale.k).toBeCloseTo(2 / 5 / 0.8, 12);
+    expect(seasonalPerformance(run, scale, curve)).toBeCloseTo(2, 12);
+    const electricity = heatPumpElectricity(run, scale, curve);
+    expect(electricity[0]).toBeCloseTo(0.9, 12);
+    expect(electricity[1]).toBeCloseTo(0.1, 12);
+  });
+
+  it('makes a low-heat hour less efficient than a high-heat hour at the same shape, once standby is counted', () => {
+    const run = load([4, 0.5], [6, 6]);
+    const electricity = heatPumpElectricity(run, solveCopScale(run, 3, curve, 0.1), curve);
+    expect(0.5 / electricity[1]!).toBeLessThan(4 / electricity[0]!);
+  });
+
+  it('rejects a negative standby share, and one that leaves the heat less than the COP ceiling allows', () => {
+    expect(() => solveCopScale(load([1], [5]), 3, curve, -0.1)).toThrow('must be at least 0 and below 1 − SPF ÷ COP ceiling');
+    // 1 − 3 ÷ 7 = 0.571: at that share the heat would need every hour at the ceiling and then some.
+    expect(() => solveCopScale(load([1], [5]), 3, curve, 0.6)).toThrow('below 1 − SPF ÷ COP ceiling');
+    expect(() => solveCopScale(load([1], [5]), 3, curve, 0.5)).not.toThrow();
   });
 
   it('lowers the year’s efficiency when the same heat moves into colder hours at the same k', () => {
     const reference = load([2, 1], [4, 8]);
-    const scale = solveCopScale(reference, 3, curve);
+    const scale = solveCopScale(reference, 3, curve, 0);
     const colder = load([2.5, 0.5], [4, 8]);
     expect(seasonalPerformance(colder, scale, curve)).toBeLessThan(3);
     const milder = load([1.5, 1.5], [4, 8]);
@@ -150,6 +176,37 @@ describe('the curve on the real register', () => {
     const ceiling = access.fixed('heating.copCeiling').value;
     for (const id of ['heating.heatPumpSpf', 'heating.heatPumpSpfWellInstalled'] as const) expect(access.uncertain(id).high).toBeLessThan(ceiling);
   });
+
+  it('keeps each scenario’s highest standby share below 1 − its highest SPF ÷ the COP ceiling, so k is always solvable', () => {
+    const ceiling = access.fixed('heating.copCeiling').value;
+    const pairs = [
+      ['heating.heatPumpSpf', 'heating.heatPumpStandbyShare'],
+      ['heating.heatPumpSpfWellInstalled', 'heating.heatPumpStandbyShareWellInstalled'],
+    ] as const;
+    for (const [spf, share] of pairs) expect(access.uncertain(share).high).toBeLessThan(1 - access.uncertain(spf).high / ceiling);
+  });
+
+  it.each<SpfScenario>(['fieldTrial', 'wellInstalled'])(
+    'solves k for a low-demand house of every archetype at the highest SPF and standby share (%s)',
+    (spfScenario) => {
+      const [spfRow, shareRow] =
+        spfScenario === 'fieldTrial'
+          ? (['heating.heatPumpSpf', 'heating.heatPumpStandbyShare'] as const)
+          : (['heating.heatPumpSpfWellInstalled', 'heating.heatPumpStandbyShareWellInstalled'] as const);
+      for (const archetype of ARCHETYPE_KEYS) {
+        const house = { ...defaultHouse(access, archetype), occupants: 1 };
+        const overrides: UncertainOverrides = {
+          [spfRow]: access.uncertain(spfRow).high,
+          [shareRow]: access.uncertain(shareRow).high,
+          'heating.meanInternalTemperature': access.uncertain('heating.meanInternalTemperature').low,
+          'fabric.qualityFactor': access.uncertain('fabric.qualityFactor').low,
+        };
+        const inputs = readInputs(access, { house, overrides, spfScenario });
+        const result = simulate(inputs, weather, 'heatPump');
+        expect(result.annual.heatKwh / result.annual.heatingElectricityKwh).toBeCloseTo(inputs.heatPumpSpf, 9);
+      }
+    },
+  );
 
   it('keeps the hot water flow at or above every space heating flow, and the cylinder rows in order', () => {
     const designFlow = access.uncertain('heating.flowTemperatureAtDesign');

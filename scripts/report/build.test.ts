@@ -4,6 +4,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { band } from '../../src/engine/compare.ts';
+import { rowsOutsideScenario } from '../../src/engine/inputs.ts';
 import { loadRegister } from '../../src/register/load.ts';
 import { loadPvgisSnapshot } from '../../src/snapshots/pvgisSchema.ts';
 import { createAccessor } from '../../src/register/access.ts';
@@ -58,8 +59,9 @@ describe('buildReport', () => {
 
   it('lists every uncertain row in the sensitivity table', () => {
     const rows = report.slice(report.indexOf('## Sensitivity'), report.indexOf('## How the ranges are made'));
-    // The well-installed SPF is read only in its own scenario, which the phase 2 report shows.
-    const fieldTrialRows = register.rows.filter((candidate) => candidate.kind === 'uncertain' && candidate.id !== 'heating.heatPumpSpfWellInstalled');
+    // The well-installed SPF and standby share are read only in their own scenario, which the phase 2 report shows.
+    const outside: readonly string[] = rowsOutsideScenario('fieldTrial');
+    const fieldTrialRows = register.rows.filter((candidate) => candidate.kind === 'uncertain' && !outside.includes(candidate.id));
     for (const row of fieldTrialRows) expect(rows).toContain(row.label);
   });
 

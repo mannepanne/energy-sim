@@ -36,7 +36,7 @@ Add an entry here when a problem takes more than a few minutes to work out.
 
 **"Register row … has no cell with key …".** The engine read a table key that isn't there, often a wall answer that doesn't fit the archetype's construction (such as `cavityFilled` on solid brick). Use `wallAnswers(access, archetype)` for the answers an archetype offers, or add the missing cell with its source.
 
-**"The SPF (…) must be below the COP ceiling (…)".** The k solve can't reach an SPF at or above `heating.copCeiling`, because no hour may run above the ceiling. Check the SPF row's high (and the well-installed row's) against the ceiling row.
+**"The standby share (…) must be at least 0 and below 1 − SPF ÷ COP ceiling".** After standby, the heat must still be suppliable with every hour at the ceiling. A test keeps each scenario's highest standby share below 1 − its highest SPF ÷ `heating.copCeiling`; if this fires, a row's range has moved. Check the SPF rows' highs and the standby share rows' highs against the ceiling row.
 
 **"The hot water draw-off profile must be non-negative shares summing to 1".** `hotWater.drawOffProfile` holds each local hour's share of the day's hot water. Rescale its 24 values so they sum to 1.
 
