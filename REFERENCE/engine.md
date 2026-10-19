@@ -379,7 +379,7 @@ The phase 1 and phase 2 specs list these as technical debt:
 - no thermal mass, and continuous heating to one temperature;
 - one calibrated temperature for both setups and every archetype, which may also absorb fabric error ([#14](https://github.com/mannepanne/energy-sim/issues/14));
 - fixed prices, fixed weather and an annual average grid carbon factor;
-- no export income until the tariffs PR, and no carbon credit for export;
+- no export income until the tariffs PR, and no carbon credit for export ([#34](https://github.com/mannepanne/energy-sim/issues/34));
 - roof solar on one slope, with an isotropic sky, no reflection or spectral losses, no shading and no inverter clipping; the usable roof fraction is an estimate;
 - base electricity is one weekly shape × a month level from profile class 1 (2013/14), which keeps the winter–summer level but not the small change of daily shape between seasons;
 - the heat pump's COP curve is an approximate shape scaled to the field SPF, with no capacity limit and no backup heater;

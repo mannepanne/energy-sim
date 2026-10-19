@@ -577,7 +577,7 @@ New, tracked when their code lands:
 - undiscounted payback, assuming the boiler needs replacing now;
 - Agile represented by a past year on typical weather;
 - weekdays taken from the 2026 reference year ([#25](https://github.com/mannepanne/energy-sim/issues/25));
-- no carbon credit for export.
+- no carbon credit for export ([#34](https://github.com/mannepanne/energy-sim/issues/34)).
 
 ---
 
