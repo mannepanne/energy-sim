@@ -521,8 +521,9 @@ The flat-tariff work comes first, so a failed HEM check under a schedule still l
 4. `feature/phase-2-costs-payback`:
    - costs, the grant and its conditions, and lifetimes;
    - the price scenario and payback;
+   - the flat export rate row (Octopus Outgoing Fixed, approximate until PR 6 snapshots it), so solar's payback counts export income (moved from PR 6 after the [PR 35 review](https://github.com/mannepanne/energy-sim/pull/35), Magnus, 19 October 2026);
    - solar's own payback;
-   - the comparison layer for N setups.
+   - the comparison layer for N setups, with a sensitivity swing for each setup against the reference and for solar against no solar, listing only the rows the compared setups read. A gas-minus-heat-pump swing can't show roof direction, which cancels when both setups have solar.
 5. `feature/phase-2-heating-schedules`:
    - the comparison rules committed first;
    - thermal mass, schedules and the output cap;
@@ -577,7 +578,7 @@ New, tracked when their code lands:
 - undiscounted payback, assuming the boiler needs replacing now;
 - Agile represented by a past year on typical weather;
 - weekdays taken from the 2026 reference year ([#25](https://github.com/mannepanne/energy-sim/issues/25));
-- no carbon credit for export;
+- no carbon credit for export ([#34](https://github.com/mannepanne/energy-sim/issues/34));
 - the heat pump's standby is a share of its electricity, not kWh a day, so small houses get less of it and their mild hours stay a little optimistic against the Electrification of Heat daily data (see `REFERENCE/engine.md`).
 
 ---

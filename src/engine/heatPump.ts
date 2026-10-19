@@ -77,18 +77,37 @@ export interface HeatPumpLoad {
 
 const cop = (k: number, shape: number, ceiling: number): number => Math.min(ceiling, k * shape);
 
-/** Heating electricity in each hour: the standby, plus each part's heat ÷ its COP, min(k × shape, ceiling). */
-export function heatPumpElectricity(load: HeatPumpLoad, scale: CopScale, curve: CopCurve): Float64Array {
+export interface HeatPumpElectricity {
+  /** Space heat ÷ its COP. */
+  spaceKwh: Float64Array;
+  /** Cylinder reheats ÷ their COP. */
+  hotWaterKwh: Float64Array;
+  /** The standby electricity, the same in every hour. */
+  standbyKwhPerHour: number;
+  /** Standby plus the two parts. */
+  totalKwh: Float64Array;
+}
+
+/** Heating electricity in each hour, by part and in total: the standby, plus each part's heat ÷ its COP, min(k × shape, ceiling). */
+export function heatPumpElectricityParts(load: HeatPumpLoad, scale: CopScale, curve: CopCurve): HeatPumpElectricity {
   const { spaceHeatKwh, spaceShape, hotWaterHeatKwh, hotWaterShape } = load;
   const { standbyKwhPerHour } = scale;
-  const electricity = new Float64Array(spaceHeatKwh.length);
-  for (let hour = 0; hour < electricity.length; hour += 1) {
-    electricity[hour] =
-      standbyKwhPerHour +
-      spaceHeatKwh[hour]! / cop(scale.k, spaceShape[hour]!, curve.copCeiling) +
-      hotWaterHeatKwh[hour]! / cop(scale.k, hotWaterShape[hour]!, curve.copCeiling);
+  const spaceKwh = new Float64Array(spaceHeatKwh.length);
+  const hotWaterKwh = new Float64Array(spaceHeatKwh.length);
+  const totalKwh = new Float64Array(spaceHeatKwh.length);
+  for (let hour = 0; hour < spaceKwh.length; hour += 1) {
+    const space = spaceHeatKwh[hour]! / cop(scale.k, spaceShape[hour]!, curve.copCeiling);
+    const hotWater = hotWaterHeatKwh[hour]! / cop(scale.k, hotWaterShape[hour]!, curve.copCeiling);
+    spaceKwh[hour] = space;
+    hotWaterKwh[hour] = hotWater;
+    totalKwh[hour] = standbyKwhPerHour + space + hotWater;
   }
-  return electricity;
+  return { spaceKwh, hotWaterKwh, standbyKwhPerHour, totalKwh };
+}
+
+/** Heating electricity in each hour: the standby plus the space heating and hot water parts. */
+export function heatPumpElectricity(load: HeatPumpLoad, scale: CopScale, curve: CopCurve): Float64Array {
+  return heatPumpElectricityParts(load, scale, curve).totalKwh;
 }
 
 /**

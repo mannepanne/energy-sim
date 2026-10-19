@@ -3,7 +3,7 @@
 
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { band } from '../../src/engine/compare.ts';
+import { band, byMetric } from '../../src/engine/compare.ts';
 import { rowsOutsideScenario } from '../../src/engine/inputs.ts';
 import { loadRegister } from '../../src/register/load.ts';
 import { loadPvgisSnapshot } from '../../src/snapshots/pvgisSchema.ts';
@@ -95,7 +95,7 @@ describe('buildReport', () => {
 describe('outsideBandNotes', () => {
   const inside = band([1, 2, 3, 4, 5], 3);
   const outside = band([1, 2, 3, 4, 5], 0);
-  const bands = { spaceHeatKwh: inside, hotWaterKwh: inside, gasKwh: inside, electricityKwh: inside, costPounds: inside, carbonKg: inside };
+  const bands = byMetric(() => inside);
 
   it('says nothing when every central value lies inside its band', () => {
     expect(outsideBandNotes({ bands: { gas: bands, heatPump: bands }, costDifference: inside, carbonDifference: inside, shareHeatPumpCheaper: 0.5 })).toEqual([]);

@@ -122,4 +122,31 @@ describe('readInputs', () => {
     );
     expect(() => readInputs(createAccessor(loadRegister({ rows: noBandC })))).toThrow('Register row "fabric.doorUValue" has no cell with key "C"');
   });
+
+  it('sizes the PV system to the sampled size, clipped to the roof: 50 ÷ cos 35° × ½ × 1 × 0.2 = 6.10 kWp', () => {
+    const inputs = readInputs(fixtureAccessor());
+    expect(inputs.pvRoofMaximumKw).toBeCloseTo((50 / Math.cos((35 * Math.PI) / 180)) * 0.5 * 0.2, 12);
+    expect(inputs.pv.peakPowerKw).toBe(4);
+    expect(inputs.pv.tilt).toBeCloseTo((35 * Math.PI) / 180, 12);
+    expect(inputs.pv.systemLoss).toBe(0.1);
+    const big = readInputs(fixtureAccessor({}, { 'solar.systemSize': { low: 2, high: 8 } }), { overrides: { 'solar.systemSize': 8 } });
+    expect(big.pvRequestedPeakPowerKw).toBe(8);
+    expect(big.pv.peakPowerKw).toBeCloseTo(big.pvRoofMaximumKw, 12);
+    expect(readInputs(fixtureAccessor({ 'solar.usableRoofFraction': 0.5 })).pv.peakPowerKw).toBeCloseTo(3.05, 2);
+  });
+
+  it('reads the roof direction in degrees from south, west positive, as radians', () => {
+    const access = fixtureAccessor({}, { 'solar.azimuth': { low: -45, high: 45 } });
+    expect(readInputs(access, { overrides: { 'solar.azimuth': 45 } }).pv.azimuth).toBeCloseTo(Math.PI / 4, 12);
+    expect(uncertainDraws(access).map((draw) => draw.id)).toEqual(expect.arrayContaining(['solar.systemSize', 'solar.usableRoofFraction', 'solar.azimuth']));
+  });
+
+  it('rejects a base electricity profile that is negative or zero everywhere', () => {
+    expect(() => readInputs(fixtureAccessor({ 'electricity.baseProfileMonthly': Array.from({ length: 12 }, () => 0) }))).toThrow(
+      '"electricity.baseProfileMonthly" must be non-negative with at least one positive value',
+    );
+    expect(() => readInputs(fixtureAccessor({ 'electricity.baseProfileWeekly': Array.from({ length: 168 }, (_, hour) => (hour === 0 ? -1 : 1)) }))).toThrow(
+      'electricity.baseProfileWeekly',
+    );
+  });
 });

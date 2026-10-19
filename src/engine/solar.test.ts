@@ -1,5 +1,5 @@
 // ABOUT: Tests for solar position and irradiance on walls, against Duffie and Beckman's worked examples
-// ABOUT: Also checks, on the real PVGIS snapshot, that beam and diffuse add up to global at the chosen sample minute
+// ABOUT: Also checks, on the real PVGIS snapshot, the sample minute, and that the precomputed sun path gives the same irradiance
 
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
@@ -12,7 +12,9 @@ import {
   equationOfTimeMinutes,
   FOUR_WALLS,
   meanVerticalIrradiance,
+  planeIrradiance,
   sunAngles,
+  sunPath,
   tiltedIrradiance,
 } from './solar.ts';
 import { weatherFromSnapshot } from './weather.ts';
@@ -114,5 +116,47 @@ describe('meanVerticalIrradiance on the PVGIS snapshot', () => {
     const mean = vertical.reduce((sum, value) => sum + value, 0) / HOURS_PER_YEAR;
     expect(mean).toBeGreaterThan(60);
     expect(mean).toBeLessThan(90);
+  });
+});
+
+describe('sunPath and planeIrradiance on the PVGIS snapshot', () => {
+  const snapshot = loadPvgisSnapshot(
+    JSON.parse(readFileSync(new URL('../../data/snapshots/pvgis-tmy-london.json', import.meta.url), 'utf8')) as unknown,
+  );
+  const weather = weatherFromSnapshot(snapshot);
+  const path = sunPath(weather, 10);
+  const latitude = deg(weather.latitudeDeg);
+
+  it.each([
+    ['a 35° roof facing south', { tilt: deg(35), azimuth: 0 }],
+    ['a 35° roof facing south-west', { tilt: deg(35), azimuth: deg(45) }],
+    ['a 30° roof facing south-east', { tilt: deg(30), azimuth: deg(-45) }],
+    ['a flat roof', { tilt: 0, azimuth: 0 }],
+    ['a north wall', { tilt: deg(90), azimuth: deg(180) }],
+  ])('gives the same irradiance as the direct formulas, hour by hour, on %s', (_, surface) => {
+    const fast = planeIrradiance(weather, path, surface, 0.2);
+    for (let hour = 0; hour < HOURS_PER_YEAR; hour += 1) {
+      const sun = sunAngles(Math.floor(hour / 24) + 1, (hour % 24) + 10 / 60, weather.longitudeDeg);
+      const irradiance = { globalHorizontal: weather.globalHorizontal[hour]!, beamNormal: weather.beamNormal[hour]!, diffuseHorizontal: weather.diffuseHorizontal[hour]! };
+      const direct = tiltedIrradiance(irradiance, cosIncidence(latitude, sun, surface), cosZenith(latitude, sun) > 0, surface.tilt, 0.2);
+      expect(Math.abs(fast[hour]! - direct)).toBeLessThan(1e-9);
+    }
+  });
+
+  it('averages to the mean vertical irradiance over the four walls', () => {
+    const walls = FOUR_WALLS.map((wall) => planeIrradiance(weather, path, wall, 0.2));
+    const mean = meanVerticalIrradiance(weather, 10, 0.2);
+    for (let hour = 0; hour < HOURS_PER_YEAR; hour += 1) {
+      const average = walls.reduce((sum, wall) => sum + wall[hour]!, 0) / 4;
+      expect(Math.abs(average - mean[hour]!)).toBeLessThan(1e-9);
+    }
+  });
+
+  const annual = (azimuthDeg: number): number => planeIrradiance(weather, path, { tilt: deg(35), azimuth: deg(azimuthDeg) }, 0.2).reduce((sum, value) => sum + value, 0);
+
+  it('gives a south-facing roof more than one facing south-east or south-west, which mirror each other within 3%', () => {
+    expect(annual(0)).toBeGreaterThan(annual(45));
+    expect(annual(0)).toBeGreaterThan(annual(-45));
+    expect(Math.abs(annual(45) / annual(-45) - 1)).toBeLessThan(0.03);
   });
 });

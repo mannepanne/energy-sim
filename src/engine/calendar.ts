@@ -1,7 +1,7 @@
 // ABOUT: The time base: engine hours are UTC hours 0–8759 of the typical year; schedules and tariffs are in UK local time
 // ABOUT: Converts local-time profiles to engine hours with the UK clock-change rule, and averages half-hourly rates to hours
 
-import { HOURS_PER_DAY, HOURS_PER_YEAR } from './constants.ts';
+import { DAYS_PER_YEAR, HOURS_PER_DAY, HOURS_PER_YEAR, MONTHS_PER_YEAR } from './constants.ts';
 
 /**
  * A method setting of the time base (see the time-base ADR). The typical year's months come from different years,
@@ -63,6 +63,8 @@ export interface Calendar {
   weekday: Uint8Array;
   /** Local hour of the week, 0 (Monday 00:00) to 167 (Sunday 23:00). */
   hourOfWeek: Uint8Array;
+  /** Local month, 0 (January) to 11. */
+  month: Uint8Array;
 }
 
 /**
@@ -79,7 +81,9 @@ export function buildCalendar(year: number = REFERENCE_YEAR): Calendar {
     localDayOfYear: new Uint16Array(HOURS_PER_YEAR),
     weekday: new Uint8Array(HOURS_PER_YEAR),
     hourOfWeek: new Uint8Array(HOURS_PER_YEAR),
+    month: new Uint8Array(HOURS_PER_YEAR),
   };
+  const monthOfDay = Uint8Array.from({ length: DAYS_PER_YEAR }, (_, day) => new Date(Date.UTC(year, 0, 1 + day)).getUTCMonth());
   for (let hour = 0; hour < HOURS_PER_YEAR; hour += 1) {
     const offset = hour >= time.startHour && hour < time.endHour ? 1 : 0;
     const local = hour + offset;
@@ -91,29 +95,37 @@ export function buildCalendar(year: number = REFERENCE_YEAR): Calendar {
     calendar.localDayOfYear[hour] = day;
     calendar.weekday[hour] = weekday;
     calendar.hourOfWeek[hour] = weekday * HOURS_PER_DAY + hourOfDay;
+    calendar.month[hour] = monthOfDay[day]!;
   }
   return calendar;
 }
 
-function checkLength(values: ArrayLike<number>, expected: number, what: string): void {
+/** Throws unless a profile has the number of values its resolution needs. */
+export function checkProfileLength(values: ArrayLike<number>, expected: number, what: string): void {
   if (values.length !== expected) throw new Error(`A ${what} profile needs ${expected} values, got ${values.length}`);
 }
 
 /** An hour-of-week profile (168 values, Monday 00:00 local first) as a value for every engine hour. */
 export function expandWeekly(values: ArrayLike<number>, calendar: Calendar): Float64Array {
-  checkLength(values, HOURS_PER_WEEK, 'weekly');
+  checkProfileLength(values, HOURS_PER_WEEK, 'weekly');
   return Float64Array.from(calendar.hourOfWeek, (hourOfWeek) => values[hourOfWeek]!);
 }
 
 /** An hour-of-day profile (24 values, local midnight first) as a value for every engine hour. */
 export function expandDaily(values: ArrayLike<number>, calendar: Calendar): Float64Array {
-  checkLength(values, HOURS_PER_DAY, 'daily');
+  checkProfileLength(values, HOURS_PER_DAY, 'daily');
   return Float64Array.from(calendar.localHourOfDay, (hourOfDay) => values[hourOfDay]!);
+}
+
+/** A month profile (12 values, January first, by local date) as a value for every engine hour. */
+export function expandMonthly(values: ArrayLike<number>, calendar: Calendar): Float64Array {
+  checkProfileLength(values, MONTHS_PER_YEAR, 'monthly');
+  return Float64Array.from(calendar.month, (month) => values[month]!);
 }
 
 /** Half-hourly values over the typical year (17,520, UTC, starting 00:00 on 1 January) as hourly means. */
 export function hourlyFromHalfHourly(halfHourly: ArrayLike<number>): Float64Array {
-  checkLength(halfHourly, HALF_HOURS_PER_YEAR, 'half-hourly');
+  checkProfileLength(halfHourly, HALF_HOURS_PER_YEAR, 'half-hourly');
   const hourly = new Float64Array(HOURS_PER_YEAR);
   for (let hour = 0; hour < HOURS_PER_YEAR; hour += 1) hourly[hour] = (halfHourly[2 * hour]! + halfHourly[2 * hour + 1]!) / 2;
   return hourly;

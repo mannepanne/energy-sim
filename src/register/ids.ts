@@ -75,6 +75,16 @@ export const ROW_IDS = [
   'carbon.gasFactor',
   'carbon.gridElectricityFactor',
   'electricity.baseUse',
+  'electricity.baseProfileWeekly',
+  'electricity.baseProfileMonthly',
+  'solar.systemSize',
+  'solar.tilt',
+  'solar.azimuth',
+  'solar.systemLoss',
+  'solar.temperatureCoefficient',
+  'solar.cellTemperatureRise',
+  'solar.usableRoofFraction',
+  'solar.peakPowerPerArea',
 ] as const;
 
 export type RowId = (typeof ROW_IDS)[number];

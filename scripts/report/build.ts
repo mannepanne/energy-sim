@@ -149,6 +149,8 @@ function sensitivitySection(access: RegisterAccessor, rows: readonly Sensitivity
     '',
     'The heat pump’s flow temperature and standby share rows move nothing here. On the price cap, the heat pump’s COP curve is scaled so the year matches the sampled SPF, so these rows change when the heat pump uses electricity, not how much. They matter only where hours are priced differently, as on time-of-use tariffs.',
     '',
+    'The three roof solar rows (size, usable roof share and direction) move nothing here either, because this report compares the two setups without solar.',
+    '',
     '| Row | Low to high | Gas boiler cost | Heat pump cost | Gas minus heat pump |',
     '| --- | --- | ---: | ---: | ---: |',
     ...lines,
@@ -227,6 +229,13 @@ function benchmarkSection(centralGasKwh: number): string {
   ].join('\n');
 }
 
+/** The base electricity profile's source title, from its register row. */
+function baseProfileSource(register: Register): string {
+  const row = register.rows.find((candidate) => candidate.id === 'electricity.baseProfileWeekly');
+  if (row?.source === undefined) throw new Error('The register has no sourced base electricity profile row');
+  return row.source.title;
+}
+
 function dataDatesSection(register: Register, snapshot: PvgisSnapshot): string {
   const statusCounts = STATUSES.map((status) => `${register.rows.filter((row) => row.status === status).length} ${status}`).join(', ');
   const checked = register.rows.map((row) => row.lastChecked).toSorted();
@@ -241,6 +250,7 @@ function dataDatesSection(register: Register, snapshot: PvgisSnapshot): string {
     '',
     `- **Register:** ${register.rows.length} rows (${statusCounts}), last checked between ${checked[0]} and ${checked[checked.length - 1]}. A sourced row has been checked against its source; a to-verify row is taken from a source but not yet checked line by line; an approximate row is an estimate with a written reason. See [register.md](../REFERENCE/register.md).`,
     `- **Weather:** the PVGIS typical year for ${exactNumber(snapshot.location.latitude)}, ${exactNumber(snapshot.location.longitude)} (${snapshot.radiationDatabase}), fetched on ${snapshot.fetchedOn}. ${snapshot.attribution}`,
+    `- **Base electricity by hour:** ${baseProfileSource(register)}, checked on ${register.rows.find((row) => row.id === 'electricity.baseProfileWeekly')?.lastChecked ?? 'an unknown date'}.`,
     '- **Rows due for a fresh check** (the rest are static). A price row falls due when its price cap period ends:',
     '',
     '| Row | Last checked | Due by |',

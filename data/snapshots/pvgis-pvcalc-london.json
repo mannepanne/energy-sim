@@ -1,0 +1,59 @@
+{
+  "schema": "pvgis-pvcalc",
+  "attribution": "Source: PVGIS © European Union, 2001–2026. Reuse is authorised provided the source is acknowledged (Commission Decision 2011/833/EU). Trimmed to the totals the PV check uses.",
+  "requestUrl": "https://re.jrc.ec.europa.eu/api/v5_3/PVcalc?lat=51.507&lon=-0.128&raddatabase=PVGIS-SARAH3&usehorizon=1&pvtechchoice=crystSi&peakpower=4&loss=14&angle=35&aspect=0&mountingplace=free&outputformat=json",
+  "fetchedOn": "2026-10-19",
+  "responseSha256": "ad419a7ff3c812c3b9e8d9c708583283ed15143664c06b140529b44fb216767f",
+  "system": {
+    "latitude": 51.507,
+    "longitude": -0.128,
+    "radiationDatabase": "PVGIS-SARAH3",
+    "years": [
+      2005,
+      2023
+    ],
+    "useHorizon": true,
+    "technology": "c-Si",
+    "mounting": "free-standing",
+    "peakPowerKw": 4,
+    "systemLossPercent": 14,
+    "tiltDeg": 35,
+    "aspectDeg": 0
+  },
+  "annualKwh": 4075.36,
+  "monthlyKwh": [
+    162.83,
+    212.76,
+    346.2,
+    458.18,
+    477.79,
+    490.36,
+    492.84,
+    441.46,
+    380.89,
+    274.02,
+    192.71,
+    145.33
+  ],
+  "annualInPlaneKwhPerM2": 1260.93,
+  "monthlyInPlaneKwhPerM2": [
+    47.46,
+    62.73,
+    103.21,
+    140.9,
+    149.45,
+    155.91,
+    158.8,
+    140.8,
+    118.87,
+    83.21,
+    57.03,
+    42.56
+  ],
+  "lossesPercent": {
+    "angleOfIncidence": -3.14,
+    "spectral": 1.92,
+    "temperatureAndIrradiance": -4.83,
+    "total": -19.2
+  }
+}

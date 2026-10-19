@@ -1,5 +1,5 @@
 // ABOUT: Reads every number the engine uses for one house from the register, through the typed accessor
-// ABOUT: Derives geometry and the ground floor U-value; uncertain rows and cells give their default unless overridden
+// ABOUT: Derives geometry, the ground floor U-value and the roof's PV maximum; uncertain values give their default unless overridden
 
 import type { RegisterAccessor } from '../register/access.ts';
 import type { RowId } from '../register/ids.ts';
@@ -17,7 +17,9 @@ import {
 } from './archetypes.ts';
 import { deriveGeometry } from './geometry.ts';
 import { groundFloorParameters, groundFloorUValue } from './groundFloor.ts';
+import { RADIANS_PER_DEGREE } from './constants.ts';
 import { checkCompensation, checkCurve, type CompensationLine, type CopCurve } from './heatPump.ts';
+import { checkPvSystem, roofMaximumKw, type PvSystem } from './pv.ts';
 import type { UncertainSpec } from './sampling.ts';
 
 /** The uncertain rows the engine reads. Sampling draws them, and any uncertain table cell a house reads. */
@@ -34,6 +36,9 @@ export const UNCERTAIN_ROW_IDS = [
   'heating.flowTemperatureAtMild',
   'hotWater.litresPerOccupant',
   'electricity.baseUse',
+  'solar.systemSize',
+  'solar.azimuth',
+  'solar.usableRoofFraction',
 ] as const satisfies readonly RowId[];
 
 export type UncertainRowId = (typeof UNCERTAIN_ROW_IDS)[number];
@@ -64,6 +69,8 @@ export interface EngineInputs {
   irradianceSampleMinute: number;
 
   heatedVolumeM3: number;
+  /** Floor area ÷ storeys: the roof's plan area for PV, and the roof and ground floor areas. */
+  footprintM2: number;
   exposedPerimeterM: number;
   externalWallAreaM2: number;
   partyWallAreaM2: number;
@@ -124,6 +131,16 @@ export interface EngineInputs {
   gridCarbonKgPerKwh: number;
 
   baseElectricityKwhPerYear: number;
+  /** Hour-of-week shape (168 values, Monday 00:00 local first) of base use. */
+  baseElectricityWeeklyProfile: readonly number[];
+  /** Month level (12 values, January first) of base use. */
+  baseElectricityMonthlyProfile: readonly number[];
+
+  /** The roof PV system the solar setups have, its size already clipped to the roof maximum. */
+  pv: PvSystem;
+  /** The sampled size before the roof limit. */
+  pvRequestedPeakPowerKw: number;
+  pvRoofMaximumKw: number;
 }
 
 /**
@@ -195,6 +212,7 @@ class Reader {
 type GeometryInputs = Pick<
   EngineInputs,
   | 'heatedVolumeM3'
+  | 'footprintM2'
   | 'exposedPerimeterM'
   | 'externalWallAreaM2'
   | 'partyWallAreaM2'
@@ -232,6 +250,7 @@ function readGeometry(access: RegisterAccessor, reader: Reader, house: House, fa
   );
   return {
     heatedVolumeM3: geometry.heatedVolumeM3,
+    footprintM2: geometry.footprintM2,
     exposedPerimeterM: geometry.exposedPerimeterM,
     externalWallAreaM2: geometry.externalWallAreaM2,
     partyWallAreaM2: geometry.partyWallAreaM2,
@@ -368,7 +387,16 @@ type PriceInputs = Pick<
   | 'gasCarbonKgPerKwh'
   | 'gridCarbonKgPerKwh'
   | 'baseElectricityKwhPerYear'
+  | 'baseElectricityWeeklyProfile'
+  | 'baseElectricityMonthlyProfile'
 >;
+
+function checkLevelProfile(id: RowId, values: readonly number[]): readonly number[] {
+  if (values.some((value) => !(value >= 0)) || !values.some((value) => value > 0)) {
+    throw new Error(`The profile "${id}" must be non-negative with at least one positive value`);
+  }
+  return values;
+}
 
 /** Prices, carbon factors and base electricity use. */
 function readPrices(reader: Reader): PriceInputs {
@@ -380,23 +408,51 @@ function readPrices(reader: Reader): PriceInputs {
     gasCarbonKgPerKwh: reader.fixed('carbon.gasFactor'),
     gridCarbonKgPerKwh: reader.fixed('carbon.gridElectricityFactor'),
     baseElectricityKwhPerYear: reader.uncertain('electricity.baseUse'),
+    baseElectricityWeeklyProfile: checkLevelProfile('electricity.baseProfileWeekly', reader.profile('electricity.baseProfileWeekly')),
+    baseElectricityMonthlyProfile: checkLevelProfile('electricity.baseProfileMonthly', reader.profile('electricity.baseProfileMonthly')),
   };
+}
+
+type SolarInputs = Pick<EngineInputs, 'pv' | 'pvRequestedPeakPowerKw' | 'pvRoofMaximumKw'>;
+
+/** The PV system, with its size clipped to what one roof slope of the house takes. Tilt is also the roof pitch. */
+function readSolar(reader: Reader, roofFootprintM2: number): SolarInputs {
+  const tilt = reader.fixed('solar.tilt') * RADIANS_PER_DEGREE;
+  const requested = reader.uncertain('solar.systemSize');
+  const roofMaximum = roofMaximumKw({
+    footprintM2: roofFootprintM2,
+    pitch: tilt,
+    usableFraction: reader.uncertain('solar.usableRoofFraction'),
+    kwpPerM2: reader.fixed('solar.peakPowerPerArea'),
+  });
+  const pv: PvSystem = {
+    peakPowerKw: Math.min(requested, roofMaximum),
+    tilt,
+    azimuth: reader.uncertain('solar.azimuth') * RADIANS_PER_DEGREE,
+    systemLoss: reader.fixed('solar.systemLoss'),
+    temperatureCoefficientPerK: reader.fixed('solar.temperatureCoefficient'),
+    cellTemperatureRiseKPerWm2: reader.fixed('solar.cellTemperatureRise'),
+  };
+  checkPvSystem(pv);
+  return { pv, pvRequestedPeakPowerKw: requested, pvRoofMaximumKw: roofMaximum };
 }
 
 /** Reads every subsystem in a fixed order, which sets the order `uncertainDraws` returns. */
 function read(access: RegisterAccessor, house: House, reader: Reader, spfScenario: SpfScenario): EngineInputs {
   checkHouse(access, house);
   const facts = archetypeFacts(access, house.archetype);
+  const geometry = readGeometry(access, reader, house, facts);
   return {
     house,
     outdoorTemperatureOffsetK: reader.fixed('weather.outdoorTemperatureOffset'),
     irradianceSampleMinute: reader.fixed('weather.irradianceSampleMinute'),
-    ...readGeometry(access, reader, house, facts),
+    ...geometry,
     ...readFabric(reader, house, facts),
     ...readGains(reader, house),
     ...readHeating(reader, spfScenario),
     ...readHotWater(reader, house),
     ...readPrices(reader),
+    ...readSolar(reader, geometry.footprintM2),
   };
 }
 
