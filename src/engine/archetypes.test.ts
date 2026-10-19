@@ -9,6 +9,7 @@ import type { TableKeyKind } from '../register/schema.ts';
 import {
   ARCHETYPE_KEYS,
   archetypeFacts,
+  bandConstructionKey,
   checkHouse,
   defaultHouse,
   defaultOccupants,
@@ -36,7 +37,7 @@ const EXPECTED_KEYS: Record<TableKeyKind, string[] | undefined> = {
   archetype: sorted(ARCHETYPE_KEYS),
   'age band': bandsUsed,
   construction: sorted(facts.map((fact) => fact.wallConstruction)),
-  'construction/age band': sorted(facts.map((fact) => `${fact.wallConstruction}/${fact.ageBand}`)),
+  'age band/construction': sorted(facts.map(bandConstructionKey)),
   'age band/construction/answer': undefined,
   'loft answer': sorted(LOFT_ANSWERS),
   'glazing answer': sorted(GLAZING_ANSWERS),
@@ -69,7 +70,7 @@ describe('table key parity on the real register', () => {
     expect(access.table('fabric.roofUValue').cells.map((cell) => cell.key).toSorted()).toEqual([...LOFT_ANSWERS].toSorted());
     expect(access.table('fabric.windowUValue').cells.map((cell) => cell.key).toSorted()).toEqual([...GLAZING_ANSWERS].toSorted());
     expect(access.table('gains.windowGValue').cells.map((cell) => cell.key).toSorted()).toEqual([...GLAZING_ANSWERS].toSorted());
-    for (const fact of facts) expect(access.cellNumber('archetypes.wallThickness', `${fact.wallConstruction}/${fact.ageBand}`)).toBeGreaterThan(0);
+    for (const fact of facts) expect(access.cellNumber('archetypes.wallThickness', bandConstructionKey(fact))).toBeGreaterThan(0);
   });
 
   it('reads every archetype at its defaults, and with every loft and glazing answer', () => {

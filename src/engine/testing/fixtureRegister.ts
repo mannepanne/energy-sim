@@ -24,7 +24,7 @@ export type FixtureCells = number | string | Readonly<Record<string, number | st
 const archetypeKeyed = [...ARCHETYPE_KEYS];
 const bandKeyed = [...FIXTURE_BANDS];
 const wallKeys = FIXTURE_BANDS.flatMap((band) => WALL_CONSTRUCTIONS.flatMap((construction) => WALL_ANSWERS.map((answer) => `${band}/${construction}/${answer}`)));
-const constructionBandKeys = WALL_CONSTRUCTIONS.flatMap((construction) => FIXTURE_BANDS.map((band) => `${construction}/${band}`));
+const bandConstructionKeys = FIXTURE_BANDS.flatMap((band) => WALL_CONSTRUCTIONS.map((construction) => `${band}/${construction}`));
 
 /** The keys of each table row, with what they are keyed by. */
 const TABLE_KEYS: Readonly<Partial<Record<RowId, { keyedBy: TableKeyKind; keys: readonly string[] }>>> = {
@@ -42,7 +42,7 @@ const TABLE_KEYS: Readonly<Partial<Record<RowId, { keyedBy: TableKeyKind; keys: 
   'archetypes.roomHeight': { keyedBy: 'age band', keys: bandKeyed },
   'archetypes.windowAreaSlope': { keyedBy: 'age band', keys: bandKeyed },
   'archetypes.windowAreaIntercept': { keyedBy: 'age band', keys: bandKeyed },
-  'archetypes.wallThickness': { keyedBy: 'construction/age band', keys: constructionBandKeys },
+  'archetypes.wallThickness': { keyedBy: 'age band/construction', keys: bandConstructionKeys },
   'archetypes.groundFloorConstruction': { keyedBy: 'age band', keys: bandKeyed },
   'archetypes.groundFloorInsulation': { keyedBy: 'age band', keys: bandKeyed },
   'archetypes.occupancy': { keyedBy: 'coefficient', keys: ['base', 'saturation', 'curvature', 'slope', 'minimumFloorArea'] },

@@ -100,9 +100,14 @@ export function defaultOccupants(access: RegisterAccessor, floorAreaM2: number):
   return Math.min(MAX_OCCUPANTS, Math.max(MIN_OCCUPANTS, Math.round(sapOccupancy(access, floorAreaM2))));
 }
 
-/** The wall table key for an archetype and an answer. */
+/** The key of a table keyed by age band and construction. Compound keys put the age band first, then construction. */
+export function bandConstructionKey(facts: Pick<ArchetypeFacts, 'ageBand' | 'wallConstruction'>): string {
+  return `${facts.ageBand}/${facts.wallConstruction}`;
+}
+
+/** The wall table key for an archetype and an answer: age band, construction, then answer. */
 export function wallKey(facts: Pick<ArchetypeFacts, 'ageBand' | 'wallConstruction'>, answer: WallAnswer): string {
-  return `${facts.ageBand}/${facts.wallConstruction}/${answer}`;
+  return `${bandConstructionKey(facts)}/${answer}`;
 }
 
 /** The wall answers that fit an archetype: those with a U-value for its age band and construction. */

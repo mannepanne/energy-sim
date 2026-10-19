@@ -223,7 +223,7 @@ These are central values only, measured on 18 October 2026 and not pinned by a t
 
 `npm run archetypes` prints each archetype's central and sampled (200 samples, seed 1) gas use and running costs on the price cap, next to its two pre-registered NEED readings, its gap and the flag. The readings, the rule and the reasons for them are in [scripts/archetypes/README.md](../scripts/archetypes/README.md), committed before any archetype was run. The logic is in `scripts/archetypes/table.ts`.
 
-As a snapshot on 18 October 2026 (not pinned by a test; rerun `npm run archetypes` for current figures), with the default answers Magnus chose (filled cavity walls for bands C–G), nine archetypes sat inside or within 13% of their interval:
+As a dated snapshot on 18 October 2026 (rerun `npm run archetypes` for current figures; the gaps are not pinned, but the set of flagged archetypes is, by a test in `scripts/archetypes/table.test.ts`), with the default answers Magnus chose (filled cavity walls for bands C–G), nine archetypes sat inside or within 13% of their interval:
 - the bungalow was 2% above it and the 1967–75 mid-terrace 3% above;
 - the 2007–11 semi was 1% below and the 2012 onwards mid-terrace 13% below;
 - the pre-1900 end-terrace was 39% above, so it is **flagged**.

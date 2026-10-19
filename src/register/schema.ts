@@ -112,7 +112,7 @@ export const TABLE_KEY_KINDS = [
   'archetype',
   'age band',
   'construction',
-  'construction/age band',
+  'age band/construction',
   'age band/construction/answer',
   'loft answer',
   'glazing answer',

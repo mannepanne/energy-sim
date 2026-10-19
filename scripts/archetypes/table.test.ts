@@ -37,6 +37,12 @@ describe('the archetype table', () => {
     expect(semi.gap.flagged).toBe(false);
   });
 
+  it('flags exactly the pre-1900 end-terrace, as recorded in the docs on 18 October 2026', () => {
+    // A change to any archetype's register rows that moves a flag fails here. Update the docs' dated snapshot
+    // (REFERENCE/engine.md, scripts/archetypes/README.md and SPECIFICATIONS/CLAUDE.md) together with this list.
+    expect(rows.filter((row) => row.gap.flagged).map((row) => row.archetype)).toEqual(['endTerracePre1900']);
+  });
+
   it('renders Markdown with a row per archetype, the sampling plan and the flag, identically on a second run', () => {
     const table = archetypeTable(rows, plan);
     expect(table).toBe(archetypeTable(archetypeRows(access, weather, plan), plan));

@@ -896,38 +896,38 @@
       "overridable": false,
       "overrideHint": null,
       "dependsOn": [],
-      "keyedBy": "construction/age band",
+      "keyedBy": "age band/construction",
       "cells": [
         {
-          "key": "solidBrick/A",
+          "key": "A/solidBrick",
           "value": 220
         },
         {
-          "key": "cavity/C",
+          "key": "C/cavity",
           "value": 250
         },
         {
-          "key": "cavity/D",
+          "key": "D/cavity",
           "value": 250
         },
         {
-          "key": "cavity/E",
+          "key": "E/cavity",
           "value": 250
         },
         {
-          "key": "cavity/F",
+          "key": "F/cavity",
           "value": 260
         },
         {
-          "key": "cavity/G",
+          "key": "G/cavity",
           "value": 270
         },
         {
-          "key": "cavity/K",
+          "key": "K/cavity",
           "value": 300
         },
         {
-          "key": "cavity/L",
+          "key": "L/cavity",
           "value": 300
         }
       ]

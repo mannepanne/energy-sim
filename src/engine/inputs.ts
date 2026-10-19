@@ -5,12 +5,14 @@ import type { RegisterAccessor } from '../register/access.ts';
 import type { RowId } from '../register/ids.ts';
 import {
   archetypeFacts,
+  bandConstructionKey,
   checkHouse,
   defaultHouse,
   GROUND_FLOOR_CONSTRUCTIONS,
   oneOf,
   REFERENCE_ARCHETYPE,
   wallKey,
+  type ArchetypeFacts,
   type House,
 } from './archetypes.ts';
 import { deriveGeometry } from './geometry.ts';
@@ -148,9 +150,21 @@ class Reader {
   }
 }
 
-function read(access: RegisterAccessor, house: House, reader: Reader): EngineInputs {
-  checkHouse(access, house);
-  const facts = archetypeFacts(access, house.archetype);
+type GeometryInputs = Pick<
+  EngineInputs,
+  | 'heatedVolumeM3'
+  | 'exposedPerimeterM'
+  | 'externalWallAreaM2'
+  | 'partyWallAreaM2'
+  | 'windowAreaM2'
+  | 'doorAreaM2'
+  | 'roofAreaM2'
+  | 'groundFloorAreaM2'
+  | 'groundFloorUValue'
+>;
+
+/** Derived geometry, and the ground floor U-value, which depends on it. */
+function readGeometry(access: RegisterAccessor, reader: Reader, house: House, facts: ArchetypeFacts): GeometryInputs {
   const band = facts.ageBand;
   const geometry = deriveGeometry({
     floorAreaM2: house.floorAreaM2,
@@ -163,7 +177,7 @@ function read(access: RegisterAccessor, house: House, reader: Reader): EngineInp
     windowAreaInterceptM2: reader.cell('archetypes.windowAreaIntercept', band),
     doorAreaM2: reader.fixed('geometry.doorArea'),
   });
-  const wallThicknessMm = reader.cell('archetypes.wallThickness', `${facts.wallConstruction}/${band}`);
+  const wallThicknessMm = reader.cell('archetypes.wallThickness', bandConstructionKey(facts));
   const groundFloor = groundFloorUValue(
     {
       construction: oneOf(GROUND_FLOOR_CONSTRUCTIONS, reader.text('archetypes.groundFloorConstruction', band), 'ground floor construction'),
@@ -174,15 +188,7 @@ function read(access: RegisterAccessor, house: House, reader: Reader): EngineInp
     },
     groundFloorParameters(access),
   );
-  const windowUValueBare = reader.cell('fabric.windowUValue', house.glazing);
-  const curtainResistance = reader.fixed('fabric.windowCurtainResistance');
-
   return {
-    house,
-
-    outdoorTemperatureOffsetK: reader.fixed('weather.outdoorTemperatureOffset'),
-    irradianceSampleMinute: reader.fixed('weather.irradianceSampleMinute'),
-
     heatedVolumeM3: geometry.heatedVolumeM3,
     exposedPerimeterM: geometry.exposedPerimeterM,
     externalWallAreaM2: geometry.externalWallAreaM2,
@@ -191,42 +197,116 @@ function read(access: RegisterAccessor, house: House, reader: Reader): EngineInp
     doorAreaM2: geometry.doorAreaM2,
     roofAreaM2: geometry.roofAreaM2,
     groundFloorAreaM2: geometry.groundFloorAreaM2,
+    groundFloorUValue: groundFloor,
+  };
+}
 
+type FabricInputs = Pick<
+  EngineInputs,
+  | 'wallUValue'
+  | 'partyWallUValue'
+  | 'windowUValue'
+  | 'doorUValue'
+  | 'roofUValue'
+  | 'thermalBridgingWPerM2K'
+  | 'airChangesPerHour'
+  | 'fabricQualityFactor'
+>;
+
+function readFabric(reader: Reader, house: House, facts: ArchetypeFacts): FabricInputs {
+  const band = facts.ageBand;
+  const windowUValueBare = reader.cell('fabric.windowUValue', house.glazing);
+  const curtainResistance = reader.fixed('fabric.windowCurtainResistance');
+  return {
     wallUValue: reader.cell('fabric.wallUValue', wallKey(facts, house.walls)),
     partyWallUValue: reader.cell('fabric.partyWallUValue', facts.wallConstruction),
     windowUValue: 1 / (1 / windowUValueBare + curtainResistance),
     doorUValue: reader.cell('fabric.doorUValue', band),
     roofUValue: reader.cell('fabric.roofUValue', house.loft),
-    groundFloorUValue: groundFloor,
     thermalBridgingWPerM2K: reader.cell('fabric.thermalBridging', band),
     airChangesPerHour: reader.cell('fabric.airChangeRate', band),
     fabricQualityFactor: reader.uncertain('fabric.qualityFactor'),
+  };
+}
 
+type GainsInputs = Pick<
+  EngineInputs,
+  'internalGainsW' | 'windowGValue' | 'nonNormalIncidenceFactor' | 'windowFrameFactor' | 'solarAccessFactor' | 'groundReflectance'
+>;
+
+function readGains(reader: Reader, house: House): GainsInputs {
+  return {
     internalGainsW: reader.fixed('gains.perFloorArea') * house.floorAreaM2 + reader.uncertain('gains.perOccupant') * house.occupants,
     windowGValue: reader.cell('gains.windowGValue', house.glazing),
     nonNormalIncidenceFactor: reader.fixed('gains.nonNormalIncidenceFactor'),
     windowFrameFactor: reader.fixed('gains.windowFrameFactor'),
     solarAccessFactor: reader.fixed('gains.solarAccessFactor'),
     groundReflectance: reader.fixed('gains.groundReflectance'),
+  };
+}
 
+type HeatingInputs = Pick<EngineInputs, 'meanInternalTemperatureC' | 'boilerSeasonalEfficiency' | 'heatPumpSpf'>;
+
+function readHeating(reader: Reader): HeatingInputs {
+  return {
     meanInternalTemperatureC: reader.uncertain('heating.meanInternalTemperature'),
     boilerSeasonalEfficiency: reader.uncertain('heating.boilerSeasonalEfficiency'),
     heatPumpSpf: reader.uncertain('heating.heatPumpSpf'),
+  };
+}
 
+type HotWaterInputs = Pick<
+  EngineInputs,
+  'hotWaterLitresPerDay' | 'hotWaterDeliveryTemperatureC' | 'coldFeedTemperatureC' | 'cylinderStandingLossKwhPerDay'
+>;
+
+function readHotWater(reader: Reader, house: House): HotWaterInputs {
+  return {
     hotWaterLitresPerDay: reader.fixed('hotWater.litresBase') + reader.uncertain('hotWater.litresPerOccupant') * house.occupants,
     hotWaterDeliveryTemperatureC: reader.fixed('hotWater.deliveryTemperature'),
     coldFeedTemperatureC: reader.fixed('hotWater.coldFeedTemperature'),
     cylinderStandingLossKwhPerDay: reader.fixed('hotWater.cylinderStandingLoss'),
+  };
+}
 
+type PriceInputs = Pick<
+  EngineInputs,
+  | 'electricityUnitRatePence'
+  | 'electricityStandingChargePencePerDay'
+  | 'gasUnitRatePence'
+  | 'gasStandingChargePencePerDay'
+  | 'gasCarbonKgPerKwh'
+  | 'gridCarbonKgPerKwh'
+  | 'baseElectricityKwhPerYear'
+>;
+
+/** Prices, carbon factors and base electricity use. */
+function readPrices(reader: Reader): PriceInputs {
+  return {
     electricityUnitRatePence: reader.fixed('prices.electricityUnitRate'),
     electricityStandingChargePencePerDay: reader.fixed('prices.electricityStandingCharge'),
     gasUnitRatePence: reader.fixed('prices.gasUnitRate'),
     gasStandingChargePencePerDay: reader.fixed('prices.gasStandingCharge'),
-
     gasCarbonKgPerKwh: reader.fixed('carbon.gasFactor'),
     gridCarbonKgPerKwh: reader.fixed('carbon.gridElectricityFactor'),
-
     baseElectricityKwhPerYear: reader.uncertain('electricity.baseUse'),
+  };
+}
+
+/** Reads every subsystem in a fixed order, which sets the order `uncertainDraws` returns. */
+function read(access: RegisterAccessor, house: House, reader: Reader): EngineInputs {
+  checkHouse(access, house);
+  const facts = archetypeFacts(access, house.archetype);
+  return {
+    house,
+    outdoorTemperatureOffsetK: reader.fixed('weather.outdoorTemperatureOffset'),
+    irradianceSampleMinute: reader.fixed('weather.irradianceSampleMinute'),
+    ...readGeometry(access, reader, house, facts),
+    ...readFabric(reader, house, facts),
+    ...readGains(reader, house),
+    ...readHeating(reader),
+    ...readHotWater(reader, house),
+    ...readPrices(reader),
   };
 }
 

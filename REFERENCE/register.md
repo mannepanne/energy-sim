@@ -52,7 +52,7 @@ Any row may carry a `rationale`, and most do. Any row may also carry `validUntil
 | `fixed` | `value` | |
 | `series` | `file`, `schema`, `columns` | `schema` names a snapshot schema (`pvgis-tmy`) |
 | `profile` | `values`, `resolution` | `hour-of-day` needs 24 values, `hour-of-week` 168 (Monday 00:00 local first), `month` 12 |
-| `table` | `keyedBy`, `cells` | Each cell is `{ key, value }` (a number, or a string for a categorical fact) or an uncertain cell `{ key, default, low, high, distribution, … }`. Keys are unique and contain no `\|`. |
+| `table` | `keyedBy`, `cells` | Each cell is `{ key, value }` (a number, or a string for a categorical fact) or an uncertain cell `{ key, default, low, high, distribution, … }`. Keys are unique and contain no `\|`. A compound key joins its parts with `/` in one order: age band, then construction, then answer (`C/cavity`, `C/cavity/cavityFilled`). |
 | `correlation` | `value`, `between` | A correlation in normal-score space, strictly between −1 and 1, between two uncertain rows. The first is the anchor. |
 
 Unknown fields are rejected, so a typo such as `defualt` fails.
@@ -91,7 +91,7 @@ Cross-row rules (duplicates, dependencies) run only once every row is valid on i
 | Section | Rows |
 | --- | --- |
 | weather | The PVGIS typical year (series); an outdoor-temperature offset (0 K, for tests); the minute past each hour that the irradiance values describe (10) |
-| archetypes | By archetype: house type, age band, storeys, wall construction, default floor area (English Housing Survey 2012), bedrooms (NEED), aspect ratio, party walls and default quick-facts answers. By age band: room height, window area formula (RdSAP 2012 Table S4), ground floor construction and insulation (RdSAP 10 Table 19). Wall thickness by construction and band (Table 3); the upper-storey allowance (0.25 m); SAP's occupancy formula |
+| archetypes | By archetype: house type, age band, storeys, wall construction, default floor area (English Housing Survey 2012), bedrooms (NEED), aspect ratio, party walls and default quick-facts answers. By age band: room height, window area formula (RdSAP 2012 Table S4), ground floor construction and insulation (RdSAP 10 Table 19). Wall thickness by band and construction (Table 3); the upper-storey allowance (0.25 m); SAP's occupancy formula |
 | geometry | The door area (1.85 m²) |
 | fabric | U-values from RdSAP 10: walls by band, construction and wall answer (Table 6 and §5.7–5.8), party walls by construction (Table 15), windows by glazing answer (Table 24), doors by band (Table 26), roofs by loft answer (Table 16); the curtain resistance (SAP 10.2 §3.2); thermal bridging by band (Table 21); the ISO 13370 ground floor parameters (§5.12); the air change rate by band (approximate); the uncertain fabric quality factor (0.75–1.15) |
 | gains | Internal gains per m² (fixed) and per occupant (uncertain, 75–140 W); their correlation with hot water per occupant (0.5); g⊥ by glazing answer (Table 24), SAP's 0.9 for non-normal incidence, the frame factor (0.7) and solar access factor (0.77); ground reflectance (0.2) |
