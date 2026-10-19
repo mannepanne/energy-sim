@@ -11,7 +11,6 @@ import { pvgisSnapshotSchema } from '../snapshots/pvgisSchema.ts';
 const readJson = (path: string): unknown => JSON.parse(readFileSync(new URL(path, import.meta.url), 'utf8')) as unknown;
 const register = loadRegister(readJson('../../data/register.json'));
 const access = createAccessor(register);
-const value = (id: Parameters<typeof access.fixed>[0]): number => access.fixed(id).value;
 
 describe('data/register.json', () => {
   it('validates against the register schema', () => {
@@ -30,19 +29,11 @@ describe('data/register.json', () => {
     for (const column of series.columns) expect(Object.keys(snapshot.hours)).toContain(column);
   });
 
-  it('stores derived geometry rows that agree with the rows they are derived from', () => {
-    const storeys = 2; // the archetype is two storeys; this check only re-derives the stored rows
-    const floorArea = value('geometry.totalFloorArea');
-    expect(value('geometry.heatedVolume')).toBeCloseTo(floorArea * value('geometry.storeyHeight'), 6);
-    expect(value('geometry.windowArea')).toBeCloseTo(0.122 * floorArea + 6.875, 6);
-    expect(value('geometry.externalWallArea')).toBeCloseTo(
-      value('geometry.exposedPerimeter') * value('geometry.storeyHeight') * storeys -
-        value('geometry.windowArea') -
-        value('geometry.doorArea'),
-      6,
-    );
-    expect(value('geometry.roofArea')).toBeCloseTo(floorArea / storeys, 6);
-    expect(value('geometry.groundFloorArea')).toBeCloseTo(floorArea / storeys, 6);
+  it('holds no derived geometry rows: the engine derives areas and volume', () => {
+    const ids: readonly string[] = ROW_IDS;
+    for (const id of ['geometry.totalFloorArea', 'geometry.heatedVolume', 'geometry.externalWallArea', 'geometry.windowArea', 'fabric.groundFloorUValue']) {
+      expect(ids).not.toContain(id);
+    }
   });
 
   it('records the calibration on the mean internal temperature row', () => {
@@ -53,7 +44,7 @@ describe('data/register.json', () => {
     expect(row.rationale).toContain('both setups');
     expect(row.rationale).toContain('fabric error');
     expect(row.dependsOn).toContain('heating.boilerSeasonalEfficiency');
-    expect(row.dependsOn).toContain('hotWater.litresPerDay');
+    expect(row.dependsOn).toContain('hotWater.litresPerOccupant');
     expect(row.dependsOn).toContain('fabric.qualityFactor');
   });
 
@@ -76,7 +67,7 @@ describe('data/register.json', () => {
 
 describe('createAccessor', () => {
   it('returns a row of the requested kind', () => {
-    expect(access.fixed('geometry.totalFloorArea').value).toBe(90);
+    expect(access.fixed('geometry.doorArea').value).toBe(1.85);
     expect(access.uncertain('fabric.qualityFactor').default).toBe(1);
     expect(access.row('weather.pvgisTypicalYearLondon').kind).toBe('series');
   });
@@ -84,15 +75,36 @@ describe('createAccessor', () => {
   it('throws an error naming an unknown id', () => {
     // An empty register lacks every id, as a stale RowId union or untyped caller would meet at run time.
     const empty = createAccessor(loadRegister({ rows: [] }));
-    expect(() => empty.row('geometry.totalFloorArea')).toThrow('Register has no row with id "geometry.totalFloorArea"');
-    expect(() => empty.fixed('geometry.totalFloorArea')).toThrow('"geometry.totalFloorArea"');
+    expect(() => empty.row('geometry.doorArea')).toThrow('Register has no row with id "geometry.doorArea"');
+    expect(() => empty.fixed('geometry.doorArea')).toThrow('"geometry.doorArea"');
+    expect(() => empty.cell('fabric.roofUValue', 'none')).toThrow('"fabric.roofUValue"');
   });
 
   it('throws when the row is of a different kind', () => {
     expect(() => access.fixed('fabric.qualityFactor')).toThrow(
       'Register row "fabric.qualityFactor" has kind "uncertain", not "fixed"',
     );
-    expect(() => access.profile('geometry.totalFloorArea')).toThrow('not "profile"');
+    expect(() => access.profile('geometry.doorArea')).toThrow('not "profile"');
+    expect(() => access.cell('geometry.doorArea', 'A')).toThrow('has kind "fixed", not "table"');
+  });
+
+  it('reads table cells by key, throwing an error naming the row and an unknown key', () => {
+    expect(access.cellNumber('fabric.roofUValue', 'none')).toBe(2.3);
+    expect(access.cellString('archetypes.ageBand', 'semi1930s')).toBe('C');
+    expect(access.cell('fabric.doorUValue', 'K')).toEqual({ key: 'K', value: 2 });
+    expect(() => access.cell('fabric.roofUValue', 'lots')).toThrow('Register row "fabric.roofUValue" has no cell with key "lots"');
+    expect(() => access.cellNumber('archetypes.ageBand', 'semi1930s')).toThrow('holds text ("C"), not a number');
+    expect(() => access.cellString('fabric.roofUValue', 'none')).toThrow('holds a number (2.3), not text');
+  });
+
+  it('refuses a fixed read of an uncertain cell, and lists the correlation rows', () => {
+    const rows = register.rows.map((row) =>
+      row.id === 'fabric.doorUValue' && row.kind === 'table' ? { ...row, cells: [{ key: 'A', default: 3, low: 2, high: 4, distribution: 'triangular' as const }] } : row,
+    );
+    const withUncertainCell = createAccessor(loadRegister({ rows }));
+    expect(() => withUncertainCell.cellNumber('fabric.doorUValue', 'A')).toThrow('"fabric.doorUValue", key "A" is an uncertain cell, not a fixed one');
+    expect(access.correlations().map((row) => row.id)).toEqual(['gains.perOccupantHotWaterCorrelation']);
+    expect(access.correlation('gains.perOccupantHotWaterCorrelation').between).toEqual(['gains.perOccupant', 'hotWater.litresPerOccupant']);
   });
 });
 

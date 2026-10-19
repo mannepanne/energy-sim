@@ -2,7 +2,8 @@
 // ABOUT: Summarises each metric as central, P10, median and P90, and the paired difference with the share of wins
 
 import type { RegisterAccessor } from '../register/access.ts';
-import { readInputs, type HouseVariant } from './inputs.ts';
+import { defaultHouse, REFERENCE_ARCHETYPE, type House } from './archetypes.ts';
+import { readInputs } from './inputs.ts';
 import { sampleOverrides, type SamplingPlan } from './sampling.ts';
 import { simulate, type AnnualResult, type Setup } from './simulate.ts';
 import type { PreparedWeather } from './weather.ts';
@@ -18,7 +19,7 @@ export type SampleTotals = Record<Metric, Float64Array>;
 
 export interface PairedRun {
   plan: SamplingPlan;
-  variant: HouseVariant;
+  house: House;
   /** Every uncertain row at its default. */
   central: Record<Setup, Totals>;
   samples: Record<Setup, SampleTotals>;
@@ -52,22 +53,27 @@ const emptySampleTotals = (count: number): SampleTotals => byMetric(() => new Fl
  * Only the annual totals are kept, because each full result holds about 350 KB of hourly arrays.
  * The weather must be prepared once, from the same register.
  */
-export function runPaired(access: RegisterAccessor, weather: PreparedWeather, plan: SamplingPlan, variant: HouseVariant = 'main'): PairedRun {
-  const centralInputs = readInputs(access, { variant });
+export function runPaired(
+  access: RegisterAccessor,
+  weather: PreparedWeather,
+  plan: SamplingPlan,
+  house: House = defaultHouse(access, REFERENCE_ARCHETYPE),
+): PairedRun {
+  const centralInputs = readInputs(access, { house });
   const central = {
     gas: totalsOf(simulate(centralInputs, weather, 'gas').annual),
     heatPump: totalsOf(simulate(centralInputs, weather, 'heatPump').annual),
   };
-  const draws = sampleOverrides(access, plan);
+  const draws = sampleOverrides(access, plan, house);
   const samples = { gas: emptySampleTotals(plan.count), heatPump: emptySampleTotals(plan.count) };
   draws.forEach((overrides, sample) => {
-    const inputs = readInputs(access, { variant, overrides });
+    const inputs = readInputs(access, { house, overrides });
     for (const setup of ['gas', 'heatPump'] as const) {
       const totals = totalsOf(simulate(inputs, weather, setup).annual);
       for (const metric of METRICS) samples[setup][metric][sample] = totals[metric];
     }
   });
-  return { plan, variant, central, samples };
+  return { plan, house, central, samples };
 }
 
 /**

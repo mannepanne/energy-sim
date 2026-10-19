@@ -47,6 +47,27 @@ function profileRow(overrides: Row = {}): Row {
   return { ...base, values: Array.from({ length: 24 }, () => 1), resolution: 'hour-of-day', ...overrides };
 }
 
+function tableRow(overrides: Row = {}): Row {
+  const { value: _value, ...base } = fixedRow({ id: 'fabric.table', kind: 'table' });
+  return {
+    ...base,
+    keyedBy: 'age band',
+    cells: [
+      { key: 'A', value: 1.7 },
+      { key: 'B', value: 'solid' },
+      { key: 'C', default: 2, low: 1, high: 3, distribution: 'triangular' },
+    ],
+    ...overrides,
+  };
+}
+
+function correlationRow(overrides: Row = {}): Row {
+  const { value: _value, ...base } = fixedRow({ id: 'fabric.correlation', kind: 'correlation', dependsOn: ['fabric.uncertain', 'fabric.lognormal'] });
+  return { ...base, value: 0.5, between: ['fabric.uncertain', 'fabric.lognormal'], ...overrides };
+}
+
+const correlatedRows = (overrides: Row = {}): Row[] => [uncertainRow(), lognormalRow(), correlationRow(overrides)];
+
 function problemsFor(rows: unknown): string[] {
   try {
     loadRegister({ rows });
@@ -65,9 +86,9 @@ function expectProblem(rows: Row[], id: string, field: string, fragment: string)
 }
 
 describe('loadRegister', () => {
-  it('accepts a valid register with all four row kinds', () => {
-    const register = loadRegister({ rows: [fixedRow(), uncertainRow(), lognormalRow(), seriesRow(), profileRow()] });
-    expect(register.rows.map((row) => row.kind)).toEqual(['fixed', 'uncertain', 'uncertain', 'series', 'profile']);
+  it('accepts a valid register with all six row kinds', () => {
+    const register = loadRegister({ rows: [fixedRow(), uncertainRow(), lognormalRow(), seriesRow(), profileRow(), tableRow(), correlationRow()] });
+    expect(register.rows.map((row) => row.kind)).toEqual(['fixed', 'uncertain', 'uncertain', 'series', 'profile', 'table', 'correlation']);
   });
 
   it('accepts an approximate row with a rationale and no source', () => {
@@ -145,6 +166,58 @@ describe('loadRegister', () => {
 
   it('fails when a profile has the wrong number of values for its resolution', () => {
     expectProblem([profileRow({ resolution: 'month' })], 'fabric.profile', 'values', 'needs 12');
+  });
+
+  it('accepts an hour-of-week profile of 168 values', () => {
+    expect(problemsFor([profileRow({ resolution: 'hour-of-week', values: Array.from({ length: 168 }, () => 0) })])).toEqual([]);
+    expectProblem([profileRow({ resolution: 'hour-of-week' })], 'fabric.profile', 'values', 'needs 168');
+  });
+
+  describe('table rows', () => {
+    it('fail when two cells share a key', () => {
+      const cells = [{ key: 'A', value: 1 }, { key: 'A', value: 2 }];
+      expectProblem([tableRow({ cells })], 'fabric.table', 'cells.1.key', 'duplicates the key of cells[0]');
+    });
+
+    it('fail when a key contains "|", the sampling separator', () => {
+      expectProblem([tableRow({ cells: [{ key: 'A|B', value: 1 }] })], 'fabric.table', 'cells.0.key', 'must not contain "|"');
+    });
+
+    it('check an uncertain cell’s range like an uncertain row', () => {
+      const cells = [{ key: 'A', default: 5, low: 1, high: 3, distribution: 'triangular' }];
+      expectProblem([tableRow({ cells })], 'fabric.table', 'cells.0.default', 'must lie within low–high');
+      const lognormal = [{ key: 'A', default: 2, low: 1, high: 3, distribution: 'lognormal', median: 2 }];
+      expectProblem([tableRow({ cells: lognormal })], 'fabric.table', 'cells.0.sigma', 'is required for a lognormal row');
+    });
+
+    it('fail with no cells, no keyedBy, or a cell that is neither fixed nor uncertain', () => {
+      expectProblem([tableRow({ cells: [] })], 'fabric.table', 'cells', '');
+      expectProblem([tableRow({ keyedBy: undefined })], 'fabric.table', 'keyedBy', '');
+      expectProblem([tableRow({ keyedBy: 'age-band' })], 'fabric.table', 'keyedBy', '');
+      expectProblem([tableRow({ cells: [{ key: 'A', value: true }] })], 'fabric.table', 'cells.0', '');
+    });
+  });
+
+  describe('correlation rows', () => {
+    it('fail on a value of 1 or more in size', () => {
+      expectProblem(correlatedRows({ value: 1 }), 'fabric.correlation', 'value', '');
+      expectProblem(correlatedRows({ value: -1.2 }), 'fabric.correlation', 'value', '');
+    });
+
+    it('fail when the pair names one row twice, or the rows are missing from dependsOn', () => {
+      expectProblem(correlatedRows({ between: ['fabric.uncertain', 'fabric.uncertain'] }), 'fabric.correlation', 'between', 'two different rows');
+      expectProblem(correlatedRows({ dependsOn: ['fabric.uncertain'] }), 'fabric.correlation', 'dependsOn', 'must include "fabric.lognormal"');
+    });
+
+    it('fail when a named row is not an uncertain row', () => {
+      const register = [uncertainRow(), fixedRow(), correlationRow({ between: ['fabric.uncertain', 'fabric.fixed'], dependsOn: ['fabric.uncertain', 'fabric.fixed'] })];
+      expectProblem(register, 'fabric.correlation', 'between.1', 'is a fixed row, not an uncertain row');
+    });
+
+    it('fail when a row is in two correlations', () => {
+      const second = correlationRow({ id: 'fabric.second' });
+      expectProblem([...correlatedRows(), second], 'fabric.second', 'between.0', 'already correlated by rows[2]');
+    });
   });
 
   it('fails when two rows share an id', () => {

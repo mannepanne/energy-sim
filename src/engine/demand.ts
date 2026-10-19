@@ -4,10 +4,13 @@
 import { HOURS_PER_DAY, HOURS_PER_YEAR, KJ_PER_KWH, WATER_SPECIFIC_HEAT_KJ_PER_KGK, WH_PER_KWH } from './constants.ts';
 import type { EngineInputs } from './inputs.ts';
 
-/** Solar gains through the windows, W per hour: area × g × frame factor × solar access × mean vertical irradiance. */
+/**
+ * Solar gains through the windows, W per hour (SAP 10.2 equation 5):
+ * 0.9 × area × g⊥ × frame factor × solar access × mean vertical irradiance.
+ */
 export function solarGainsW(inputs: EngineInputs, meanVerticalIrradiance: Float64Array): Float64Array {
   const transmittingAreaM2 =
-    inputs.windowAreaM2 * inputs.windowGValue * inputs.windowFrameFactor * inputs.solarAccessFactor;
+    inputs.nonNormalIncidenceFactor * inputs.windowAreaM2 * inputs.windowGValue * inputs.windowFrameFactor * inputs.solarAccessFactor;
   return meanVerticalIrradiance.map((irradiance) => transmittingAreaM2 * irradiance);
 }
 

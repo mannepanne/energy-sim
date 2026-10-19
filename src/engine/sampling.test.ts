@@ -2,8 +2,21 @@
 // ABOUT: degenerate ranges give the default, and the inverse distribution functions hit their targets
 
 import { describe, expect, it } from 'vitest';
+import { defaultHouse } from './archetypes.ts';
 import { UNCERTAIN_ROW_IDS } from './inputs.ts';
-import { drawSamples, drawValue, hash32, normalInverse, sampleOverrides, triangularInverse, uniformFor, type UncertainSpec } from './sampling.ts';
+import {
+  correlatedUniform,
+  drawSamples,
+  drawValue,
+  hash32,
+  normalCdf,
+  normalInverse,
+  sampleOverrides,
+  triangularInverse,
+  uniformFor,
+  type CorrelationSpec,
+  type UncertainSpec,
+} from './sampling.ts';
 import { fixtureAccessor } from './testing/fixtureRegister.ts';
 
 const triangular = (id: string, low: number, mode: number, high: number): UncertainSpec => ({ id, default: mode, low, high, distribution: 'triangular' });
@@ -117,6 +130,88 @@ describe('normalInverse', () => {
   });
 });
 
+describe('normalCdf', () => {
+  it('matches standard normal probabilities in the centre and both tails', () => {
+    expect(normalCdf(0)).toBeCloseTo(0.5, 14);
+    expect(normalCdf(1.959964)).toBeCloseTo(0.975, 7);
+    expect(normalCdf(-1)).toBeCloseTo(0.158655253931457, 13);
+    expect(Math.abs(normalCdf(-8) / 6.22096057427178e-16 - 1)).toBeLessThan(1e-7);
+    expect(normalCdf(40)).toBe(1);
+    expect(normalCdf(-40)).toBe(0);
+  });
+
+  it('inverts normalInverse to within 1e-8 across the range', () => {
+    for (const u of [1e-9, 0.001, 0.02, 0.3, 0.5, 0.77, 0.98, 0.999999]) expect(normalCdf(normalInverse(u))).toBeCloseTo(u, 8);
+  });
+});
+
+/** Pearson correlation of two equal-length arrays. */
+const mean = (values: readonly number[]): number => values.reduce((total, value) => total + value, 0) / values.length;
+
+function pearson(a: readonly number[], b: readonly number[]): number {
+  const [meanA, meanB] = [mean(a), mean(b)];
+  let covariance = 0;
+  let varianceA = 0;
+  let varianceB = 0;
+  a.forEach((value, index) => {
+    covariance += (value - meanA) * (b[index]! - meanB);
+    varianceA += (value - meanA) ** 2;
+    varianceB += (b[index]! - meanB) ** 2;
+  });
+  return covariance / Math.sqrt(varianceA * varianceB);
+}
+
+describe('the Gaussian copula', () => {
+  const pair: CorrelationSpec = { anchor: 'a.first', partner: 'b.second', value: 0.6 };
+  const plan = { seed: 11, count: 100_000 };
+  const draws = drawSamples([rowA, rowB, rowC], plan, [pair]);
+  const scores = (id: 'a.first' | 'b.second' | 'c.third', row: UncertainSpec): number[] =>
+    draws.map((sample) => normalInverse(Math.min(1 - 1e-12, Math.max(1e-12, cdfOf(row, sample[id]!)))));
+
+  it('gives the same correlated draws for the same seed', () => {
+    expect(drawSamples([rowA, rowB], { seed: 4, count: 20 }, [pair])).toEqual(drawSamples([rowA, rowB], { seed: 4, count: 20 }, [pair]));
+  });
+
+  it('matches the correlation row within 0.05 on normal scores over 100,000 draws', () => {
+    expect(Math.abs(pearson(scores('a.first', rowA), scores('b.second', rowB)) - 0.6)).toBeLessThan(0.05);
+  });
+
+  it('keeps uncorrelated rows independent, and leaves the anchor and other rows with their own draws', () => {
+    expect(Math.abs(pearson(scores('a.first', rowA), scores('c.third', rowC)))).toBeLessThan(0.02);
+    const independent = drawSamples([rowA, rowB, rowC], plan);
+    draws.forEach((sample, index) => {
+      expect(sample['a.first']).toBe(independent[index]!['a.first']);
+      expect(sample['c.third']).toBe(independent[index]!['c.third']);
+    });
+    expect(draws.some((sample, index) => sample['b.second'] !== independent[index]!['b.second'])).toBe(true);
+  });
+
+  it('gives a negative correlation for a negative row', () => {
+    const negative = drawSamples([rowA, rowB], { seed: 2, count: 20_000 }, [{ ...pair, value: -0.5 }]);
+    expect(pearson(negative.map((sample) => sample['a.first']!), negative.map((sample) => sample['b.second']!))).toBeLessThan(-0.4);
+  });
+
+  it('keeps a correlated uniform strictly inside (0, 1), even at extreme normal scores', () => {
+    const tiny = 0.5 / 2 ** 32;
+    expect(correlatedUniform(tiny, tiny, 0.99)).toBeGreaterThan(0);
+    expect(correlatedUniform(1 - tiny, 1 - tiny, 0.99)).toBeLessThan(1);
+    expect(drawValue(spf, correlatedUniform(1 - tiny, 1 - tiny, 0.99))).toBeLessThanOrEqual(4);
+  });
+
+  it('rejects a correlation that names an unsampled row, repeats a row, or lies outside (−1, 1)', () => {
+    const small = { seed: 1, count: 1 };
+    expect(() => drawSamples([rowA], small, [pair])).toThrow('"b.second", which is not among the sampled rows');
+    expect(() => drawSamples([rowA, rowB, rowC], small, [pair, { anchor: 'c.third', partner: 'a.first', value: 0.1 }])).toThrow('more than one correlation');
+    expect(() => drawSamples([rowA, rowB], small, [{ ...pair, value: 1 }])).toThrow('strictly between');
+  });
+});
+
+/** The CDF of a triangular spec, to turn draws back into uniforms. */
+function cdfOf(row: UncertainSpec, x: number): number {
+  const { low, default: mode, high } = row;
+  return x <= mode ? ((x - low) ** 2) / ((high - low) * (mode - low)) : 1 - ((high - x) ** 2) / ((high - low) * (high - mode));
+}
+
 describe('the lognormal SPF row', () => {
   it('reproduces its target percentiles to within 2 percentage points over 100,000 draws', () => {
     // Median 2.8, sigma 0.145: P(SPF > 3.0) = 1 − Φ(ln(3.0/2.8)/0.145) ≈ 31.7%, P(SPF > 3.5) = 1 − Φ(ln(3.5/2.8)/0.145) ≈ 6.2%.
@@ -140,5 +235,15 @@ describe('sampleOverrides', () => {
     expect(Object.keys(first!).toSorted()).toEqual(UNCERTAIN_ROW_IDS.toSorted());
     expect(first!['fabric.qualityFactor']).toBe(1);
     expect(first!['heating.heatPumpSpf']).not.toBe(2.5);
+  });
+
+  it('correlates the per-occupant gains and hot water terms through the register’s correlation row', () => {
+    const ranges = { 'gains.perOccupant': { low: 50, high: 150 }, 'hotWater.litresPerOccupant': { low: 10, high: 30 } };
+    const independent = sampleOverrides(fixtureAccessor({}, ranges), { seed: 3, count: 2_000 });
+    const correlated = sampleOverrides(fixtureAccessor({ 'gains.perOccupantHotWaterCorrelation': 0.8 }, ranges), { seed: 3, count: 2_000 }, defaultHouse(fixtureAccessor(), 'semi1930s'));
+    const series = (draws: typeof independent, id: 'gains.perOccupant' | 'hotWater.litresPerOccupant'): number[] => draws.map((draw) => draw[id]!);
+    expect(pearson(series(correlated, 'gains.perOccupant'), series(correlated, 'hotWater.litresPerOccupant'))).toBeGreaterThan(0.7);
+    expect(Math.abs(pearson(series(independent, 'gains.perOccupant'), series(independent, 'hotWater.litresPerOccupant')))).toBeLessThan(0.1);
+    expect(series(correlated, 'gains.perOccupant')).toEqual(series(independent, 'gains.perOccupant'));
   });
 });

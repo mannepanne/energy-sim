@@ -1,8 +1,9 @@
-// ABOUT: One-row-at-a-time sensitivity: each uncertain row at its low and its high, every other row at its default
+// ABOUT: One-row-at-a-time sensitivity: each uncertain row or cell at its low and its high, every other at its default
 // ABOUT: Ranked by how far the row moves the cost difference (gas minus heat pump), with ties broken by row id
 
 import type { RegisterAccessor } from '../register/access.ts';
-import { readInputs, UNCERTAIN_ROW_IDS, type HouseVariant, type UncertainRowId } from './inputs.ts';
+import { defaultHouse, REFERENCE_ARCHETYPE, type House } from './archetypes.ts';
+import { readInputs, uncertainDraws, type DrawKey } from './inputs.ts';
 import { simulate, type Setup } from './simulate.ts';
 import type { PreparedWeather } from './weather.ts';
 
@@ -14,7 +15,7 @@ export interface SensitivityEnd {
 }
 
 export interface SensitivityRow {
-  id: UncertainRowId;
+  id: DrawKey;
   label: string;
   unit: string;
   low: SensitivityEnd;
@@ -23,8 +24,8 @@ export interface SensitivityRow {
   swingPounds: number;
 }
 
-function end(access: RegisterAccessor, weather: PreparedWeather, variant: HouseVariant, id: UncertainRowId, value: number): SensitivityEnd {
-  const inputs = readInputs(access, { variant, overrides: { [id]: value } });
+function end(access: RegisterAccessor, weather: PreparedWeather, house: House, id: DrawKey, value: number): SensitivityEnd {
+  const inputs = readInputs(access, { house, overrides: { [id]: value } });
   const gas = simulate(inputs, weather, 'gas').annual.cost.totalPounds;
   const heatPump = simulate(inputs, weather, 'heatPump').annual.cost.totalPounds;
   return { value, costPounds: { gas, heatPump }, costDifferencePounds: gas - heatPump };
@@ -36,12 +37,12 @@ function end(access: RegisterAccessor, weather: PreparedWeather, variant: HouseV
  */
 const SWING_TIE_POUNDS = 1e-6;
 
-export function sensitivity(access: RegisterAccessor, weather: PreparedWeather, variant: HouseVariant = 'main'): SensitivityRow[] {
-  const rows = UNCERTAIN_ROW_IDS.map((id): SensitivityRow => {
-    const row = access.uncertain(id);
-    const low = end(access, weather, variant, id, row.low);
-    const high = end(access, weather, variant, id, row.high);
-    return { id, label: row.label, unit: row.unit, low, high, swingPounds: high.costDifferencePounds - low.costDifferencePounds };
+/** Correlations are ignored: each row or cell moves alone. */
+export function sensitivity(access: RegisterAccessor, weather: PreparedWeather, house: House = defaultHouse(access, REFERENCE_ARCHETYPE)): SensitivityRow[] {
+  const rows = uncertainDraws(access, house).map((draw): SensitivityRow => {
+    const low = end(access, weather, house, draw.id, draw.low);
+    const high = end(access, weather, house, draw.id, draw.high);
+    return { id: draw.id, label: draw.label, unit: draw.unit, low, high, swingPounds: high.costDifferencePounds - low.costDifferencePounds };
   });
   return rows.toSorted((a, b) => {
     const gap = Math.abs(b.swingPounds) - Math.abs(a.swingPounds);

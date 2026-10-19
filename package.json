@@ -18,6 +18,7 @@
     "benchmark:tables": "tsx scripts/benchmark-tables.ts",
     "fetch:pvgis": "tsx scripts/fetch-pvgis.ts",
     "calibrate": "tsx scripts/calibrate.ts",
+    "archetypes": "tsx scripts/archetypes.ts",
     "report": "tsx scripts/report.ts",
     "bench": "tsx scripts/bench.ts"
   },

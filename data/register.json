@@ -19,7 +19,12 @@
       "dependsOn": [],
       "file": "data/snapshots/pvgis-tmy-london.json",
       "schema": "pvgis-tmy",
-      "columns": ["T2m", "G(h)", "Gb(n)", "Gd(h)"]
+      "columns": [
+        "T2m",
+        "G(h)",
+        "Gb(n)",
+        "Gd(h)"
+      ]
     },
     {
       "id": "weather.outdoorTemperatureOffset",
@@ -48,87 +53,1031 @@
       "refreshCadence": "static",
       "overridable": false,
       "overrideHint": null,
-      "dependsOn": ["weather.pvgisTypicalYearLondon"],
+      "dependsOn": [
+        "weather.pvgisTypicalYearLondon"
+      ],
       "value": 10
     },
     {
-      "id": "geometry.totalFloorArea",
-      "kind": "fixed",
-      "section": "geometry",
-      "label": "Total floor area",
-      "unit": "m²",
+      "id": "archetypes.houseType",
+      "kind": "table",
+      "section": "archetypes",
+      "label": "House type of each archetype",
+      "unit": "category",
       "status": "approximate",
-      "rationale": "The phase 1 archetype is a two-storey 1930–49 semi of about 90 m²: two storeys of 45 m². Not overridable yet: heated volume and the wall, roof and floor areas are stored from this value, so an override would not flow through to them. Phase 3 decides how overrides work.",
-      "lastChecked": "2026-10-17",
+      "rationale": "The archetype set agreed in the phase 2 spec (SPECIFICATIONS/02-complete-v1-model.md, \"House types and geometry\"). A bungalow is taken as detached, with no party wall.",
+      "lastChecked": "2026-10-18",
       "refreshCadence": "static",
       "overridable": false,
       "overrideHint": null,
       "dependsOn": [],
-      "value": 90
+      "keyedBy": "archetype",
+      "cells": [
+        {
+          "key": "midTerracePre1900",
+          "value": "midTerrace"
+        },
+        {
+          "key": "endTerracePre1900",
+          "value": "endTerrace"
+        },
+        {
+          "key": "semi1930s",
+          "value": "semiDetached"
+        },
+        {
+          "key": "semi1950s",
+          "value": "semiDetached"
+        },
+        {
+          "key": "bungalow1950s",
+          "value": "bungalow"
+        },
+        {
+          "key": "midTerrace1970s",
+          "value": "midTerrace"
+        },
+        {
+          "key": "detached1970s",
+          "value": "detached"
+        },
+        {
+          "key": "detached1980s",
+          "value": "detached"
+        },
+        {
+          "key": "semi2000s",
+          "value": "semiDetached"
+        },
+        {
+          "key": "midTerrace2010s",
+          "value": "midTerrace"
+        }
+      ]
     },
     {
-      "id": "geometry.storeyHeight",
-      "kind": "fixed",
-      "section": "geometry",
-      "label": "Storey height (used for wall height and heated volume)",
-      "unit": "m",
-      "status": "approximate",
-      "rationale": "Typical room height for the period. RdSAP 10 adds a floor void between storeys; that is ignored here, which slightly understates wall area and volume.",
-      "lastChecked": "2026-10-17",
-      "refreshCadence": "static",
-      "overridable": false,
-      "overrideHint": null,
-      "dependsOn": [],
-      "value": 2.5
-    },
-    {
-      "id": "geometry.heatedVolume",
-      "kind": "fixed",
-      "section": "geometry",
-      "label": "Heated volume",
-      "unit": "m³",
-      "status": "approximate",
-      "rationale": "Total floor area × storey height: 90 × 2.5.",
-      "lastChecked": "2026-10-17",
-      "refreshCadence": "static",
-      "overridable": false,
-      "overrideHint": null,
-      "dependsOn": ["geometry.totalFloorArea", "geometry.storeyHeight"],
-      "value": 225
-    },
-    {
-      "id": "geometry.exposedPerimeter",
-      "kind": "fixed",
-      "section": "geometry",
-      "label": "Exposed perimeter of the footprint (walls and ground floor)",
-      "unit": "m",
-      "status": "approximate",
-      "rationale": "A 45 m² footprint of about 6.5 m × 7 m: front, back and one side wall. The party wall is excluded. Used for the external wall area and for the ground floor's perimeter-to-area ratio.",
-      "lastChecked": "2026-10-17",
-      "refreshCadence": "static",
-      "overridable": false,
-      "overrideHint": null,
-      "dependsOn": [],
-      "value": 20
-    },
-    {
-      "id": "geometry.windowArea",
-      "kind": "fixed",
-      "section": "geometry",
-      "label": "Window area",
-      "unit": "m²",
-      "status": "to-verify",
+      "id": "archetypes.ageBand",
+      "kind": "table",
+      "section": "archetypes",
+      "label": "RdSAP age band of each archetype",
+      "unit": "band",
+      "status": "sourced",
       "source": {
-        "title": "RdSAP 10 specification (BRE, June 2025)",
+        "title": "RdSAP 10 specification (BRE, 9 June 2025)",
         "url": "https://bregroup.com/documents/d/bre-group/rdsap-10-specification-10-06-2025"
       },
-      "rationale": "RdSAP window-area formula for houses in age bands A–C: 0.122 × floor area + 6.875 = 17.855 m². Split equally across north, east, south and west for solar gains. Not overridable yet: the net wall area is stored net of this value, so an override would not flow through to it. Phase 3 decides how overrides work.",
-      "lastChecked": "2026-10-17",
+      "rationale": "Each archetype is keyed to one England age band in RdSAP 10 Table 1: A before 1900, C 1930–49, D 1950–66, E 1967–75, F 1976–82, G 1983–90, K 2007–11, L 2012–22. The spec names L as 2012–21; RdSAP 10 runs it to 2022.",
+      "lastChecked": "2026-10-18",
       "refreshCadence": "static",
       "overridable": false,
       "overrideHint": null,
-      "dependsOn": ["geometry.totalFloorArea"],
-      "value": 17.855
+      "dependsOn": [],
+      "keyedBy": "archetype",
+      "cells": [
+        {
+          "key": "midTerracePre1900",
+          "value": "A"
+        },
+        {
+          "key": "endTerracePre1900",
+          "value": "A"
+        },
+        {
+          "key": "semi1930s",
+          "value": "C"
+        },
+        {
+          "key": "semi1950s",
+          "value": "D"
+        },
+        {
+          "key": "bungalow1950s",
+          "value": "D"
+        },
+        {
+          "key": "midTerrace1970s",
+          "value": "E"
+        },
+        {
+          "key": "detached1970s",
+          "value": "F"
+        },
+        {
+          "key": "detached1980s",
+          "value": "G"
+        },
+        {
+          "key": "semi2000s",
+          "value": "K"
+        },
+        {
+          "key": "midTerrace2010s",
+          "value": "L"
+        }
+      ]
+    },
+    {
+      "id": "archetypes.storeys",
+      "kind": "table",
+      "section": "archetypes",
+      "label": "Storeys of each archetype",
+      "unit": "storeys",
+      "status": "approximate",
+      "rationale": "Two storeys for every house, one for the bungalow. Rooms in the roof and basements are left out.",
+      "lastChecked": "2026-10-18",
+      "refreshCadence": "static",
+      "overridable": false,
+      "overrideHint": null,
+      "dependsOn": [],
+      "keyedBy": "archetype",
+      "cells": [
+        {
+          "key": "midTerracePre1900",
+          "value": 2
+        },
+        {
+          "key": "endTerracePre1900",
+          "value": 2
+        },
+        {
+          "key": "semi1930s",
+          "value": 2
+        },
+        {
+          "key": "semi1950s",
+          "value": 2
+        },
+        {
+          "key": "bungalow1950s",
+          "value": 1
+        },
+        {
+          "key": "midTerrace1970s",
+          "value": 2
+        },
+        {
+          "key": "detached1970s",
+          "value": 2
+        },
+        {
+          "key": "detached1980s",
+          "value": 2
+        },
+        {
+          "key": "semi2000s",
+          "value": 2
+        },
+        {
+          "key": "midTerrace2010s",
+          "value": 2
+        }
+      ]
+    },
+    {
+      "id": "archetypes.wallConstruction",
+      "kind": "table",
+      "section": "archetypes",
+      "label": "Wall construction of each archetype",
+      "unit": "category",
+      "status": "approximate",
+      "rationale": "Solid brick for the houses built before 1900, cavity masonry for the rest, as named in the spec. The wall construction decides which wall answers are offered and the party wall U-value.",
+      "lastChecked": "2026-10-18",
+      "refreshCadence": "static",
+      "overridable": false,
+      "overrideHint": null,
+      "dependsOn": [],
+      "keyedBy": "archetype",
+      "cells": [
+        {
+          "key": "midTerracePre1900",
+          "value": "solidBrick"
+        },
+        {
+          "key": "endTerracePre1900",
+          "value": "solidBrick"
+        },
+        {
+          "key": "semi1930s",
+          "value": "cavity"
+        },
+        {
+          "key": "semi1950s",
+          "value": "cavity"
+        },
+        {
+          "key": "bungalow1950s",
+          "value": "cavity"
+        },
+        {
+          "key": "midTerrace1970s",
+          "value": "cavity"
+        },
+        {
+          "key": "detached1970s",
+          "value": "cavity"
+        },
+        {
+          "key": "detached1980s",
+          "value": "cavity"
+        },
+        {
+          "key": "semi2000s",
+          "value": "cavity"
+        },
+        {
+          "key": "midTerrace2010s",
+          "value": "cavity"
+        }
+      ]
+    },
+    {
+      "id": "archetypes.floorArea",
+      "kind": "table",
+      "section": "archetypes",
+      "label": "Default total floor area of each archetype",
+      "unit": "m²",
+      "status": "sourced",
+      "source": {
+        "title": "MHCLG: Floor Space in English Homes, main report figures and tables (English Housing Survey 2012), Figures 3.3–3.7",
+        "url": "https://assets.publishing.service.gov.uk/media/5b44afa340f0b678c91a2b02/Floor_Space_Main_Report_Figures___Tables.xlsx"
+      },
+      "rationale": "English Housing Survey 2012 mean usable floor area for the type and age, rounded to 1 m²: mid-terrace pre-1919 87.4; end-terrace pre-1919 103.6; semi 1945–64 88.3; bungalow 1945–64 73.3; mid-terrace 1965–74 80.3; detached 1975–80 130.9; detached 1981–90 133.9; semi post-2002 84.9; mid-terrace post-2002 86.3. The 1930s semi keeps phase 1's 90 m² (the EHS mean for 1919–44 semis is 93.8), so its NEED readings and calibration target stay those of phase 1. Floor area is a fixed input for a run, not sampled.",
+      "lastChecked": "2026-10-18",
+      "refreshCadence": "static",
+      "overridable": true,
+      "overrideHint": "Use the total floor area on your EPC.",
+      "dependsOn": [],
+      "keyedBy": "archetype",
+      "cells": [
+        {
+          "key": "midTerracePre1900",
+          "value": 87
+        },
+        {
+          "key": "endTerracePre1900",
+          "value": 104
+        },
+        {
+          "key": "semi1930s",
+          "value": 90
+        },
+        {
+          "key": "semi1950s",
+          "value": 88
+        },
+        {
+          "key": "bungalow1950s",
+          "value": 73
+        },
+        {
+          "key": "midTerrace1970s",
+          "value": 80
+        },
+        {
+          "key": "detached1970s",
+          "value": 131
+        },
+        {
+          "key": "detached1980s",
+          "value": 134
+        },
+        {
+          "key": "semi2000s",
+          "value": 85
+        },
+        {
+          "key": "midTerrace2010s",
+          "value": 86
+        }
+      ]
+    },
+    {
+      "id": "archetypes.bedrooms",
+      "kind": "table",
+      "section": "archetypes",
+      "label": "Default number of bedrooms of each archetype",
+      "unit": "bedrooms",
+      "status": "sourced",
+      "source": {
+        "title": "DESNZ NEED 2026, Consumption_multiple_attributes_EW_2024.xlsx, sheet \"Table\" (2024 London rows)",
+        "url": "https://assets.publishing.service.gov.uk/media/6a282785ade52dc08822182a/Consumption_multiple_attributes_EW_2024.xlsx"
+      },
+      "rationale": "The bedroom count with the most homes in NEED's 2024 London rows for the archetype's property type and NEED age band (gas present, standard meter). It picks reading T in scripts/archetypes/needReadings.ts.",
+      "lastChecked": "2026-10-18",
+      "refreshCadence": "static",
+      "overridable": false,
+      "overrideHint": null,
+      "dependsOn": [],
+      "keyedBy": "archetype",
+      "cells": [
+        {
+          "key": "midTerracePre1900",
+          "value": 3
+        },
+        {
+          "key": "endTerracePre1900",
+          "value": 3
+        },
+        {
+          "key": "semi1930s",
+          "value": 3
+        },
+        {
+          "key": "semi1950s",
+          "value": 3
+        },
+        {
+          "key": "bungalow1950s",
+          "value": 2
+        },
+        {
+          "key": "midTerrace1970s",
+          "value": 3
+        },
+        {
+          "key": "detached1970s",
+          "value": 4
+        },
+        {
+          "key": "detached1980s",
+          "value": 4
+        },
+        {
+          "key": "semi2000s",
+          "value": 3
+        },
+        {
+          "key": "midTerrace2010s",
+          "value": 3
+        }
+      ]
+    },
+    {
+      "id": "archetypes.aspectRatio",
+      "kind": "table",
+      "section": "archetypes",
+      "label": "Footprint depth ÷ width of each archetype",
+      "unit": "ratio",
+      "status": "approximate",
+      "rationale": "Width is the frontage; depth runs front to back, along any party wall. Terraces are narrow and deep (2.0 for pre-1900, 1.5–1.6 later); semis are close to square (1.1–1.2), giving the 1930s semi a 6.4 m × 7.0 m footprint and about 20 m of exposed perimeter, as in phase 1; detached houses and the bungalow are wider than deep (0.8).",
+      "lastChecked": "2026-10-18",
+      "refreshCadence": "static",
+      "overridable": false,
+      "overrideHint": null,
+      "dependsOn": [],
+      "keyedBy": "archetype",
+      "cells": [
+        {
+          "key": "midTerracePre1900",
+          "value": 2.0
+        },
+        {
+          "key": "endTerracePre1900",
+          "value": 2.0
+        },
+        {
+          "key": "semi1930s",
+          "value": 1.1
+        },
+        {
+          "key": "semi1950s",
+          "value": 1.1
+        },
+        {
+          "key": "bungalow1950s",
+          "value": 0.8
+        },
+        {
+          "key": "midTerrace1970s",
+          "value": 1.5
+        },
+        {
+          "key": "detached1970s",
+          "value": 0.8
+        },
+        {
+          "key": "detached1980s",
+          "value": 0.8
+        },
+        {
+          "key": "semi2000s",
+          "value": 1.2
+        },
+        {
+          "key": "midTerrace2010s",
+          "value": 1.6
+        }
+      ]
+    },
+    {
+      "id": "archetypes.partyWalls",
+      "kind": "table",
+      "section": "archetypes",
+      "label": "Number of party walls of each archetype",
+      "unit": "walls",
+      "status": "approximate",
+      "rationale": "Two for a mid-terrace, one for an end-terrace or semi, none for a detached house or bungalow. Each party wall runs the depth of the house.",
+      "lastChecked": "2026-10-18",
+      "refreshCadence": "static",
+      "overridable": false,
+      "overrideHint": null,
+      "dependsOn": [],
+      "keyedBy": "archetype",
+      "cells": [
+        {
+          "key": "midTerracePre1900",
+          "value": 2
+        },
+        {
+          "key": "endTerracePre1900",
+          "value": 1
+        },
+        {
+          "key": "semi1930s",
+          "value": 1
+        },
+        {
+          "key": "semi1950s",
+          "value": 1
+        },
+        {
+          "key": "bungalow1950s",
+          "value": 0
+        },
+        {
+          "key": "midTerrace1970s",
+          "value": 2
+        },
+        {
+          "key": "detached1970s",
+          "value": 0
+        },
+        {
+          "key": "detached1980s",
+          "value": 0
+        },
+        {
+          "key": "semi2000s",
+          "value": 1
+        },
+        {
+          "key": "midTerrace2010s",
+          "value": 2
+        }
+      ]
+    },
+    {
+      "id": "archetypes.defaultLoftAnswer",
+      "kind": "table",
+      "section": "archetypes",
+      "label": "Default loft insulation answer of each archetype",
+      "unit": "answer",
+      "status": "approximate",
+      "rationale": "About 100 mm for the archetypes built before 1991: RdSAP 10 Table 18 assumes 100 mm for age bands A–G when the thickness is unknown, noting that most lofts have at least that. 270 mm or more for the 2007–11 and 2012 onwards archetypes, the Table 18 value for bands K and L as built.",
+      "lastChecked": "2026-10-18",
+      "refreshCadence": "static",
+      "overridable": false,
+      "overrideHint": null,
+      "dependsOn": [],
+      "keyedBy": "archetype",
+      "cells": [
+        {
+          "key": "midTerracePre1900",
+          "value": "about100mm"
+        },
+        {
+          "key": "endTerracePre1900",
+          "value": "about100mm"
+        },
+        {
+          "key": "semi1930s",
+          "value": "about100mm"
+        },
+        {
+          "key": "semi1950s",
+          "value": "about100mm"
+        },
+        {
+          "key": "bungalow1950s",
+          "value": "about100mm"
+        },
+        {
+          "key": "midTerrace1970s",
+          "value": "about100mm"
+        },
+        {
+          "key": "detached1970s",
+          "value": "about100mm"
+        },
+        {
+          "key": "detached1980s",
+          "value": "about100mm"
+        },
+        {
+          "key": "semi2000s",
+          "value": "270mmOrMore"
+        },
+        {
+          "key": "midTerrace2010s",
+          "value": "270mmOrMore"
+        }
+      ]
+    },
+    {
+      "id": "archetypes.defaultWallAnswer",
+      "kind": "table",
+      "section": "archetypes",
+      "label": "Default wall insulation answer of each archetype",
+      "unit": "answer",
+      "status": "approximate",
+      "rationale": "\"Cavity filled\" for the cavity archetypes built before 1991 (bands C–G). In 2024, 73% of owner-occupied dwellings with cavity walls had cavity wall insulation (60% of private rented and 79% of social housing), so filled is the most common answer. The survey gives no split by age band; the same share is assumed for every band C–G. \"As built\" for the solid brick archetypes, whose walls are mostly uninsulated, and for bands K and L, which were insulated as built (the survey, like SAP, assumes cavity walls built after 1995 are insulated). Decided by Magnus on 18 October 2026 after the first archetype table had run with unfilled cavities, so the choice was made with both results in view (see scripts/archetypes/README.md). Source checked on 19 October 2026.",
+      "lastChecked": "2026-10-19",
+      "refreshCadence": "static",
+      "overridable": false,
+      "overrideHint": null,
+      "dependsOn": [],
+      "keyedBy": "archetype",
+      "cells": [
+        {
+          "key": "midTerracePre1900",
+          "value": "asBuilt"
+        },
+        {
+          "key": "endTerracePre1900",
+          "value": "asBuilt"
+        },
+        {
+          "key": "semi1930s",
+          "value": "cavityFilled"
+        },
+        {
+          "key": "semi1950s",
+          "value": "cavityFilled"
+        },
+        {
+          "key": "bungalow1950s",
+          "value": "cavityFilled"
+        },
+        {
+          "key": "midTerrace1970s",
+          "value": "cavityFilled"
+        },
+        {
+          "key": "detached1970s",
+          "value": "cavityFilled"
+        },
+        {
+          "key": "detached1980s",
+          "value": "cavityFilled"
+        },
+        {
+          "key": "semi2000s",
+          "value": "asBuilt"
+        },
+        {
+          "key": "midTerrace2010s",
+          "value": "asBuilt"
+        }
+      ],
+      "source": {
+        "title": "MHCLG: English Housing Survey 2024 to 2025, headline findings on housing quality and energy efficiency, Chapter 2 (Figure 2.8, Annex Table 2.10)",
+        "url": "https://www.gov.uk/government/statistics/chapters-for-english-housing-survey-2024-to-2025-headline-findings-on-housing-quality-and-energy-efficiency/chapter-2-energy-efficiency"
+      }
+    },
+    {
+      "id": "archetypes.defaultGlazingAnswer",
+      "kind": "table",
+      "section": "archetypes",
+      "label": "Default glazing answer of each archetype",
+      "unit": "answer",
+      "status": "approximate",
+      "rationale": "Older double glazing (installed before 2002) for the archetypes built before 1991, as most original single glazing has been replaced; newer double glazing for the 2007–11 and 2012 onwards archetypes, which were built with it.",
+      "lastChecked": "2026-10-18",
+      "refreshCadence": "static",
+      "overridable": false,
+      "overrideHint": null,
+      "dependsOn": [],
+      "keyedBy": "archetype",
+      "cells": [
+        {
+          "key": "midTerracePre1900",
+          "value": "olderDouble"
+        },
+        {
+          "key": "endTerracePre1900",
+          "value": "olderDouble"
+        },
+        {
+          "key": "semi1930s",
+          "value": "olderDouble"
+        },
+        {
+          "key": "semi1950s",
+          "value": "olderDouble"
+        },
+        {
+          "key": "bungalow1950s",
+          "value": "olderDouble"
+        },
+        {
+          "key": "midTerrace1970s",
+          "value": "olderDouble"
+        },
+        {
+          "key": "detached1970s",
+          "value": "olderDouble"
+        },
+        {
+          "key": "detached1980s",
+          "value": "olderDouble"
+        },
+        {
+          "key": "semi2000s",
+          "value": "newerDouble"
+        },
+        {
+          "key": "midTerrace2010s",
+          "value": "newerDouble"
+        }
+      ]
+    },
+    {
+      "id": "archetypes.roomHeight",
+      "kind": "table",
+      "section": "archetypes",
+      "label": "Default room height by age band",
+      "unit": "m",
+      "status": "approximate",
+      "source": {
+        "title": "RdSAP 10 specification (BRE, 9 June 2025)",
+        "url": "https://bregroup.com/documents/d/bre-group/rdsap-10-specification-10-06-2025"
+      },
+      "rationale": "RdSAP measures room heights on site and has no default table. RdSAP 10 calls 2.4 m a normal room height (section 3.9), used here from 1950. Victorian houses have higher ceilings (2.7 m); the 1930s semi keeps phase 1's 2.5 m.",
+      "lastChecked": "2026-10-18",
+      "refreshCadence": "static",
+      "overridable": false,
+      "overrideHint": null,
+      "dependsOn": [],
+      "keyedBy": "age band",
+      "cells": [
+        {
+          "key": "A",
+          "value": 2.7
+        },
+        {
+          "key": "C",
+          "value": 2.5
+        },
+        {
+          "key": "D",
+          "value": 2.4
+        },
+        {
+          "key": "E",
+          "value": 2.4
+        },
+        {
+          "key": "F",
+          "value": 2.4
+        },
+        {
+          "key": "G",
+          "value": 2.4
+        },
+        {
+          "key": "K",
+          "value": 2.4
+        },
+        {
+          "key": "L",
+          "value": 2.4
+        }
+      ]
+    },
+    {
+      "id": "archetypes.upperStoreyAllowance",
+      "kind": "fixed",
+      "section": "archetypes",
+      "label": "Height added to each room height above the lowest storey",
+      "unit": "m",
+      "status": "sourced",
+      "source": {
+        "title": "RdSAP 10 specification (BRE, 9 June 2025)",
+        "url": "https://bregroup.com/documents/d/bre-group/rdsap-10-specification-10-06-2025"
+      },
+      "rationale": "RdSAP 10 section 3.6: 0.25 m is added to each room height except the lowest storey to give the storey height, for the floor void. Storey heights set the gross wall area and the heated volume.",
+      "lastChecked": "2026-10-18",
+      "refreshCadence": "static",
+      "overridable": false,
+      "overrideHint": null,
+      "dependsOn": [],
+      "value": 0.25
+    },
+    {
+      "id": "archetypes.windowAreaSlope",
+      "kind": "table",
+      "section": "archetypes",
+      "label": "Window area per m² of floor area, by age band (houses)",
+      "unit": "m² per m²",
+      "status": "sourced",
+      "source": {
+        "title": "RdSAP 2012 version 9.93 specification (BRE, 19 November 2017), Table S4",
+        "url": "https://bregroup.com/documents/d/bre-group/rdsap_2012_9-93"
+      },
+      "rationale": "RdSAP 2012 Table S4, house or bungalow: window area = slope × total floor area + intercept. RdSAP 10 measures every window instead and has no default formula, so the RdSAP 2012 formula, from the same stock survey basis, stands in. Checked line by line on 18 October 2026.",
+      "lastChecked": "2026-10-18",
+      "refreshCadence": "static",
+      "overridable": false,
+      "overrideHint": null,
+      "dependsOn": [],
+      "keyedBy": "age band",
+      "cells": [
+        {
+          "key": "A",
+          "value": 0.122
+        },
+        {
+          "key": "C",
+          "value": 0.122
+        },
+        {
+          "key": "D",
+          "value": 0.1294
+        },
+        {
+          "key": "E",
+          "value": 0.1239
+        },
+        {
+          "key": "F",
+          "value": 0.1252
+        },
+        {
+          "key": "G",
+          "value": 0.1356
+        },
+        {
+          "key": "K",
+          "value": 0.1435
+        },
+        {
+          "key": "L",
+          "value": 0.1435
+        }
+      ]
+    },
+    {
+      "id": "archetypes.windowAreaIntercept",
+      "kind": "table",
+      "section": "archetypes",
+      "label": "Window area intercept, by age band (houses)",
+      "unit": "m²",
+      "status": "sourced",
+      "source": {
+        "title": "RdSAP 2012 version 9.93 specification (BRE, 19 November 2017), Table S4",
+        "url": "https://bregroup.com/documents/d/bre-group/rdsap_2012_9-93"
+      },
+      "rationale": "RdSAP 2012 Table S4, house or bungalow (see archetypes.windowAreaSlope). Checked line by line on 18 October 2026.",
+      "lastChecked": "2026-10-18",
+      "refreshCadence": "static",
+      "overridable": false,
+      "overrideHint": null,
+      "dependsOn": [],
+      "keyedBy": "age band",
+      "cells": [
+        {
+          "key": "A",
+          "value": 6.875
+        },
+        {
+          "key": "C",
+          "value": 6.875
+        },
+        {
+          "key": "D",
+          "value": 5.515
+        },
+        {
+          "key": "E",
+          "value": 7.332
+        },
+        {
+          "key": "F",
+          "value": 5.52
+        },
+        {
+          "key": "G",
+          "value": 5.242
+        },
+        {
+          "key": "K",
+          "value": -0.403
+        },
+        {
+          "key": "L",
+          "value": -0.403
+        }
+      ]
+    },
+    {
+      "id": "archetypes.wallThickness",
+      "kind": "table",
+      "section": "archetypes",
+      "label": "Default wall thickness, by construction and age band",
+      "unit": "mm",
+      "status": "sourced",
+      "source": {
+        "title": "RdSAP 10 specification (BRE, 9 June 2025)",
+        "url": "https://bregroup.com/documents/d/bre-group/rdsap-10-specification-10-06-2025"
+      },
+      "rationale": "RdSAP 10 Table 3, England. It sets the solid brick wall U-value (Table 13) and enters the ground floor calculation.",
+      "lastChecked": "2026-10-18",
+      "refreshCadence": "static",
+      "overridable": false,
+      "overrideHint": null,
+      "dependsOn": [],
+      "keyedBy": "construction/age band",
+      "cells": [
+        {
+          "key": "solidBrick/A",
+          "value": 220
+        },
+        {
+          "key": "cavity/C",
+          "value": 250
+        },
+        {
+          "key": "cavity/D",
+          "value": 250
+        },
+        {
+          "key": "cavity/E",
+          "value": 250
+        },
+        {
+          "key": "cavity/F",
+          "value": 260
+        },
+        {
+          "key": "cavity/G",
+          "value": 270
+        },
+        {
+          "key": "cavity/K",
+          "value": 300
+        },
+        {
+          "key": "cavity/L",
+          "value": 300
+        }
+      ]
+    },
+    {
+      "id": "archetypes.groundFloorConstruction",
+      "kind": "table",
+      "section": "archetypes",
+      "label": "Ground floor construction when unknown, by age band",
+      "unit": "category",
+      "status": "sourced",
+      "source": {
+        "title": "RdSAP 10 specification (BRE, 9 June 2025)",
+        "url": "https://bregroup.com/documents/d/bre-group/rdsap-10-specification-10-06-2025"
+      },
+      "rationale": "RdSAP 10 Table 19: suspended timber for bands A and B, solid from band C. Many 1930s houses have suspended timber floors in practice; RdSAP's default is used.",
+      "lastChecked": "2026-10-18",
+      "refreshCadence": "static",
+      "overridable": false,
+      "overrideHint": null,
+      "dependsOn": [],
+      "keyedBy": "age band",
+      "cells": [
+        {
+          "key": "A",
+          "value": "suspendedTimber"
+        },
+        {
+          "key": "C",
+          "value": "solid"
+        },
+        {
+          "key": "D",
+          "value": "solid"
+        },
+        {
+          "key": "E",
+          "value": "solid"
+        },
+        {
+          "key": "F",
+          "value": "solid"
+        },
+        {
+          "key": "G",
+          "value": "solid"
+        },
+        {
+          "key": "K",
+          "value": "solid"
+        },
+        {
+          "key": "L",
+          "value": "solid"
+        }
+      ]
+    },
+    {
+      "id": "archetypes.groundFloorInsulation",
+      "kind": "table",
+      "section": "archetypes",
+      "label": "All-over ground floor insulation when unknown, by age band",
+      "unit": "mm",
+      "status": "sourced",
+      "source": {
+        "title": "RdSAP 10 specification (BRE, 9 June 2025)",
+        "url": "https://bregroup.com/documents/d/bre-group/rdsap-10-specification-10-06-2025"
+      },
+      "rationale": "RdSAP 10 Table 19, England and Wales.",
+      "lastChecked": "2026-10-18",
+      "refreshCadence": "static",
+      "overridable": false,
+      "overrideHint": null,
+      "dependsOn": [],
+      "keyedBy": "age band",
+      "cells": [
+        {
+          "key": "A",
+          "value": 0
+        },
+        {
+          "key": "C",
+          "value": 0
+        },
+        {
+          "key": "D",
+          "value": 0
+        },
+        {
+          "key": "E",
+          "value": 0
+        },
+        {
+          "key": "F",
+          "value": 0
+        },
+        {
+          "key": "G",
+          "value": 0
+        },
+        {
+          "key": "K",
+          "value": 100
+        },
+        {
+          "key": "L",
+          "value": 100
+        }
+      ]
+    },
+    {
+      "id": "archetypes.occupancy",
+      "kind": "table",
+      "section": "archetypes",
+      "label": "SAP occupancy formula coefficients",
+      "unit": "coefficient",
+      "status": "sourced",
+      "source": {
+        "title": "SAP 10.2 specification (BRE, 14 March 2025)",
+        "url": "https://bregroup.com/documents/d/bre-group/sap-10-2-14-03-2025"
+      },
+      "rationale": "SAP 10.2 Table 1b: N = base + saturation × [1 − exp(−curvature × (TFA − minimumFloorArea)²)] + slope × (TFA − minimumFloorArea), and N = 1 at or below the minimum. An archetype's default occupant count is N for its floor area, rounded, within 1–5.",
+      "lastChecked": "2026-10-18",
+      "refreshCadence": "static",
+      "overridable": false,
+      "overrideHint": null,
+      "dependsOn": [],
+      "keyedBy": "coefficient",
+      "cells": [
+        {
+          "key": "base",
+          "value": 1
+        },
+        {
+          "key": "saturation",
+          "value": 1.76
+        },
+        {
+          "key": "curvature",
+          "value": 0.000349
+        },
+        {
+          "key": "slope",
+          "value": 0.0013
+        },
+        {
+          "key": "minimumFloorArea",
+          "value": 13.9
+        }
+      ]
     },
     {
       "id": "geometry.doorArea",
@@ -136,203 +1085,18 @@
       "section": "geometry",
       "label": "External door area",
       "unit": "m²",
-      "status": "to-verify",
+      "status": "sourced",
       "source": {
-        "title": "RdSAP 10 specification (BRE, June 2025)",
+        "title": "RdSAP 10 specification (BRE, 9 June 2025)",
         "url": "https://bregroup.com/documents/d/bre-group/rdsap-10-specification-10-06-2025"
       },
-      "rationale": "RdSAP standard area for one external door.",
-      "lastChecked": "2026-10-17",
+      "rationale": "RdSAP 10 section 3.7: an external door can be taken as 1.85 m². One external door, as in phase 1.",
+      "lastChecked": "2026-10-18",
       "refreshCadence": "static",
       "overridable": false,
       "overrideHint": null,
       "dependsOn": [],
       "value": 1.85
-    },
-    {
-      "id": "geometry.externalWallArea",
-      "kind": "fixed",
-      "section": "geometry",
-      "label": "Net external wall area",
-      "unit": "m²",
-      "status": "approximate",
-      "rationale": "Exposed perimeter × storey height × 2 storeys, less window and door area: 20 × 2.5 × 2 − 17.855 − 1.85 = 80.295 m².",
-      "lastChecked": "2026-10-17",
-      "refreshCadence": "static",
-      "overridable": false,
-      "overrideHint": null,
-      "dependsOn": ["geometry.exposedPerimeter", "geometry.storeyHeight", "geometry.windowArea", "geometry.doorArea"],
-      "value": 80.295
-    },
-    {
-      "id": "geometry.roofArea",
-      "kind": "fixed",
-      "section": "geometry",
-      "label": "Roof (loft floor) area",
-      "unit": "m²",
-      "status": "approximate",
-      "rationale": "The loft floor equals the footprint: half the total floor area of a two-storey house.",
-      "lastChecked": "2026-10-17",
-      "refreshCadence": "static",
-      "overridable": false,
-      "overrideHint": null,
-      "dependsOn": ["geometry.totalFloorArea"],
-      "value": 45
-    },
-    {
-      "id": "geometry.groundFloorArea",
-      "kind": "fixed",
-      "section": "geometry",
-      "label": "Ground floor area",
-      "unit": "m²",
-      "status": "approximate",
-      "rationale": "Equals the footprint: half the total floor area of a two-storey house.",
-      "lastChecked": "2026-10-17",
-      "refreshCadence": "static",
-      "overridable": false,
-      "overrideHint": null,
-      "dependsOn": ["geometry.totalFloorArea"],
-      "value": 45
-    },
-    {
-      "id": "fabric.wallUValue",
-      "kind": "fixed",
-      "section": "fabric",
-      "label": "External wall U-value (unfilled cavity)",
-      "unit": "W/m²K",
-      "status": "to-verify",
-      "source": {
-        "title": "RdSAP 10 specification (BRE, June 2025)",
-        "url": "https://bregroup.com/documents/d/bre-group/rdsap-10-specification-10-06-2025"
-      },
-      "rationale": "England default for an unfilled cavity wall in age bands A–E. Fabric uncertainty is carried by fabric.qualityFactor, not by this row.",
-      "lastChecked": "2026-10-17",
-      "refreshCadence": "static",
-      "overridable": true,
-      "overrideHint": "Lower if your cavity walls have been filled.",
-      "dependsOn": [],
-      "value": 1.5
-    },
-    {
-      "id": "fabric.partyWallUValue",
-      "kind": "fixed",
-      "section": "fabric",
-      "label": "Party wall U-value",
-      "unit": "W/m²K",
-      "status": "to-verify",
-      "source": {
-        "title": "RdSAP 10 specification (BRE, June 2025)",
-        "url": "https://bregroup.com/documents/d/bre-group/rdsap-10-specification-10-06-2025"
-      },
-      "rationale": "The party wall of a 1930s semi is typically solid brick. SAP and RdSAP treat a solid party wall as having no heat loss (U = 0); an unfilled, unsealed cavity party wall would be 0.5. Convention to verify against the RdSAP 10 tables. The party wall area is therefore not needed.",
-      "lastChecked": "2026-10-17",
-      "refreshCadence": "static",
-      "overridable": false,
-      "overrideHint": null,
-      "dependsOn": [],
-      "value": 0
-    },
-    {
-      "id": "fabric.windowUValue",
-      "kind": "fixed",
-      "section": "fabric",
-      "label": "Window U-value (retrofitted double glazing)",
-      "unit": "W/m²K",
-      "status": "approximate",
-      "rationale": "Retrofitted PVC double glazing of unknown date. RdSAP gives about 3.1 for glazing installed before 2002 and about 2.0 after; 2.8 leans to the older stock.",
-      "lastChecked": "2026-10-17",
-      "refreshCadence": "static",
-      "overridable": true,
-      "overrideHint": "About 2.0 for double glazing fitted since 2002, 1.4 or less for modern A-rated windows.",
-      "dependsOn": [],
-      "value": 2.8
-    },
-    {
-      "id": "fabric.doorUValue",
-      "kind": "fixed",
-      "section": "fabric",
-      "label": "External door U-value",
-      "unit": "W/m²K",
-      "status": "to-verify",
-      "source": {
-        "title": "RdSAP 10 specification (BRE, June 2025)",
-        "url": "https://bregroup.com/documents/d/bre-group/rdsap-10-specification-10-06-2025"
-      },
-      "rationale": "RdSAP default for an external door.",
-      "lastChecked": "2026-10-17",
-      "refreshCadence": "static",
-      "overridable": false,
-      "overrideHint": null,
-      "dependsOn": [],
-      "value": 3
-    },
-    {
-      "id": "fabric.roofUValue",
-      "kind": "fixed",
-      "section": "fabric",
-      "label": "Roof U-value, main case (100 mm loft insulation)",
-      "unit": "W/m²K",
-      "status": "to-verify",
-      "source": {
-        "title": "RdSAP 10 specification (BRE, June 2025)",
-        "url": "https://bregroup.com/documents/d/bre-group/rdsap-10-specification-10-06-2025"
-      },
-      "rationale": "RdSAP value for 100 mm of insulation at the joists. Magnus chose 100 mm as the main case on 17 October 2026, because most real 1930s semis have had loft insulation added.",
-      "lastChecked": "2026-10-17",
-      "refreshCadence": "static",
-      "overridable": true,
-      "overrideHint": "About 0.16 for 270 mm of loft insulation.",
-      "dependsOn": [],
-      "value": 0.4
-    },
-    {
-      "id": "fabric.roofUValueNoLoftInsulation",
-      "kind": "fixed",
-      "section": "fabric",
-      "label": "Roof U-value, variant with no loft insulation",
-      "unit": "W/m²K",
-      "status": "to-verify",
-      "source": {
-        "title": "RdSAP 10 specification (BRE, June 2025)",
-        "url": "https://bregroup.com/documents/d/bre-group/rdsap-10-specification-10-06-2025"
-      },
-      "rationale": "RdSAP default for a pitched roof in age bands A–D when loft insulation is unknown (treated as none). Kept for comparison with the main case; the calibration uses the main case.",
-      "lastChecked": "2026-10-17",
-      "refreshCadence": "static",
-      "overridable": false,
-      "overrideHint": null,
-      "dependsOn": [],
-      "value": 2.3
-    },
-    {
-      "id": "fabric.groundFloorUValue",
-      "kind": "fixed",
-      "section": "fabric",
-      "label": "Ground floor U-value (uninsulated suspended timber)",
-      "unit": "W/m²K",
-      "status": "approximate",
-      "rationale": "Uninsulated suspended timber floor. The exposed perimeter ÷ floor area ratio is 20 ÷ 45 ≈ 0.44, which gives about 0.75 W/m²K; the benchmark used the same 0.75. RdSAP computes this with the BS EN ISO 13370 method; that working is still to be done and recorded here, and may lower the value (the calibrated temperature absorbs the difference meanwhile).",
-      "lastChecked": "2026-10-17",
-      "refreshCadence": "static",
-      "overridable": false,
-      "overrideHint": null,
-      "dependsOn": ["geometry.exposedPerimeter", "geometry.groundFloorArea"],
-      "value": 0.75
-    },
-    {
-      "id": "fabric.airChangeRate",
-      "kind": "fixed",
-      "section": "fabric",
-      "label": "Air change rate (infiltration and ventilation)",
-      "unit": "ach",
-      "status": "approximate",
-      "rationale": "Older house with a suspended floor, an open or blocked chimney and some draughtproofing. SAP-style infiltration for this type is about 0.8–1.2. HEM, given an equivalent air permeability, worked out at about 0.89 over the year.",
-      "lastChecked": "2026-10-17",
-      "refreshCadence": "static",
-      "overridable": false,
-      "overrideHint": null,
-      "dependsOn": [],
-      "value": 1
     },
     {
       "id": "fabric.qualityFactor",
@@ -357,41 +1121,411 @@
       "distribution": "triangular"
     },
     {
-      "id": "gains.internalGains",
-      "kind": "uncertain",
-      "section": "gains",
-      "label": "Internal gains (occupants, lighting, appliances, cooking), constant",
-      "unit": "W",
-      "status": "approximate",
-      "rationale": "SAP-style sum for about 2.5 occupants in 90 m²: metabolic, lighting, appliances, cooking and water heating, less evaporation losses, about 450 W. The range covers smaller and larger households and more or less efficient appliances. Constant all year; the max(0, …) clamp stops surplus summer gains producing negative demand.",
-      "lastChecked": "2026-10-17",
-      "refreshCadence": "static",
-      "overridable": false,
-      "overrideHint": null,
-      "dependsOn": ["geometry.totalFloorArea"],
-      "default": 450,
-      "low": 350,
-      "high": 550,
-      "distribution": "triangular"
-    },
-    {
-      "id": "gains.windowGValue",
-      "kind": "fixed",
-      "section": "gains",
-      "label": "Window solar transmittance (g-value)",
-      "unit": "ratio",
-      "status": "to-verify",
+      "id": "fabric.wallUValue",
+      "kind": "table",
+      "section": "fabric",
+      "label": "External wall U-value, by age band, construction and wall answer",
+      "unit": "W/m²K",
+      "status": "sourced",
       "source": {
-        "title": "RdSAP 10 specification (BRE, June 2025)",
+        "title": "RdSAP 10 specification (BRE, 9 June 2025)",
         "url": "https://bregroup.com/documents/d/bre-group/rdsap-10-specification-10-06-2025"
       },
-      "rationale": "Total solar energy transmittance at normal incidence for double glazing, as used in the benchmark and the HEM input. To verify against the RdSAP 10 glazing table, including whether SAP's 0.9 factor for non-normal incidence applies on top.",
-      "lastChecked": "2026-10-17",
+      "rationale": "RdSAP 10 Table 6 (England), checked line by line on 18 October 2026. Solid brick as built in band A: Table 13 for a 220 mm wall (Table 3), 1.7. Solid wall insulated: section 5.8 with the 50 mm row that Table 6 says to use when the thickness is unknown, 1 ÷ (1/1.7 + 1.5) = 0.48. Cavity as built and filled from Table 6. A filled cavity is not offered for bands K and L, which Table 6 treats as insulated as built. Fabric uncertainty is carried by fabric.qualityFactor.",
+      "lastChecked": "2026-10-18",
+      "refreshCadence": "static",
+      "overridable": true,
+      "overrideHint": "Use the U-value from a survey if you have one.",
+      "dependsOn": [],
+      "keyedBy": "age band/construction/answer",
+      "cells": [
+        {
+          "key": "A/solidBrick/asBuilt",
+          "value": 1.7
+        },
+        {
+          "key": "A/solidBrick/solidWallInsulated",
+          "value": 0.48
+        },
+        {
+          "key": "C/cavity/asBuilt",
+          "value": 1.5
+        },
+        {
+          "key": "C/cavity/cavityFilled",
+          "value": 0.7
+        },
+        {
+          "key": "D/cavity/asBuilt",
+          "value": 1.5
+        },
+        {
+          "key": "D/cavity/cavityFilled",
+          "value": 0.7
+        },
+        {
+          "key": "E/cavity/asBuilt",
+          "value": 1.5
+        },
+        {
+          "key": "E/cavity/cavityFilled",
+          "value": 0.7
+        },
+        {
+          "key": "F/cavity/asBuilt",
+          "value": 1.0
+        },
+        {
+          "key": "F/cavity/cavityFilled",
+          "value": 0.4
+        },
+        {
+          "key": "G/cavity/asBuilt",
+          "value": 0.6
+        },
+        {
+          "key": "G/cavity/cavityFilled",
+          "value": 0.35
+        },
+        {
+          "key": "K/cavity/asBuilt",
+          "value": 0.3
+        },
+        {
+          "key": "L/cavity/asBuilt",
+          "value": 0.28
+        }
+      ]
+    },
+    {
+      "id": "fabric.partyWallUValue",
+      "kind": "table",
+      "section": "fabric",
+      "label": "Party wall U-value, by wall construction",
+      "unit": "W/m²K",
+      "status": "sourced",
+      "source": {
+        "title": "RdSAP 10 specification (BRE, 9 June 2025)",
+        "url": "https://bregroup.com/documents/d/bre-group/rdsap-10-specification-10-06-2025"
+      },
+      "rationale": "RdSAP 10 Table 15: 0 for solid masonry; 0.25 for a house whose party wall construction cannot be determined, used for the cavity archetypes (an unfilled cavity party wall is 0.5, a filled one 0.2). A cavity party wall loses heat through air movement in the cavity, which is why it is not zero.",
+      "lastChecked": "2026-10-18",
       "refreshCadence": "static",
       "overridable": false,
       "overrideHint": null,
       "dependsOn": [],
-      "value": 0.63
+      "keyedBy": "construction",
+      "cells": [
+        {
+          "key": "solidBrick",
+          "value": 0
+        },
+        {
+          "key": "cavity",
+          "value": 0.25
+        }
+      ]
+    },
+    {
+      "id": "fabric.windowUValue",
+      "kind": "table",
+      "section": "fabric",
+      "label": "Window U-value (PVC or wooden frame), by glazing answer",
+      "unit": "W/m²K",
+      "status": "sourced",
+      "source": {
+        "title": "RdSAP 10 specification (BRE, 9 June 2025)",
+        "url": "https://bregroup.com/documents/d/bre-group/rdsap-10-specification-10-06-2025"
+      },
+      "rationale": "RdSAP 10 Table 24, whole-window U-values before the curtain adjustment: single glazing 4.8; double glazing installed before 2002 with a 12 mm gap 2.8 (the row RdSAP uses when the installation date is unknown); double or triple glazing installed 2002 or later 2.0. The engine applies fabric.windowCurtainResistance on top.",
+      "lastChecked": "2026-10-18",
+      "refreshCadence": "static",
+      "overridable": true,
+      "overrideHint": "Use the U-value from your window certificate if you have one.",
+      "dependsOn": [],
+      "keyedBy": "glazing answer",
+      "cells": [
+        {
+          "key": "single",
+          "value": 4.8
+        },
+        {
+          "key": "olderDouble",
+          "value": 2.8
+        },
+        {
+          "key": "newerDouble",
+          "value": 2.0
+        }
+      ]
+    },
+    {
+      "id": "fabric.windowCurtainResistance",
+      "kind": "fixed",
+      "section": "fabric",
+      "label": "Thermal resistance added to windows for curtains and blinds",
+      "unit": "m²K/W",
+      "status": "sourced",
+      "source": {
+        "title": "SAP 10.2 specification (BRE, 14 March 2025)",
+        "url": "https://bregroup.com/documents/d/bre-group/sap-10-2-14-03-2025"
+      },
+      "rationale": "SAP 10.2 section 3.2, formula (2): the effective window U-value is 1 ÷ (1/U + 0.04), a curtain resistance of 0.08 halved because curtains are open half the time. RdSAP 10 Table 24 applies it to its window values.",
+      "lastChecked": "2026-10-18",
+      "refreshCadence": "static",
+      "overridable": false,
+      "overrideHint": null,
+      "dependsOn": [],
+      "value": 0.04
+    },
+    {
+      "id": "fabric.doorUValue",
+      "kind": "table",
+      "section": "fabric",
+      "label": "External door U-value, by age band",
+      "unit": "W/m²K",
+      "status": "sourced",
+      "source": {
+        "title": "RdSAP 10 specification (BRE, 9 June 2025)",
+        "url": "https://bregroup.com/documents/d/bre-group/rdsap-10-specification-10-06-2025"
+      },
+      "rationale": "RdSAP 10 Table 26, a door to the outside: 3.0 for bands A–J, 2.0 for K, 1.8 for L (England).",
+      "lastChecked": "2026-10-18",
+      "refreshCadence": "static",
+      "overridable": false,
+      "overrideHint": null,
+      "dependsOn": [],
+      "keyedBy": "age band",
+      "cells": [
+        {
+          "key": "A",
+          "value": 3.0
+        },
+        {
+          "key": "C",
+          "value": 3.0
+        },
+        {
+          "key": "D",
+          "value": 3.0
+        },
+        {
+          "key": "E",
+          "value": 3.0
+        },
+        {
+          "key": "F",
+          "value": 3.0
+        },
+        {
+          "key": "G",
+          "value": 3.0
+        },
+        {
+          "key": "K",
+          "value": 2.0
+        },
+        {
+          "key": "L",
+          "value": 1.8
+        }
+      ]
+    },
+    {
+      "id": "fabric.roofUValue",
+      "kind": "table",
+      "section": "fabric",
+      "label": "Roof U-value at the ceiling, by loft insulation answer",
+      "unit": "W/m²K",
+      "status": "sourced",
+      "source": {
+        "title": "RdSAP 10 specification (BRE, 9 June 2025)",
+        "url": "https://bregroup.com/documents/d/bre-group/rdsap-10-specification-10-06-2025"
+      },
+      "rationale": "RdSAP 10 Table 16, insulation at joists at ceiling level: none 2.3, 100 mm 0.40, 270 mm 0.16. Checked line by line on 18 October 2026.",
+      "lastChecked": "2026-10-18",
+      "refreshCadence": "static",
+      "overridable": true,
+      "overrideHint": "Measure the loft insulation depth if you can.",
+      "dependsOn": [],
+      "keyedBy": "loft answer",
+      "cells": [
+        {
+          "key": "none",
+          "value": 2.3
+        },
+        {
+          "key": "about100mm",
+          "value": 0.4
+        },
+        {
+          "key": "270mmOrMore",
+          "value": 0.16
+        }
+      ]
+    },
+    {
+      "id": "fabric.thermalBridging",
+      "kind": "table",
+      "section": "fabric",
+      "label": "Thermal bridging factor y, by age band",
+      "unit": "W/m²K",
+      "status": "sourced",
+      "source": {
+        "title": "RdSAP 10 specification (BRE, 9 June 2025)",
+        "url": "https://bregroup.com/documents/d/bre-group/rdsap-10-specification-10-06-2025"
+      },
+      "rationale": "RdSAP 10 Table 21: 0.15 for bands A–I, 0.11 for J, 0.08 for K–M. Heat loss through junctions between elements, added as y × the total exposed area of walls, windows, door, roof and ground floor (SAP 10.2 Appendix K).",
+      "lastChecked": "2026-10-18",
+      "refreshCadence": "static",
+      "overridable": false,
+      "overrideHint": null,
+      "dependsOn": [],
+      "keyedBy": "age band",
+      "cells": [
+        {
+          "key": "A",
+          "value": 0.15
+        },
+        {
+          "key": "C",
+          "value": 0.15
+        },
+        {
+          "key": "D",
+          "value": 0.15
+        },
+        {
+          "key": "E",
+          "value": 0.15
+        },
+        {
+          "key": "F",
+          "value": 0.15
+        },
+        {
+          "key": "G",
+          "value": 0.15
+        },
+        {
+          "key": "K",
+          "value": 0.08
+        },
+        {
+          "key": "L",
+          "value": 0.08
+        }
+      ]
+    },
+    {
+      "id": "fabric.airChangeRate",
+      "kind": "table",
+      "section": "fabric",
+      "label": "Air change rate (infiltration and ventilation), by age band",
+      "unit": "ach",
+      "status": "approximate",
+      "rationale": "Phase 1's 1.0 for a 1930s house with a suspended or solid floor, a chimney and some draughtproofing (HEM worked out about 0.89 for it). Higher for a Victorian house with sash windows and open flues, falling as construction tightens: about 0.8 for the 1970s–80s, and 0.5–0.6 for houses built to the 2006 and 2010 airtightness rules with intermittent extract fans. RdSAP 10 Table 5 instead builds the rate from the SAP 10.2 ventilation worksheet, which needs data about chimneys, fans and draughtproofing that the quick facts do not ask.",
+      "lastChecked": "2026-10-18",
+      "refreshCadence": "static",
+      "overridable": false,
+      "overrideHint": null,
+      "dependsOn": [],
+      "keyedBy": "age band",
+      "cells": [
+        {
+          "key": "A",
+          "value": 1.1
+        },
+        {
+          "key": "C",
+          "value": 1.0
+        },
+        {
+          "key": "D",
+          "value": 0.9
+        },
+        {
+          "key": "E",
+          "value": 0.9
+        },
+        {
+          "key": "F",
+          "value": 0.8
+        },
+        {
+          "key": "G",
+          "value": 0.8
+        },
+        {
+          "key": "K",
+          "value": 0.6
+        },
+        {
+          "key": "L",
+          "value": 0.5
+        }
+      ]
+    },
+    {
+      "id": "fabric.groundFloor",
+      "kind": "table",
+      "section": "fabric",
+      "label": "Ground floor U-value parameters (BS EN ISO 13370 as RdSAP applies it)",
+      "unit": "various",
+      "status": "sourced",
+      "source": {
+        "title": "RdSAP 10 specification (BRE, 9 June 2025)",
+        "url": "https://bregroup.com/documents/d/bre-group/rdsap-10-specification-10-06-2025"
+      },
+      "rationale": "RdSAP 10 section 5.12: clay soil (1.5 W/m·K); Rsi 0.17 and Rse 0.04 m²K/W; floor insulation 0.035 W/m·K; for a suspended floor, deck resistance 0.2 m²K/W, height above ground 0.3 m, wind speed 5 m/s, wind shielding factor 0.05, ventilation openings 0.003 m² per m of exposed perimeter, and underfloor wall U-value 1.5 W/m²K. Units: conductivities in W/m·K, resistances in m²K/W, height in m, wind speed in m/s, openings in m²/m. The engine computes the floor U-value from these, the floor area, the exposed perimeter and the wall thickness, and rounds it to 2 decimal places as RdSAP does.",
+      "lastChecked": "2026-10-18",
+      "refreshCadence": "static",
+      "overridable": false,
+      "overrideHint": null,
+      "dependsOn": [],
+      "keyedBy": "parameter",
+      "cells": [
+        {
+          "key": "soilConductivity",
+          "value": 1.5
+        },
+        {
+          "key": "internalSurfaceResistance",
+          "value": 0.17
+        },
+        {
+          "key": "externalSurfaceResistance",
+          "value": 0.04
+        },
+        {
+          "key": "insulationConductivity",
+          "value": 0.035
+        },
+        {
+          "key": "deckResistance",
+          "value": 0.2
+        },
+        {
+          "key": "heightAboveGround",
+          "value": 0.3
+        },
+        {
+          "key": "windSpeed",
+          "value": 5
+        },
+        {
+          "key": "windShielding",
+          "value": 0.05
+        },
+        {
+          "key": "ventilationOpeningsPerMetre",
+          "value": 0.003
+        },
+        {
+          "key": "underfloorWallUValue",
+          "value": 1.5
+        }
+      ]
     },
     {
       "id": "gains.windowFrameFactor",
@@ -399,13 +1533,13 @@
       "section": "gains",
       "label": "Window frame factor (glazed share of the window area)",
       "unit": "ratio",
-      "status": "to-verify",
+      "status": "sourced",
       "source": {
-        "title": "RdSAP 10 specification (BRE, June 2025)",
+        "title": "RdSAP 10 specification (BRE, 9 June 2025)",
         "url": "https://bregroup.com/documents/d/bre-group/rdsap-10-specification-10-06-2025"
       },
-      "rationale": "SAP's frame factor for PVC-U frames. The HEM input uses the matching frame fraction of 0.3.",
-      "lastChecked": "2026-10-17",
+      "rationale": "RdSAP 10 Table 24 note: frame factor 0.7 for a wooden or PVC frame (0.8 for metal). Checked on 18 October 2026.",
+      "lastChecked": "2026-10-18",
       "refreshCadence": "static",
       "overridable": false,
       "overrideHint": null,
@@ -418,13 +1552,13 @@
       "section": "gains",
       "label": "Solar access (overshading) factor for windows",
       "unit": "ratio",
-      "status": "to-verify",
+      "status": "sourced",
       "source": {
-        "title": "RdSAP 10 specification (BRE, June 2025)",
-        "url": "https://bregroup.com/documents/d/bre-group/rdsap-10-specification-10-06-2025"
+        "title": "SAP 10.2 specification (BRE, 14 March 2025)",
+        "url": "https://bregroup.com/documents/d/bre-group/sap-10-2-14-03-2025"
       },
-      "rationale": "SAP's heating-season solar access factor for average overshading, the RdSAP default for a suburban street.",
-      "lastChecked": "2026-10-17",
+      "rationale": "SAP 10.2 Table 6d, winter solar access factor for average or unknown overshading (20–60% of sky blocked), which RdSAP 10 section 7 uses for every dwelling. Checked on 18 October 2026.",
+      "lastChecked": "2026-10-18",
       "refreshCadence": "static",
       "overridable": false,
       "overrideHint": null,
@@ -447,6 +1581,125 @@
       "value": 0.2
     },
     {
+      "id": "gains.windowGValue",
+      "kind": "table",
+      "section": "gains",
+      "label": "Window solar transmittance at normal incidence (g⊥), by glazing answer",
+      "unit": "ratio",
+      "status": "sourced",
+      "source": {
+        "title": "RdSAP 10 specification (BRE, 9 June 2025)",
+        "url": "https://bregroup.com/documents/d/bre-group/rdsap-10-specification-10-06-2025"
+      },
+      "rationale": "RdSAP 10 Table 24: single 0.85, double before 2002 0.76, double or triple 2002 or later 0.72. SAP's 0.9 factor for non-normal incidence (gains.nonNormalIncidenceFactor) applies on top.",
+      "lastChecked": "2026-10-18",
+      "refreshCadence": "static",
+      "overridable": false,
+      "overrideHint": null,
+      "dependsOn": [],
+      "keyedBy": "glazing answer",
+      "cells": [
+        {
+          "key": "single",
+          "value": 0.85
+        },
+        {
+          "key": "olderDouble",
+          "value": 0.76
+        },
+        {
+          "key": "newerDouble",
+          "value": 0.72
+        }
+      ]
+    },
+    {
+      "id": "gains.nonNormalIncidenceFactor",
+      "kind": "fixed",
+      "section": "gains",
+      "label": "Ratio of average solar transmittance to that at normal incidence",
+      "unit": "ratio",
+      "status": "sourced",
+      "source": {
+        "title": "SAP 10.2 specification (BRE, 14 March 2025)",
+        "url": "https://bregroup.com/documents/d/bre-group/sap-10-2-14-03-2025"
+      },
+      "rationale": "SAP 10.2 section 6, equation (5): solar gain = 0.9 × window area × solar flux × g⊥ × frame factor × solar access factor.",
+      "lastChecked": "2026-10-18",
+      "refreshCadence": "static",
+      "overridable": false,
+      "overrideHint": null,
+      "dependsOn": [],
+      "value": 0.9
+    },
+    {
+      "id": "gains.perFloorArea",
+      "kind": "fixed",
+      "section": "gains",
+      "label": "Internal gains per m² of floor area",
+      "unit": "W/m²",
+      "status": "approximate",
+      "source": {
+        "title": "SAP 10.2 specification (BRE, 14 March 2025)",
+        "url": "https://bregroup.com/documents/d/bre-group/sap-10-2-14-03-2025"
+      },
+      "rationale": "Internal gains are a floor-area term plus a per-occupant term (gains.perOccupant). Both are fitted by least squares to SAP 10.2 Table 5 column (A) over 50–150 m², with N from Table 1b: metabolic 60N, cooking 35 + 7N, losses −40N, appliances from equation (L16), lighting from Appendix L at an assumed 50 lm/W, and 7 W of central heating pump. The fit is within 15 W of SAP across that range; it gives about 390 W for the 1930s semi with 3 occupants (phase 1 used 450 W).",
+      "lastChecked": "2026-10-18",
+      "refreshCadence": "static",
+      "overridable": false,
+      "overrideHint": null,
+      "dependsOn": [
+        "archetypes.occupancy"
+      ],
+      "value": 0.78
+    },
+    {
+      "id": "gains.perOccupant",
+      "kind": "uncertain",
+      "section": "gains",
+      "label": "Internal gains per occupant",
+      "unit": "W per occupant",
+      "status": "approximate",
+      "source": {
+        "title": "SAP 10.2 specification (BRE, 14 March 2025)",
+        "url": "https://bregroup.com/documents/d/bre-group/sap-10-2-14-03-2025"
+      },
+      "rationale": "The per-occupant term of the SAP 10.2 Table 5 fit (see gains.perFloorArea). The range, about ±30%, covers households with more or fewer appliances and more or less time at home. Correlated with hot water use per occupant through gains.perOccupantHotWaterCorrelation.",
+      "lastChecked": "2026-10-18",
+      "refreshCadence": "static",
+      "overridable": false,
+      "overrideHint": null,
+      "dependsOn": [
+        "archetypes.occupancy"
+      ],
+      "default": 107,
+      "low": 75,
+      "high": 140,
+      "distribution": "triangular"
+    },
+    {
+      "id": "gains.perOccupantHotWaterCorrelation",
+      "kind": "correlation",
+      "section": "gains",
+      "label": "Correlation of internal gains and hot water use per occupant",
+      "unit": "correlation",
+      "status": "approximate",
+      "rationale": "No source gives this correlation. 0.5 assumes a household that is home more uses both more appliances and more hot water, without the two moving together exactly. It is in normal-score space (the Gaussian copula); the correlation of the drawn values is slightly lower. The sensitivity table moves each row alone, ignoring this correlation.",
+      "lastChecked": "2026-10-18",
+      "refreshCadence": "static",
+      "overridable": false,
+      "overrideHint": null,
+      "dependsOn": [
+        "gains.perOccupant",
+        "hotWater.litresPerOccupant"
+      ],
+      "value": 0.5,
+      "between": [
+        "gains.perOccupant",
+        "hotWater.litresPerOccupant"
+      ]
+    },
+    {
       "id": "heating.meanInternalTemperature",
       "kind": "uncertain",
       "section": "heating",
@@ -457,7 +1710,7 @@
         "title": "DESNZ National Energy Efficiency Data-Framework (NEED) 2026 consumption data tables",
         "url": "https://www.gov.uk/government/statistics/national-energy-efficiency-data-framework-need-consumption-data-tables-2026"
       },
-      "rationale": "An air temperature, not an operative one. Calibrated so the archetype's central annual gas use (space heat plus hot water, divided by heating.boilerSeasonalEfficiency, with hot water from the hotWater rows and no cylinder loss for the combi) is 13,200 kWh, the midpoint of NEED's readings for comparable homes; the result must stay within their 10,980–15,433 kWh range. The target was fixed on 17 October 2026, before the engine existed. 15.7 °C solves that target with the hourly engine on the PVGIS typical year, with every other row at its default (npm run calibrate; solved 15.74 °C on 18 October 2026, rounded to 0.1 °C). The low and high (14.5 and 16.8 °C) are the temperatures that reproduce NEED's readings A (10,980 kWh) and C (15,433 kWh) by the same method: they describe uncertainty about the typical home, not the spread between households. The calibration may absorb fabric error from pessimistic RdSAP U-values as well as heating behaviour. It comes from gas-heated homes and applies to both setups, gas and heat pump ('the same household, different kit'); heat pump households often heat for longer, which biases the heat pump's running cost low.",
+      "rationale": "An air temperature, not an operative one. Calibrated so the 1930s semi's central annual gas use (space heat plus hot water, divided by heating.boilerSeasonalEfficiency, with hot water from the hotWater rows and no cylinder loss for the combi) is 13,200 kWh, the midpoint of NEED's readings for comparable homes; the result must stay within their 10,980–15,433 kWh range. The target was fixed on 17 October 2026, before the engine existed. 16.3 °C solves that target with the hourly engine on the PVGIS typical year, with the archetype's derived geometry, its default answers (filled cavity walls, 100 mm of loft insulation) and every other row at its default (npm run calibrate; solved 16.26 °C on 18 October 2026, rounded to 0.1 °C). The low and high (15.0 and 17.4 °C) are the temperatures that reproduce NEED's readings A (10,980 kWh) and C (15,433 kWh) by the same method: they describe uncertainty about the typical home, not the spread between households. Phase 1 solved 15.7 °C for the same house with unfilled cavity walls. Phase 2 fills the cavity by default (wall U 0.7, not 1.5) and adds RdSAP 10 thermal bridging, a cavity party wall, a solid ground floor, curtains on windows, and SAP's internal gains and hot water; the heat loss coefficient goes from 302 to 274 W/K, so more temperature is needed. The calibration may absorb fabric error from pessimistic RdSAP U-values as well as heating behaviour. It comes from gas-heated homes and applies to every archetype and to both setups, gas and heat pump ('the same household, different kit'); heat pump households often heat for longer, which biases the heat pump's running cost low.",
       "lastChecked": "2026-10-18",
       "refreshCadence": "static",
       "overridable": true,
@@ -465,33 +1718,46 @@
       "dependsOn": [
         "weather.pvgisTypicalYearLondon",
         "weather.outdoorTemperatureOffset",
-        "geometry.heatedVolume",
-        "geometry.externalWallArea",
-        "geometry.windowArea",
+        "weather.irradianceSampleMinute",
+        "archetypes.floorArea",
+        "archetypes.storeys",
+        "archetypes.aspectRatio",
+        "archetypes.partyWalls",
+        "archetypes.roomHeight",
+        "archetypes.upperStoreyAllowance",
+        "archetypes.windowAreaSlope",
+        "archetypes.windowAreaIntercept",
+        "archetypes.wallThickness",
+        "archetypes.groundFloorConstruction",
+        "archetypes.groundFloorInsulation",
+        "archetypes.occupancy",
         "geometry.doorArea",
-        "geometry.roofArea",
-        "geometry.groundFloorArea",
         "fabric.wallUValue",
+        "fabric.partyWallUValue",
         "fabric.windowUValue",
+        "fabric.windowCurtainResistance",
         "fabric.doorUValue",
         "fabric.roofUValue",
-        "fabric.groundFloorUValue",
+        "fabric.thermalBridging",
         "fabric.airChangeRate",
+        "fabric.groundFloor",
         "fabric.qualityFactor",
-        "gains.internalGains",
+        "gains.perFloorArea",
+        "gains.perOccupant",
         "gains.windowGValue",
+        "gains.nonNormalIncidenceFactor",
         "gains.windowFrameFactor",
         "gains.solarAccessFactor",
         "gains.groundReflectance",
-        "weather.irradianceSampleMinute",
         "heating.boilerSeasonalEfficiency",
-        "hotWater.litresPerDay",
+        "hotWater.litresBase",
+        "hotWater.litresPerOccupant",
         "hotWater.deliveryTemperature",
         "hotWater.coldFeedTemperature"
       ],
-      "default": 15.7,
-      "low": 14.5,
-      "high": 16.8,
+      "default": 16.3,
+      "low": 15.0,
+      "high": 17.4,
       "distribution": "triangular"
     },
     {
@@ -537,24 +1803,6 @@
       "sigma": 0.145
     },
     {
-      "id": "hotWater.litresPerDay",
-      "kind": "uncertain",
-      "section": "hotWater",
-      "label": "Hot water use",
-      "unit": "litres/day",
-      "status": "approximate",
-      "rationale": "About 100 litres a day for 2.5 occupants at the delivery temperature, close to SAP's 25 × occupants + 36 ≈ 98 litres. The range covers lighter and heavier users. With the delivery and cold-feed rows this is 100 × 4.18 × 40 ÷ 3600 ≈ 4.6 kWh of heat a day, about 1,700 kWh a year.",
-      "lastChecked": "2026-10-17",
-      "refreshCadence": "static",
-      "overridable": true,
-      "overrideHint": "More for more people or long showers; less for a smaller household.",
-      "dependsOn": [],
-      "default": 100,
-      "low": 70,
-      "high": 140,
-      "distribution": "triangular"
-    },
-    {
       "id": "hotWater.deliveryTemperature",
       "kind": "fixed",
       "section": "hotWater",
@@ -598,6 +1846,43 @@
       "overrideHint": "The declared heat loss on your cylinder's label.",
       "dependsOn": [],
       "value": 1.5
+    },
+    {
+      "id": "hotWater.litresBase",
+      "kind": "fixed",
+      "section": "hotWater",
+      "label": "Hot water use, fixed part per household",
+      "unit": "litres/day",
+      "status": "approximate",
+      "rationale": "SAP 2012's hot water formula, 25 × occupants + 36 litres a day, which phase 1 used at the delivery temperature. SAP 10.2 replaced it with a shower-and-bath calculation (Appendix J) that needs data the quick facts do not ask.",
+      "lastChecked": "2026-10-18",
+      "refreshCadence": "static",
+      "overridable": false,
+      "overrideHint": null,
+      "dependsOn": [
+        "archetypes.occupancy"
+      ],
+      "value": 36
+    },
+    {
+      "id": "hotWater.litresPerOccupant",
+      "kind": "uncertain",
+      "section": "hotWater",
+      "label": "Hot water use per occupant",
+      "unit": "litres/day per occupant",
+      "status": "approximate",
+      "rationale": "The per-occupant term of SAP 2012's 25 × occupants + 36 (see hotWater.litresBase). The range, about ±30%, covers lighter and heavier users. For the 1930s semi's 3 occupants it gives 111 litres a day, 78–141 across the range (phase 1 used 100, 70–140).",
+      "lastChecked": "2026-10-18",
+      "refreshCadence": "static",
+      "overridable": false,
+      "overrideHint": null,
+      "dependsOn": [
+        "archetypes.occupancy"
+      ],
+      "default": 25,
+      "low": 17,
+      "high": 35,
+      "distribution": "triangular"
     },
     {
       "id": "prices.electricityUnitRate",
