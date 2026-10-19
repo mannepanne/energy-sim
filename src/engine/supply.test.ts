@@ -37,6 +37,15 @@ describe('baseElectricityKwh', () => {
     expect(base[july1 + 17]! / base[july1 + 12]!).toBeCloseTo(2, 12);
   });
 
+  it('rejects profiles of the wrong length', () => {
+    expect(() => baseElectricityKwh({ baseElectricityKwhPerYear: 1, baseElectricityWeeklyProfile: [1], baseElectricityMonthlyProfile: even.monthly }, calendar)).toThrow(
+      'A weekly profile needs 168 values, got 1',
+    );
+    expect(() => baseElectricityKwh({ baseElectricityKwhPerYear: 1, baseElectricityWeeklyProfile: even.weekly, baseElectricityMonthlyProfile: [1] }, calendar)).toThrow(
+      'A monthly profile needs 12 values, got 1',
+    );
+  });
+
   it('throws when the profile is zero everywhere', () => {
     expect(() =>
       baseElectricityKwh({ baseElectricityKwhPerYear: 1, baseElectricityWeeklyProfile: even.weekly.map(() => 0), baseElectricityMonthlyProfile: even.monthly }, calendar),

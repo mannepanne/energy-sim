@@ -1,7 +1,7 @@
 // ABOUT: Supply: gas for each hour's heat, the boiler's pump and fan electricity, and base electricity by hour
 // ABOUT: Gas = heat ÷ boiler seasonal efficiency, with unlimited capacity; the heat pump's electricity is in heatPump.ts
 
-import { expandMonthly, expandWeekly, type Calendar } from './calendar.ts';
+import { HOURS_PER_WEEK, MONTHS_PER_YEAR, type Calendar } from './calendar.ts';
 import type { EngineInputs } from './inputs.ts';
 
 /** Divides each hour's heat by a seasonal efficiency. */
@@ -27,6 +27,10 @@ export function auxiliaryElectricity(gasKwh: Float64Array, kwhPerYear: number): 
   return gasKwh.map((gas) => (gas / totalGas) * kwhPerYear);
 }
 
+function checkProfileLength(values: readonly number[], expected: number, what: string): void {
+  if (values.length !== expected) throw new Error(`A ${what} profile needs ${expected} values, got ${values.length}`);
+}
+
 /**
  * Base electricity (lights and appliances) in each engine hour: the weekly shape × the month level, by local time,
  * rescaled over the year's 8,760 engine hours so the year's total equals the base use row exactly.
@@ -35,10 +39,20 @@ export function baseElectricityKwh(
   inputs: Pick<EngineInputs, 'baseElectricityKwhPerYear' | 'baseElectricityWeeklyProfile' | 'baseElectricityMonthlyProfile'>,
   calendar: Calendar,
 ): Float64Array {
-  const weekly = expandWeekly(inputs.baseElectricityWeeklyProfile, calendar);
-  const monthly = expandMonthly(inputs.baseElectricityMonthlyProfile, calendar);
-  const shape = weekly.map((value, hour) => value * monthly[hour]!);
-  const total = shape.reduce((sum, value) => sum + value, 0);
+  const weekly = inputs.baseElectricityWeeklyProfile;
+  const monthly = inputs.baseElectricityMonthlyProfile;
+  checkProfileLength(weekly, HOURS_PER_WEEK, 'weekly');
+  checkProfileLength(monthly, MONTHS_PER_YEAR, 'monthly');
+  // One loop rather than expandWeekly and expandMonthly, because this runs on every simulation.
+  const shape = new Float64Array(calendar.hourOfWeek.length);
+  let total = 0;
+  for (let hour = 0; hour < shape.length; hour += 1) {
+    const value = weekly[calendar.hourOfWeek[hour]!]! * monthly[calendar.month[hour]!]!;
+    shape[hour] = value;
+    total += value;
+  }
   if (!(total > 0)) throw new Error('The base electricity profile is zero in every hour');
-  return shape.map((value) => (value / total) * inputs.baseElectricityKwhPerYear);
+  const scale = inputs.baseElectricityKwhPerYear / total;
+  for (let hour = 0; hour < shape.length; hour += 1) shape[hour]! *= scale;
+  return shape;
 }
