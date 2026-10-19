@@ -10,12 +10,15 @@ Every number the engine uses comes from one file, [`data/register.json`](../data
 | --- | --- |
 | `data/register.json` | The rows, in one `{ "rows": [...] }` object |
 | `data/snapshots/pvgis-tmy-london.json` | The PVGIS typical year for London, referenced by a `series` row |
+| `data/snapshots/pvgis-pvcalc-london.json` | PVGIS PVcalc's yield for the pre-registered reference PV system, for the PV check (not a register row) |
 | `src/register/schema.ts` | Zod schemas for the row kinds, provenance and integrity rules |
 | `src/register/load.ts` | `loadRegister(parsed)`: validates an already-parsed object, with no file reads; `staleRows(register, asOf)` |
 | `src/register/ids.ts` | `ROW_IDS` and the `RowId` union |
 | `src/register/access.ts` | `createAccessor(register)`: typed reads that throw on an unknown id, an unknown table key or the wrong kind |
 | `src/snapshots/pvgisSchema.ts` | The snapshot schema and `loadPvgisSnapshot(parsed)` |
 | `scripts/fetch-pvgis.ts`, `scripts/pvgis/trim.ts` | Fetch, trim and write the PVGIS snapshot |
+| `scripts/pvgis/pvcalcCheck.ts`, `scripts/pvgis/pvcalc.ts`, `scripts/fetch-pvcalc.ts` | The pre-registered PV check, and the fetch, trim and schema of the PVcalc snapshot |
+| `scripts/baseProfile/`, `scripts/derive-base-profile.ts` | Derive the base electricity profile rows from Elexon's profile class 1 spreadsheet (`npm run derive:base-profile`) |
 | `scripts/calibration/meanInternalTemperature.ts`, `scripts/calibrate.ts` | The calibration of the mean internal temperature (`npm run calibrate`) |
 | `scripts/archetypes/needReadings.ts` | The pre-registered NEED readings T and S for each archetype, and the flag rule |
 
@@ -99,9 +102,10 @@ Cross-row rules (duplicates, dependencies) run only once every row is valid on i
 | hotWater | Litres a day: 36 per household plus 25 per occupant (uncertain, 17–35); delivery and cold-feed temperatures; the hourly draw-off profile (Energy Saving Trust, 2008; local time, shares summing to 1); for the heat pump setups, the hot water flow temperature (50 °C), and the cylinder's volume (200 litres), setpoint (50 °C), reheat trigger (45 °C) and standing loss |
 | prices | Ofgem price cap, GB average by Direct Debit, 1 October–31 December 2026, checked on 17 October 2026 |
 | carbon | Natural gas factor (gross CV; to verify); grid electricity factor 0.14396 kgCO₂e/kWh (DESNZ 2026 set, electricity consumed, including transmission and distribution losses) |
-| electricity | Base electricity use, from Ofgem's 2026 typical consumption values (1,600–3,800 kWh, mode 2,500) |
+| electricity | Base electricity use, from Ofgem's 2026 typical consumption values (1,600–3,800 kWh, mode 2,500); its hour-of-week shape and month level (Elexon profile class 1, see below) |
+| solar | System size (uncertain, 2.5–6 kWp, mode 4, clipped to the roof); tilt and roof pitch (35°); direction (uncertain, −45° to +45° from south, mode south); system loss (14%, PVGIS's default); temperature coefficient (−0.4% per K); cell temperature rise (0.031 K per W/m², NOCT 45 °C); usable share of one roof slope (0.7); kWp per m² (0.2) |
 
-The `solar`, `costs` and `tariffs` sections exist in the schema and are filled by later phase 2 PRs.
+The `costs` and `tariffs` sections exist in the schema and are filled by later phase 2 PRs.
 
 **The RdSAP check (18 October 2026, [#9](https://github.com/mannepanne/energy-sim/issues/9)).** Every RdSAP-sourced row was checked line by line against the RdSAP 10 specification (9 June 2025) and marked sourced. What the check changed:
 - **Party walls:** a cavity party wall is not zero. Table 15 gives 0.5 unfilled, 0.2 filled and 0.25 when the construction can't be determined, which the cavity archetypes use. Solid masonry is 0.
@@ -113,6 +117,14 @@ The `solar`, `costs` and `tariffs` sections exist in the schema and are filled b
 - **The ground floor:** the U-value is computed by ISO 13370 ([#7](https://github.com/mannepanne/energy-sim/issues/7)). Table 19 gives band C a solid floor, so the 1930s semi's floor is solid at 0.66 W/m²K, not suspended timber at 0.75.
 
 **The heat pump rows (19 October 2026).** The SPF rows and the draw-off profile are sourced. The COP curve, the flow temperatures and the cylinder rows are approximate, the flow temperatures checked against the Electrification of Heat trial and HeatpumpMonitor.org: each gives its reason in its rationale, and the ordering a test enforces (hot water flow above the design flow's high, setpoint above the reheat trigger above the cold feed). On the price cap the curve rows change when the heat pump uses electricity, not how much, because k scales the year to the sampled SPF. `heating.heatPumpSpfWellInstalled` is read only in the well-installed scenario, so it is not among the default draws or in the phase 1 report's sensitivity table. See [engine.md](./engine.md#the-heat-pump-over-the-year).
+
+**The solar rows (19 October 2026)** are approximate, each with its reason, except the system loss, which cites PVGIS's suggested default. Size and direction are uncertain rows; the rest are fixed. Every run reads them, so a run with solar pairs with one without. The PV check against PVGIS's calculator ([engine.md](./engine.md#checks-against-outside-references)) was pre-registered on these defaults and changed none of them.
+
+**The base electricity profile (19 October 2026)** comes from Elexon's "average profiling data per profile class" for 2013/14, evaluated at 10-year average temperatures (downloaded from Elexon's profiling page on 19 October 2026, 99,100 bytes, SHA-256 7b2bb2c7…02969; not committed). Profile class 1 gives half-hourly mean demand for five seasons × weekday, Saturday and Sunday. `npm run derive:base-profile -- <folder>` reads the unzipped spreadsheet and prints the two rows:
+- **the hour-of-week shape:** each day type's hourly use (the mean of its two half-hours), averaged over that day type's days in 2026, whatever their season, scaled to a mean of 1;
+- **the month level:** each month's mean daily use ÷ the year's.
+
+Seasons follow Elexon's rules on 2026: winter from the October clock change to the day before the March one (25 October; 29 March), spring to the Friday before summer, summer the ten weeks from 16 May, high summer from 25 July to the Sunday after the August bank holiday (6 September), autumn from 7 September. Bank holidays count as their weekday. Using one weekly shape keeps the winter–summer difference in level (the month row) and loses only the small change of daily shape between seasons: a weekday's share of use between 10:00 and 16:00 is 25.5% in winter and 26.4% in summer. The engine rescales the product so the year equals `electricity.baseUse`.
 
 **Correlations** cover uncertain rows only, not table cells, though cells have draw keys. Every house must read both rows of a correlation, or sampling throws; the one correlation names two rows every house reads.
 
@@ -135,6 +147,10 @@ The benchmark found that the method agrees with HEM, but that both models predic
   - The register PR set a provisional 16.0 °C (14.8–17.1) with the benchmark's rough monthly method. The hourly re-solve replaced it with 15.7 °C (14.5–16.8), and the rough-method solver was removed.
   - The phase 2 archetypes PR re-solved it on the continuous engine with derived geometry and the checked RdSAP fabric. With the cavity as built, the heat loss coefficient rose from 302 to 341 W/K (thermal bridging adds 29 W/K, the cavity party wall 9 W/K) and the solve gave 14.6 °C. Magnus then made a filled cavity the default for bands C–G (18 October 2026), which brings H to 274 W/K and the solve to 16.3 °C (15.0–17.4). Without thermal bridging it would be 17.2 °C.
   - The heating schedules PR replaces this row with a calibrated setpoint.
+
+## The PVcalc snapshot
+
+`data/snapshots/pvgis-pvcalc-london.json` holds PVGIS PVcalc's annual and monthly yield and in-plane irradiation for the reference system, with its loss breakdown (reflection, spectral, temperature and low irradiance, total), the request URL, the fetch date and the SHA-256 of the raw response. It was fetched once, on 19 October 2026, after the check was pre-registered. `npm run fetch:pvcalc` refetches it; `npm run fetch:pvcalc -- <saved response> <YYYY-MM-DD>` trims a saved response instead. A refetch may move PVcalc's figure (PVGIS updates its databases), so rerun the check test and update its pinned gap in the same PR.
 
 ## The PVGIS snapshot
 

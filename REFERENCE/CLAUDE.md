@@ -12,12 +12,12 @@ Testing philosophy, where tests live (next to the code), Vitest set-up, coverage
 ### [register.md](./register.md)
 **When to read:** Adding or changing a register row, reading parameters in the engine, refreshing the PVGIS snapshot, or checking where a number comes from.
 
-Row kinds and fields (including `table` and `correlation`), the integrity rules and their messages, the typed accessor, the archetype and fabric rows and the RdSAP check, the mean internal temperature calibration, and the PVGIS snapshot format.
+Row kinds and fields (including `table` and `correlation`), the integrity rules and their messages, the typed accessor, the archetype and fabric rows and the RdSAP check, the solar rows and the Elexon base electricity profile, the mean internal temperature calibration, and the PVGIS and PVcalc snapshot formats.
 
 ### [engine.md](./engine.md)
 **When to read:** Changing the physics, reading engine results, adding an engine input, or checking how a number is calculated.
 
-The hourly engine's files and API, houses and quick facts, derived geometry, the ISO 13370 ground floor, the heat loss, space heat, solar, hot water and cylinder, supply, the heat pump COP curve, cost and carbon formulas, the hand-calculated fixture house and two archetypes, the checks against Duffie and Beckman and HEM, the archetype table, the time base, the seeded sampling with its copula, the paired comparison and sensitivity table, and how the phase 1 report is generated.
+The hourly engine's files and API, houses and quick facts, derived geometry, the ISO 13370 ground floor, the heat loss, space heat, solar, hot water and cylinder, supply, the heat pump COP curve, roof solar and its self-consumption, cost and carbon formulas, the hand-calculated fixture house and two archetypes, the checks against Duffie and Beckman, HEM and PVGIS's PV calculator, the archetype table, the time base, the seeded sampling with its copula, the paired comparison and sensitivity table, and how the phase 1 report is generated.
 
 ### [environment-setup.md](./environment-setup.md)
 **When to read:** Setting up local development, configuring secrets, or deploying to production.

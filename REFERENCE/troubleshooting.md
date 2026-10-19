@@ -47,6 +47,13 @@ Add an entry here when a problem takes more than a few minutes to work out.
 - *"The ceiling binds in a few samples":* a curve or SPF row change means the ceiling never binds in the 200 samples, so the iterative solve goes untested on real data. That is physically fine. If the change was intended, rely on the constructed-load tests for the iterative solve, drop the real-register assertion, and say so in the PR.
 - *The flow ordering:* the hot water flow must stay at or above the high of `heating.flowTemperatureAtDesign`, and the cylinder's setpoint above its reheat trigger. Fix the rows, not the test.
 
+**"The profile "electricity.baseProfileWeekly" must be non-negative …" or "A weekly profile needs 168 values".** A base electricity profile row is malformed. Rederive both rows with `npm run derive:base-profile` (see [register.md](./register.md#the-rows)) rather than editing values by hand.
+
+**The PV check fails** (`scripts/pvgis/pvcalcCheck.test.ts`).
+- *"no longer describe the pre-registered reference system":* a solar row's default (tilt, direction or system loss) changed, so the engine no longer models the system PVcalc was asked about. The check was pre-registered on those defaults. Changing one means a new pre-registration and a new PVcalc call, agreed first; don't edit the reference system to match.
+- *The pinned gap (−2.55%) moved:* a change to the sun position, the transposition, the PV formulas or the weather moved the engine's yield. If the change is intended and the gap stays within 8%, re-pin it and update the table in [engine.md](./engine.md#checks-against-outside-references).
+- *Outside 8%:* stop and look for the cause before touching any row; the tolerance was fixed before the check ran.
+
 **The calibration test fails** (`scripts/calibration/meanInternalTemperature.test.ts`). A change to a row the 1930s semi's gas setup reads, such as an archetype fact, a U-value, the windows or the weather, has moved central gas use away from its calibration target. Re-solve the `heating.meanInternalTemperature` row with `npm run calibrate`, as [register.md](./register.md#the-mean-internal-temperature-calibration) describes, then regenerate the report.
 
 ## The report and CI
@@ -57,7 +64,7 @@ Add an entry here when a problem takes more than a few minutes to work out.
 
 **`npm run archetypes` shows an archetype newly flagged.** The flag rule and the NEED readings were fixed before any archetype ran ([scripts/archetypes/README.md](../scripts/archetypes/README.md)), so don't change them to clear a flag. A flag is an honest result. Check instead that the archetype's register rows are right, and record the gap as evidence on [#14](https://github.com/mannepanne/energy-sim/issues/14).
 
-**CI's "Bench" step fails.** 500 samples × 2 setups took longer than 5 seconds. On a recent Mac it takes about 0.6 seconds (580–590 ms on 18 October 2026), and CI runners are somewhat slower, so a failure means a real slowdown, not noise. Look for a slowdown in the hourly loop: per-hour objects instead of typed arrays, or weather prepared again for every sample instead of once.
+**CI's "Bench" step fails.** 500 samples × 2 setups took longer than 5 seconds. On a recent Mac it takes about 1.4 seconds (19 October 2026, with the heat pump curve, the cylinder and the hourly base profile), and CI runners are somewhat slower, so a failure means a real slowdown, not noise. Look for a slowdown in the hourly loop: per-hour objects instead of typed arrays, or weather prepared again for every sample instead of once.
 
 ## The benchmark
 
@@ -70,5 +77,9 @@ Add an entry here when a problem takes more than a few minutes to work out.
 ## Refreshing data
 
 **Refreshing the PVGIS weather.** Run `npm run fetch:pvgis` (it needs network access), then commit `data/snapshots/pvgis-tmy-london.json`. A new snapshot changes solar gains and heat demand, so rerun `npm run calibrate`, update the temperature row if the calibration test fails, and regenerate the report.
+
+**Refreshing the PVcalc figure.** Run `npm run fetch:pvcalc` (network), commit `data/snapshots/pvgis-pvcalc-london.json`, and rerun the PV check; re-pin its gap if PVGIS's figure moved.
+
+**Refreshing the base electricity profile.** Download Elexon's average profiling data from its profiling page (ask first; it is not committed), unzip it, run `npm run derive:base-profile -- <folder>`, and paste the two printed arrays into the profile rows. A newer file may have another layout; the reader throws naming the cell it did not expect.
 
 **Updating prices at a new price cap period.** Update the price rows, their `lastChecked` and `validUntil` dates, and their source, then regenerate the report. The report's "Rows due for a fresh check" table shows which rows are due.
