@@ -99,7 +99,7 @@ export function heatPumpElectricity(load: HeatPumpLoad, scale: CopScale, curve: 
  * Each step only raises k and caps at least one more hour, so the loop ends: once no further hour is capped, the
  * next k equals the current one exactly.
  */
-export function solveCopScale(load: HeatPumpLoad, spf: number, curve: CopCurve, standbyShare = 0): CopScale {
+export function solveCopScale(load: HeatPumpLoad, spf: number, curve: CopCurve, standbyShare: number): CopScale {
   if (!(spf > 0)) throw new Error(`The SPF must be positive, got ${spf}`);
   // Even with every hour at the ceiling, the heat needs Σheat ÷ ceiling, so the share must leave at least that.
   if (!(standbyShare >= 0 && standbyShare < 1 - spf / curve.copCeiling)) {

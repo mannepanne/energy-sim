@@ -63,7 +63,7 @@ describe('readInputs', () => {
     expect(draw).toMatchObject({ low: 0.6, high: 1.2, label: 'Fixture fabric.airChangeRate (C)', unit: 'fixture' });
   });
 
-  it('lists every uncertain row the house reads, with the SPF row of the chosen scenario only', () => {
+  it('lists every uncertain row the house reads, with the SPF and standby rows of the chosen scenario only', () => {
     const fieldTrial = UNCERTAIN_ROW_IDS.filter((id) => !rowsOutsideScenario('fieldTrial').includes(id));
     expect(uncertainDraws(fixtureAccessor()).map((draw) => draw.id).toSorted()).toEqual(fieldTrial.toSorted());
     expect(rowsOutsideScenario('fieldTrial')).toEqual(['heating.heatPumpSpfWellInstalled', 'heating.heatPumpStandbyShareWellInstalled']);

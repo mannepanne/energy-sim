@@ -78,7 +78,7 @@ describe('the COP shape', () => {
 describe('the k solve', () => {
   it('is closed-form when the ceiling does not bind: k = SPF × Σ(heat ÷ shape) ÷ Σheat', () => {
     const run = load([1, 2, 3], [5, 6, 8]);
-    const scale = solveCopScale(run, 3, curve);
+    const scale = solveCopScale(run, 3, curve, 0);
     expect(scale.k).toBeCloseTo((3 * (1 / 5 + 2 / 6 + 3 / 8)) / 6, 12);
     expect(scale.ceilingBound).toBe(false);
     expect(seasonalPerformance(run, scale, curve)).toBeCloseTo(3, 12);
@@ -86,7 +86,7 @@ describe('the k solve', () => {
 
   it('counts hot water heat at its own shape in the same balance', () => {
     const run = load([1, 0], [8, 8], [0, 1], [4, 4]);
-    const scale = solveCopScale(run, 3, curve);
+    const scale = solveCopScale(run, 3, curve, 0);
     expect(scale.k).toBeCloseTo((3 * (1 / 8 + 1 / 4)) / 2, 12);
     expect(seasonalPerformance(run, scale, curve)).toBeCloseTo(3, 12);
   });
@@ -94,7 +94,7 @@ describe('the k solve', () => {
   it('caps hours at the ceiling and re-solves k, so the year still matches the SPF', () => {
     // Closed-form k = 5 × (1/4 + 1/15) ÷ 2 = 0.79, which would put the second hour at 11.9.
     const run = load([1, 1], [4, 15]);
-    const scale = solveCopScale(run, 5, curve);
+    const scale = solveCopScale(run, 5, curve, 0);
     expect(scale.ceilingBound).toBe(true);
     // The second hour runs at 7, so the first needs 1 ÷ (2/5 − 1/7) = 3.889, and k = 3.889 ÷ 4.
     expect(scale.k).toBeCloseTo(1 / (2 / 5 - 1 / 7) / 4, 12);
@@ -105,16 +105,16 @@ describe('the k solve', () => {
 
   it('settles when capping one hour pushes another over the ceiling', () => {
     const run = load([1, 1, 1, 1], [4, 9, 12, 15]);
-    const scale = solveCopScale(run, 5.5, curve);
+    const scale = solveCopScale(run, 5.5, curve, 0);
     expect(scale.ceilingBound).toBe(true);
     expect(seasonalPerformance(run, scale, curve)).toBeCloseTo(5.5, 12);
     for (const value of heatPumpElectricity(run, scale, curve)) expect(1 / value).toBeLessThanOrEqual(7 + 1e-12);
   });
 
   it('rejects an SPF the ceiling can never reach, a non-positive SPF, and a run with no heat', () => {
-    expect(() => solveCopScale(load([1], [5]), 7, curve)).toThrow('below 1 − SPF ÷ COP ceiling');
-    expect(() => solveCopScale(load([1], [5]), 0, curve)).toThrow('must be positive');
-    expect(() => solveCopScale(load([0, 0], [5, 5]), 3, curve)).toThrow('delivers no heat');
+    expect(() => solveCopScale(load([1], [5]), 7, curve, 0)).toThrow('below 1 − SPF ÷ COP ceiling');
+    expect(() => solveCopScale(load([1], [5]), 0, curve, 0)).toThrow('must be positive');
+    expect(() => solveCopScale(load([0, 0], [5, 5]), 3, curve, 0)).toThrow('delivers no heat');
   });
 
   it('counts standby inside the SPF: k is solved on what the heat needs after standby, and every hour draws it', () => {
@@ -144,7 +144,7 @@ describe('the k solve', () => {
 
   it('lowers the year’s efficiency when the same heat moves into colder hours at the same k', () => {
     const reference = load([2, 1], [4, 8]);
-    const scale = solveCopScale(reference, 3, curve);
+    const scale = solveCopScale(reference, 3, curve, 0);
     const colder = load([2.5, 0.5], [4, 8]);
     expect(seasonalPerformance(colder, scale, curve)).toBeLessThan(3);
     const milder = load([1.5, 1.5], [4, 8]);

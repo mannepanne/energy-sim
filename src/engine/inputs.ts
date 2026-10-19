@@ -139,7 +139,7 @@ export const SCENARIO_ROWS = {
   wellInstalled: { spf: 'heating.heatPumpSpfWellInstalled', standbyShare: 'heating.heatPumpStandbyShareWellInstalled' },
 } as const satisfies Record<SpfScenario, { spf: UncertainRowId; standbyShare: UncertainRowId }>;
 
-/** The uncertain rows a scenario never reads: the other scenario's SPF and standby share. */
+/** The uncertain rows a scenario never reads: the other scenario's SPF and standby share. Tests use it to list a scenario's draws. */
 export function rowsOutsideScenario(spfScenario: SpfScenario): UncertainRowId[] {
   return SPF_SCENARIOS.filter((other) => other !== spfScenario).flatMap((other) => Object.values(SCENARIO_ROWS[other]));
 }
@@ -289,7 +289,7 @@ function readGains(reader: Reader, house: House): GainsInputs {
 
 type HeatingInputs = Pick<
   EngineInputs,
-    | 'meanInternalTemperatureC'
+  | 'meanInternalTemperatureC'
   | 'boilerSeasonalEfficiency'
   | 'boilerAuxiliaryElectricityKwhPerYear'
   | 'heatPumpSpf'
