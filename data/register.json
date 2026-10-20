@@ -2880,7 +2880,7 @@
       "label": "Air source heat pump lifetime",
       "unit": "years",
       "status": "approximate",
-      "rationale": "No field data yet covers a full lifetime of today's air source heat pumps; 15–20 years is the span commonly quoted. A triangular with mode 18 and range 13–22 years. Rounded to whole years, it is the payback horizon for heat pump setups. Its upper end stays below solar PV's lower end, so PV never needs replacing inside a heat pump horizon.",
+      "rationale": "No field data yet covers a full lifetime of today's air source heat pumps; 15–20 years is the span commonly quoted. A triangular with mode 18 and range 13–22 years. Rounded to whole years, it is the payback horizon for heat pump setups. Its upper end is no later than solar PV's lower end, and a lifetime ending at the horizon is not replaced, so PV never needs replacing inside a heat pump horizon.",
       "refreshCadence": "static",
       "default": 18,
       "low": 13,

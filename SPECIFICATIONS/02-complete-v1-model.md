@@ -575,7 +575,7 @@ Carried forward:
 New, tracked when their code lands:
 - a simple output cap rather than heat pump sizing, and no backup heat;
 - one location;
-- undiscounted payback, assuming the boiler needs replacing now;
+- undiscounted payback, assuming the boiler needs replacing now ([#37](https://github.com/mannepanne/energy-sim/issues/37));
 - Agile represented by a past year on typical weather;
 - weekdays taken from the 2026 reference year ([#25](https://github.com/mannepanne/energy-sim/issues/25));
 - no carbon credit for export ([#34](https://github.com/mannepanne/energy-sim/issues/34));
