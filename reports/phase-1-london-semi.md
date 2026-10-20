@@ -88,7 +88,7 @@ With no loft insulation, the house needs more heat: 13,400 kWh of space heat a y
 - **Stable draws:** each value comes from a hash of the seed, the sample number and the row id, passed through the row’s inverse distribution function. Triangular rows use their default as the mode. The SPF is lognormal and clipped to its low and high.
 - **Central** is the run with every row at its default. **Median** and the **10th to 90th percentile** come from the samples (linear interpolation between ranked samples).
 - **Fabric quality** is one shared factor on every U-value and the air change rate.
-- **Correlated rows:** a Gaussian copula correlates internal gains per occupant and hot water use per occupant (0.5); real change in gas prices each year, after inflation and real change in electricity prices each year, after inflation (0.6), in normal-score space. The other rows are drawn independently of each other.
+- **Correlated rows:** a Gaussian copula correlates, in normal-score space, internal gains and hot water use per occupant (0.5); and the gas and electricity real price changes (0.6). The other rows are drawn independently of each other.
 - **Rounding:** costs to £10, energy to 100 kWh, carbon to 10 kg and shares to 5%.
 
 ## Benchmark and calibration
@@ -102,7 +102,7 @@ The benchmark checked annual **space heat** against the government’s Home Ener
 
 ## Data dates
 
-- **Register:** 94 rows (42 sourced, 2 to-verify, 50 approximate), last checked between 2026-10-17 and 2026-10-19. A sourced row has been checked against its source; a to-verify row is taken from a source but not yet checked line by line; an approximate row is an estimate with a written reason. See [register.md](../REFERENCE/register.md).
+- **Register:** 94 rows (41 sourced, 2 to-verify, 51 approximate), last checked between 2026-10-17 and 2026-10-19. A sourced row has been checked against its source; a to-verify row is taken from a source but not yet checked line by line; an approximate row is an estimate with a written reason. See [register.md](../REFERENCE/register.md).
 - **Weather:** the PVGIS typical year for 51.507, −0.128 (PVGIS-SARAH3), fetched on 2026-10-18. Source: PVGIS © European Union, 2001–2026. Reuse is authorised provided the source is acknowledged (Commission Decision 2011/833/EU). Trimmed to the columns the engine uses.
 - **Base electricity by hour:** Elexon: average profiling data per profile class, 2013/14, evaluated at 10-year average temperatures, checked on 2026-10-19.
 - **Rows due for a fresh check** (the rest are static). A price row falls due when its price cap period ends:

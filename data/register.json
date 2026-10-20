@@ -2304,12 +2304,12 @@
       "section": "prices",
       "label": "Export rate, Outgoing Octopus (flat), London",
       "unit": "p/kWh",
-      "status": "sourced",
+      "status": "approximate",
       "source": {
         "title": "Octopus Energy public API: Outgoing Octopus (OUTGOING-VAR-24-10-26), London region (C) unit rates",
         "url": "https://api.octopus.energy/v1/products/OUTGOING-VAR-24-10-26/"
       },
-      "rationale": "The flat export tariff the spec calls Octopus Outgoing Fixed is sold as Outgoing Octopus: one rate for every exported kWh, 12p/kWh in London from 1 March 2026 (15p before), no VAT, no standing charge. It needs an MCS-certified PV system and a smart export meter. Every solar setup earns it on its exported kWh. Approximate until the tariffs PR snapshots it with the other Octopus rates.",
+      "rationale": "Approximate until the tariffs PR snapshots it with the other Octopus rates; the source is the API query it was taken from on 19 October 2026. The flat export tariff the spec calls Octopus Outgoing Fixed is sold as Outgoing Octopus: one rate for every exported kWh, 12p/kWh in London from 1 March 2026 (15p before), with no VAT and no standing charge. Octopus's fixed Smart Export Guarantee tariff pays 4.1p, so the choice matters for solar's payback. The engine assumes every solar setup qualifies for the flat rate.",
       "refreshCadence": "quarterly",
       "overridable": true,
       "overrideHint": "The export rate on your export tariff.",
@@ -2819,7 +2819,7 @@
         "title": "DESNZ: Boiler Upgrade Scheme statistics, August 2026 (table Q1.1A)",
         "url": "https://www.gov.uk/government/statistics/boiler-upgrade-scheme-statistics-august-2026"
       },
-      "rationale": "Reported costs of air-to-water heat pumps redeemed under the Boiler Upgrade Scheme in England and Wales, 2026 Q2, from the MCS installation database: median £12,908, interquartile range £11,128–£15,627. The cost covers the heat pump, its installation, the hot water cylinder and the radiator and pipework changes the installer made. A lognormal with median £12,900 and sigma 0.25 gives an interquartile range of £10,900–£15,300; clipped to £8,000–£22,000. One row for every archetype: the 2025/26 medians by capacity range from £11,494 (4–6 kW) to £13,943 (10–12 kW), inside this range. These are costs before the grant.",
+      "rationale": "Reported costs of air-to-water heat pumps redeemed under the Boiler Upgrade Scheme in England and Wales, 2026 Q2: median £12,908, interquartile range £11,128–£15,627. The statistics' note 4: costs come from the MCS certificate, are self-reported by installers, include the system, labour and VAT, and should include the grant value (so they are before the grant, though installers may interpret this differently); the highest and lowest 10% are excluded. So the true spread is wider than these quartiles, and the clip limits allow for that. The statistics don't say whether the cost covers the hot water cylinder and radiator changes; the engine assumes the reported cost is the whole installation, including them. A lognormal with median £12,900 and sigma 0.25 gives an interquartile range of £10,900–£15,300; clipped to £8,000–£22,000. One row for every archetype: the 2025/26 medians by capacity range from £11,494 (4–6 kW) to £13,943 (10–12 kW), inside this range.",
       "refreshCadence": "quarterly",
       "overridable": true,
       "overrideHint": "The quote you have for a heat pump, before the grant.",
@@ -2843,13 +2843,13 @@
         "title": "DESNZ: Solar PV cost data, 2025/26 (Total Installed Capacity file, summary and domestic tables)",
         "url": "https://www.gov.uk/government/statistics/solar-pv-cost-data"
       },
-      "rationale": "MCS-registered installations in 2025/26: median £1,595 per kW for 0–4 kW systems and £1,546 for 4–10 kW; the mean for domestic 0–4 kW systems is £1,955, so costs skew upwards. The cost includes the panels, inverter, installation, connection and VAT, and excludes batteries. A triangular with mode £1,600 and range £1,200–£2,400 (mean £1,733). Applied to the system size after the roof limit, so the fixed part of a small system’s cost is not captured.",
+      "rationale": "MCS-registered installations in 2025/26: median £1,595 per kW for 0–4 kW systems and £1,546 for 4–10 kW. These medians include non-domestic installations, which cost less: the 0–4 kW mean is £1,955 for domestic installations and £1,650 for non-domestic ones, against £1,808 for all. No domestic median is published, so the mode scales the 0–4 kW median by the domestic-to-all ratio of means (1,955 ÷ 1,808): about £1,700. A triangular with mode £1,700 and range £1,250–£2,500. The cost includes the panels, inverter, installation, connection and VAT where it applies, and excludes batteries. Applied to the system size after the roof limit, so the fixed part of a small system's cost is not captured.",
       "refreshCadence": "yearly",
       "overridable": true,
       "overrideHint": "Your solar quote divided by its size in kWp.",
-      "default": 1600,
-      "low": 1200,
-      "high": 2400,
+      "default": 1700,
+      "low": 1250,
+      "high": 2500,
       "distribution": "triangular",
       "lastChecked": "2026-10-19",
       "dependsOn": []
@@ -2862,10 +2862,10 @@
       "unit": "£",
       "status": "sourced",
       "source": {
-        "title": "GOV.UK: Apply for the Boiler Upgrade Scheme (what you can get, and check if you are eligible)",
+        "title": "GOV.UK: Apply for the Boiler Upgrade Scheme (what you can get, and check if you're eligible)",
         "url": "https://www.gov.uk/apply-boiler-upgrade-scheme/what-you-can-get"
       },
-      "rationale": "£7,500 towards an air source heat pump, checked on GOV.UK on 19 October 2026. The extra £1,500 until March 2027 is only for oil or LPG homes with no mains gas, so it does not apply: every v1 home has mains gas. The conditions, as GOV.UK lists them: the applicant owns the property (including second homes and rented-out homes); the heat pump replaces a fossil fuel system such as gas (a gas boiler qualifies); it is installed and commissioned within 120 days of the application; the property has not had government funding for a heat pump or biomass boiler before; social housing and most new builds are excluded; and the system is at most 45 kWth. GOV.UK sets no EPC or insulation condition. The installer applies for the grant. The engine assumes an MCS-certified installation for the heat pump, and for the PV system so it can be paid for export; the eligibility page itself only recommends an MCS-certified installer. The engine applies the grant to heat pump setups only, capped at the installed cost, and never to a replacement heat pump (a property that has had the grant cannot claim it again).",
+      "rationale": "£7,500 towards an air source heat pump, checked on GOV.UK on 19 October 2026. The extra £1,500 until March 2027 is only for oil or LPG homes with no mains gas, so it does not apply: every v1 home has mains gas. The conditions, as GOV.UK lists them: the applicant owns the property (including second homes and rented-out homes); the heat pump replaces a fossil fuel system such as gas; it is installed and commissioned within 120 days of the application; the property has not had government funding for a heat pump or biomass boiler before; social housing and most new builds are excluded; and the system is at most 45 kWth. GOV.UK sets no EPC or insulation condition. The Boiler Upgrade Scheme statistics (August 2026, 'Scheme background') add that the installer applies and is paid the grant, must deduct it from the owner's price, and that every installation must be MCS-certified; the engine assumes that certification, and the same for PV export payments. The engine applies the grant to heat pump setups only, capped at the installed cost, and never to a replacement heat pump (a property that has had the grant cannot claim it again).",
       "refreshCadence": 1,
       "value": 7500,
       "lastChecked": "2026-10-19",

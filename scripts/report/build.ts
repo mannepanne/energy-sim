@@ -198,8 +198,8 @@ function houseSection(access: RegisterAccessor): string {
 
 function methodSection(register: Register, access: RegisterAccessor, run: SetupRun): string {
   const uncertain = uncertainDraws(access, run.house).map((draw) => draw.label);
-  const labels = new Map(register.rows.map((row) => [row.id, row.label.toLowerCase()]));
-  const correlations = access.correlations().map((row) => `${labels.get(row.between[0])} and ${labels.get(row.between[1])} (${plainValue(row.value)})`);
+  // Each correlation row's label names its pair, such as "Correlation of the gas and electricity real price changes".
+  const correlations = access.correlations().map((row) => `${row.label.replace(/^Correlation of /, '')} (${plainValue(row.value)})`);
   return [
     '## How the ranges are made',
     '',
@@ -207,7 +207,7 @@ function methodSection(register: Register, access: RegisterAccessor, run: SetupR
     '- **Stable draws:** each value comes from a hash of the seed, the sample number and the row id, passed through the row’s inverse distribution function. Triangular rows use their default as the mode. The SPF is lognormal and clipped to its low and high.',
     '- **Central** is the run with every row at its default. **Median** and the **10th to 90th percentile** come from the samples (linear interpolation between ranked samples).',
     '- **Fabric quality** is one shared factor on every U-value and the air change rate.',
-    `- **Correlated rows:** a Gaussian copula correlates ${correlations.join('; ')}, in normal-score space. The other rows are drawn independently of each other.`,
+    `- **Correlated rows:** a Gaussian copula correlates, in normal-score space, ${correlations.join('; and ')}. The other rows are drawn independently of each other.`,
     '- **Rounding:** costs to £10, energy to 100 kWh, carbon to 10 kg and shares to 5%.',
   ].join('\n');
 }
