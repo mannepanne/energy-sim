@@ -87,7 +87,7 @@ function variantSection(comparison: Comparison): string {
   return [
     '## The variant with no loft insulation',
     '',
-    `With no loft insulation, the house needs more heat: ${kwh(forSetup(comparison.bands, 'gas').spaceHeatKwh.central)} of space heat a year, central. Gas minus heat pump running cost is ${pounds(costDifference.central)} central (${range(pounds(costDifference.p10), pounds(costDifference.p90))}), and the heat pump is cheaper in ${share(shareHeatPumpCheaper(comparison))} of samples. The same samples and the same bias (issue 15) apply.`,
+    `With no loft insulation, the house needs more heat: ${kwh(forSetup(comparison.bands, 'gas').spaceHeatKwh.central)} of space heat a year, central. Gas minus heat pump running cost is ${pounds(costDifference.central)} central (${range(pounds(costDifference.p10), pounds(costDifference.p90))}), and the heat pump is cheaper in ${share(shareHeatPumpCheaper(comparison))} of samples. The same samples and the same caveat (issue 15) apply.`,
   ].join('\n');
 }
 
@@ -132,7 +132,7 @@ function comparisonSection(comparison: Comparison, count: number): string {
     '',
     `**The heat pump is cheaper to run in ${share(shareHeatPumpCheaper(comparison))} of samples** (rounded to the nearest 5%; an exact tie counts as half). With ${wholeNumber(count)} samples, this share carries sampling noise of about ±${marginPoints(shareHeatPumpCheaper(comparison), count)} percentage points. That is noise from the method, not the real-world uncertainty, which the ranges above show.`,
     '',
-    '**This running-cost comparison leans in the heat pump’s favour.** One calibrated mean internal temperature, taken from gas-heated homes, applies to both setups. Heat pump households often heat for longer, so the heat pump’s running cost is likely too low here, and the share of samples in which it is cheaper too high ([issue 15](https://github.com/mannepanne/energy-sim/issues/15)). The model does not yet give the two setups different temperatures.',
+    '**This running-cost comparison may lean in the heat pump’s favour.** Both setups heat to one calibrated setpoint, taken from gas-heated homes. The heat pump heats from 7 am to 11 pm every day, SAP’s longer heat pump day, while the boiler follows SAP’s two periods on weekdays. On those two schedules the engine understates the heat pump’s space heat against the boiler’s by about 6.7%, against the government’s Home Energy Model, so the heat pump’s running cost may be a little low, and the share of samples in which it is cheaper a little high ([issue 15](https://github.com/mannepanne/energy-sim/issues/15); see the [schedules ADR](../REFERENCE/decisions/2026-10-20-heating-schedules-one-thermal-mass-node.md)).',
     ...(notes.length > 0 ? ['', ...notes] : []),
   ].join('\n');
 }
@@ -231,8 +231,9 @@ function benchmarkSection(centralGasKwh: number): string {
     '',
     `- **The pre-registered check missed the rule.** HEM gave ${kwh(hemMain.spaceHeatKwh)} at its own settings (about ${air(hemMain.meanAirTemperatureWhenHeatingC)} of air), and the rough calculation at 18 °C of air gave ${kwh(rough)}: a gap of ${signedPercent(gapFromReference(rough, hemMain.spaceHeatKwh), 1)}, just outside 15%.`,
     `- **The rule was amended after seeing that result** (Magnus, 17 October 2026). HEM’s thermostat controls the felt (operative) temperature, which runs below the air temperature, while this engine uses air temperature. So the check compares like with like: at about ${air(hemMatched.meanAirTemperatureWhenHeatingC)} of air, HEM gives ${kwh(hemMatched.spaceHeatKwh)}, a gap of ${signedPercent(gapFromReference(rough, hemMatched.spaceHeatKwh), 1)}. **Decision: proceed with no thermal mass.** A test keeps the engine itself within 10% of that HEM run.`,
-    `- **Both models predict more gas than comparable homes use.** Three ways of reading NEED, the government’s measured gas use data, give ${wholeNumber(NEED_GAS_RANGE_KWH.low)} to ${wholeNumber(NEED_GAS_RANGE_KWH.high)} kWh of gas a year for a typical home like this one. That is the spread between the readings, not between real homes, which vary far more. NEED has no 1930–49 age band, so its 1919–44 band stands in for this house. **Decision: calibrate the mean internal temperature** so the central gas use hits the midpoint, ${wholeNumber(NEED_GAS_TARGET_KWH)} kWh, a target fixed before the engine existed. Here the central gas use is ${kwh(centralGasKwh)}.`,
-    '- The full write-up is in [scripts/benchmark/README.md](../scripts/benchmark/README.md), and the decisions are in the [calibration ADR](../REFERENCE/decisions/2026-10-17-air-temperature-calibrated-to-need.md).',
+    `- **Both models predict more gas than comparable homes use.** Three ways of reading NEED, the government’s measured gas use data, give ${wholeNumber(NEED_GAS_RANGE_KWH.low)} to ${wholeNumber(NEED_GAS_RANGE_KWH.high)} kWh of gas a year for a typical home like this one. That is the spread between the readings, not between real homes, which vary far more. NEED has no 1930–49 age band, so its 1919–44 band stands in for this house. **Decision: calibrate the heating behaviour** so the central gas use hits the midpoint, ${wholeNumber(NEED_GAS_TARGET_KWH)} kWh, a target fixed before the engine existed. Phase 1 calibrated a continuous mean temperature; phase 2 calibrates the setpoint of SAP’s heating periods instead. Here the central gas use is ${kwh(centralGasKwh)}.`,
+    '- **Phase 2 added thermal mass and heating periods, and checked them against HEM under the same schedule**, with the rules again set in advance: the engine is 4.3% above HEM on SAP’s periods, inside 15%. See [the HEM runs](../scripts/benchmark/hem/README.md).',
+    '- The full write-up is in [scripts/benchmark/README.md](../scripts/benchmark/README.md), and the decisions are in the [calibration ADR](../REFERENCE/decisions/2026-10-17-air-temperature-calibrated-to-need.md) and the [schedules ADR](../REFERENCE/decisions/2026-10-20-heating-schedules-one-thermal-mass-node.md).',
   ].join('\n');
 }
 
@@ -269,9 +270,9 @@ function dataDatesSection(register: Register, snapshot: PvgisSnapshot): string {
 const LIMITATIONS = [
   '## Limitations',
   '',
-  '- **One calibrated temperature applies to both setups.** It comes from gas-heated homes, and heat pump households often heat for longer, so the heat pump’s running cost is biased low ([issue 15](https://github.com/mannepanne/energy-sim/issues/15)). It may also absorb errors in the default U-values ([issue 14](https://github.com/mannepanne/energy-sim/issues/14)).',
-  '- **No thermal mass, and continuous heating** to one temperature ([issue 13](https://github.com/mannepanne/energy-sim/issues/13)).',
-  '- **The heat pump’s hourly COP follows a curve scaled to the sampled SPF.** On the price cap with continuous heating, the curve changes when electricity is used, not how much: the year’s heat ÷ electricity equals the sampled SPF. The heat pump has no capacity limit and no backup heater.',
+  '- **One calibrated setpoint applies to both setups.** It comes from gas-heated homes. The heat pump’s longer day has no direct source for its hours, and on the two schedules the engine understates the heat pump’s space heat by about 6.7% against the boiler’s ([issue 15](https://github.com/mannepanne/energy-sim/issues/15)). The setpoint may also absorb errors in the default U-values ([issue 14](https://github.com/mannepanne/energy-sim/issues/14)).',
+  '- **One thermal-mass node** holds the air and the fabric at one temperature. Against HEM it is 4.3% high on SAP’s periods, 2.4% low on the heat pump’s day and 8.4% low when heated in every hour.',
+  '- **The heat pump’s hourly COP follows a curve scaled to the sampled SPF.** On the price cap, on the gas schedule, the year’s heat ÷ electricity equals the sampled SPF; the heat pump’s own schedule then changes its efficiency through the curve. Its output is capped at 1.15 × its design heat loss, a simple limit rather than a sizing method, and it has no backup heater.',
   '- **Fixed prices and one typical weather year** ([issue 16](https://github.com/mannepanne/energy-sim/issues/16)), and an **annual average grid carbon factor** ([issue 17](https://github.com/mannepanne/energy-sim/issues/17)).',
   '- **Only the per-occupant gains and hot water terms are correlated.** Their correlation (0.5) is an estimate with no source. Every other uncertain row is drawn independently.',
   '- **Constant internal gains**, and windows split equally over four orientations.',

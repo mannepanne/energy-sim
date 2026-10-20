@@ -7,12 +7,12 @@ import { loadPvgisSnapshot } from '../snapshots/pvgisSchema.ts';
 import { HOURS_PER_YEAR } from './constants.ts';
 import { defaultHouse } from './archetypes.ts';
 import { readInputs, type EngineInputs } from './inputs.ts';
-import { simulate } from './simulate.ts';
+import { heatPumpOutputCapW, simulate } from './simulate.ts';
 import { totalGainsW } from './demand.ts';
 import { heatLoss } from './geometry.ts';
 import { runThermalNode } from './thermal.ts';
 import { sunPath } from './solar.ts';
-import { fixtureAccessor, type FixtureValues } from './testing/fixtureRegister.ts';
+import { CONTINUOUS_SCHEDULE, fixtureAccessor, type FixtureValues } from './testing/fixtureRegister.ts';
 import { prepareWeather, weatherFromSnapshot, type PreparedWeather } from './weather.ts';
 
 const snapshot = loadPvgisSnapshot(
@@ -275,6 +275,51 @@ describe('roof solar on the PVGIS year', () => {
     const none = simulate({ ...inputs, pv: { ...inputs.pv, peakPowerKw: 0 } }, prepared, 'gas', { solar: true });
     expect(none.annual.generationKwh).toBe(0);
     expect(none.annual.importKwh).toBeCloseTo(none.annual.electricityKwh, 9);
+  });
+});
+
+describe('heating schedules and output caps on the PVGIS year', () => {
+  const daytime = Array.from({ length: 168 }, (_, hour) => (hour % 24 >= 7 && hour % 24 < 23 ? 1 : 0));
+  const scheduled = (values: FixtureValues = {}) => {
+    const inputs = readInputs(fixtureAccessor({ 'heating.scheduleGas': daytime, 'heating.scheduleHeatPump': daytime, ...values }));
+    return { inputs, weather: prepareWeather(weather, inputs) };
+  };
+
+  it('caps the heat pump at H × the design temperature difference × the margin, and the boiler at its rated output', () => {
+    const { inputs, weather: prepared } = scheduled();
+    const heatPump = simulate(inputs, prepared, 'heatPump');
+    expect(heatPump.outputCapW).toBeCloseTo(heatPump.heatLoss.totalWPerK * 24 * 1, 9);
+    expect(heatPumpOutputCapW(inputs, 100)).toBe(2400);
+    expect(simulate(inputs, prepared, 'gas').outputCapW).toBe(24_000);
+    expect(Math.max(...heatPump.hourly.spaceHeatKwh)).toBeLessThanOrEqual(heatPump.outputCapW / 1000 + 1e-12);
+  });
+
+  it('delivers less heat, and a colder house, when the cap binds after each night off', () => {
+    const { inputs, weather: prepared } = scheduled({ 'heating.boilerRatedOutput': 3 });
+    const capped = simulate(inputs, prepared, 'gas');
+    const uncapped = simulate({ ...inputs, boilerOutputCapW: Infinity }, prepared, 'gas');
+    expect(Math.max(...capped.hourly.spaceHeatKwh)).toBeCloseTo(3, 9);
+    expect(capped.annual.spaceHeatKwh).toBeLessThan(uncapped.annual.spaceHeatKwh);
+    expect(sum(capped.hourly.internalTemperatureC)).toBeLessThan(sum(uncapped.hourly.internalTemperatureC));
+  });
+
+  it('heats only in the schedule’s hours, which follow UK local time', () => {
+    const { inputs, weather: prepared } = scheduled();
+    const result = simulate(inputs, prepared, 'gas');
+    // 2 January is a Friday in winter (GMT): no heat from 23:00 to 07:00.
+    for (let hour = 24 + 0; hour < 24 + 7; hour += 1) expect(result.hourly.spaceHeatKwh[hour]).toBe(0);
+    expect(result.hourly.spaceHeatKwh[24 + 7]).toBeGreaterThan(0);
+  });
+
+  it('solves k on the gas schedule when the heat pump’s own schedule differs, then uses it on that schedule', () => {
+    const { inputs, weather: prepared } = scheduled({ 'heating.scheduleHeatPump': CONTINUOUS_SCHEDULE });
+    const own = simulate(inputs, prepared, 'heatPump');
+    const reference = simulate({ ...inputs, heatPumpSchedule: inputs.gasSchedule }, prepared, 'heatPump');
+    expect(own.copScale).toEqual(reference.copScale);
+    expect(reference.annual.heatKwh / reference.annual.heatingElectricityKwh).toBeCloseTo(inputs.heatPumpSpf, 9);
+    // Heating through the night moves heat into colder hours, so the year's efficiency falls below the SPF.
+    expect(own.annual.spaceHeatKwh).toBeGreaterThan(reference.annual.spaceHeatKwh);
+    expect(own.annual.heatKwh / own.annual.heatingElectricityKwh).toBeLessThan(inputs.heatPumpSpf);
   });
 });
 
