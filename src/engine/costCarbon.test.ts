@@ -20,7 +20,7 @@ describe('the worked price check (spec, October–December 2026 price cap)', () 
     );
     expect(Math.abs(pencePerKwhOfHeat(inputs.electricityUnitRatePence, inputs.heatPumpSpf) - 9.4)).toBeLessThan(0.01);
     expect(Math.abs(pencePerKwhOfHeat(inputs.gasUnitRatePence, inputs.boilerSeasonalEfficiency) - 9.38)).toBeLessThan(0.01);
-    const gasHouse = annualCost({ gasKwh: 0, electricityKwh: 0, hasGasSupply: true }, inputs);
+    const gasHouse = annualCost({ gasKwh: 0, electricityKwh: 0, exportKwh: 0, hasGasSupply: true }, inputs);
     expect(gasHouse.gasStandingPounds).toBeCloseTo(108.33, 2);
   });
 
@@ -42,7 +42,7 @@ describe('annualCost', () => {
   const inputs = readInputs(fixtureAccessor());
 
   it('charges unit rates and both standing charges to a house with gas', () => {
-    const cost = annualCost({ gasKwh: 10_000, electricityKwh: 3_000, hasGasSupply: true }, inputs);
+    const cost = annualCost({ gasKwh: 10_000, electricityKwh: 3_000, exportKwh: 0, hasGasSupply: true }, inputs);
     expect(cost.gasUnitPounds).toBeCloseTo(800, 9);
     expect(cost.gasStandingPounds).toBeCloseTo(109.5, 9);
     expect(cost.electricityUnitPounds).toBeCloseTo(750, 9);
@@ -51,14 +51,23 @@ describe('annualCost', () => {
   });
 
   it('charges no gas standing charge to a house with no gas supply, but still the electricity one', () => {
-    const cost = annualCost({ gasKwh: 0, electricityKwh: 3_000, hasGasSupply: false }, inputs);
+    const cost = annualCost({ gasKwh: 0, electricityKwh: 3_000, exportKwh: 0, hasGasSupply: false }, inputs);
     expect(cost.gasStandingPounds).toBe(0);
     expect(cost.electricityStandingPounds).toBeCloseTo(182.5, 9);
     expect(cost.totalPounds).toBeCloseTo(932.5, 9);
   });
 
+  it('pays the export rate on exported kWh, splitting the cost into a gas part and an electricity part net of export', () => {
+    const cost = annualCost({ gasKwh: 10_000, electricityKwh: 3_000, exportKwh: 1_500, hasGasSupply: true }, inputs);
+    // 1,500 kWh at the fixture's 10p.
+    expect(cost.exportPounds).toBeCloseTo(150, 9);
+    expect(cost.gasPounds).toBeCloseTo(909.5, 9);
+    expect(cost.electricityPounds).toBeCloseTo(750 + 182.5 - 150, 9);
+    expect(cost.totalPounds).toBeCloseTo(1842 - 150, 9);
+  });
+
   it('refuses gas use in a house with no gas supply', () => {
-    expect(() => annualCost({ gasKwh: 1, electricityKwh: 0, hasGasSupply: false }, inputs)).toThrow('no gas supply');
+    expect(() => annualCost({ gasKwh: 1, electricityKwh: 0, exportKwh: 0, hasGasSupply: false }, inputs)).toThrow('no gas supply');
   });
 });
 

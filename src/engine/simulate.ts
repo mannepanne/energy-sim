@@ -15,11 +15,11 @@ import { auxiliaryElectricity, baseElectricityKwh, fuelForHeat } from './supply.
 import type { PreparedWeather } from './weather.ts';
 
 /**
- * `gas`: a combi boiler with a gas supply and no hot water cylinder.
+ * The heating system. `gas`: a combi boiler with a gas supply and no hot water cylinder.
  * `heatPump`: an air source heat pump with a hot water cylinder, and no gas supply.
- * Either may have roof solar (`SimulateOptions.solar`).
+ * Either may have roof solar (`SimulateOptions.solar`); `setups.ts` names the four combinations.
  */
-export type Setup = 'gas' | 'heatPump';
+export type Heating = 'gas' | 'heatPump';
 
 export interface HourlyResult {
   spaceHeatKwh: Float64Array;
@@ -64,14 +64,14 @@ export interface AnnualResult {
   solarUsedBy: SolarUsedBy;
   importKwh: number;
   exportKwh: number;
-  /** Imports only: export earns nothing until the export tariff is added. */
+  /** Imports, less export income at the flat export rate. */
   cost: AnnualCost;
   /** Imported electricity and gas only: export earns no carbon credit. */
   carbonKg: number;
 }
 
 export interface SimulationResult {
-  setup: Setup;
+  heating: Heating;
   solar: boolean;
   /** The PV system's size after the roof limit; zero without solar. */
   pvPeakPowerKw: number;
@@ -184,7 +184,7 @@ function heatPumpSupply(
   };
 }
 
-export function simulate(inputs: EngineInputs, weather: PreparedWeather, setup: Setup, options: SimulateOptions = {}): SimulationResult {
+export function simulate(inputs: EngineInputs, weather: PreparedWeather, heating: Heating, options: SimulateOptions = {}): SimulationResult {
   const solar = options.solar ?? false;
   const loss = heatLoss(inputs);
   const spaceHeatKwh = hourlySpaceHeatKwh(
@@ -198,10 +198,10 @@ export function simulate(inputs: EngineInputs, weather: PreparedWeather, setup: 
 
   const baseKwh = baseElectricityKwh(inputs, CALENDAR);
   const supply =
-    setup === 'gas' ? gasSupply(inputs, spaceHeatKwh, drawKwh) : heatPumpSupply(inputs, weather, spaceHeatKwh, drawKwh, options.copScale);
+    heating === 'gas' ? gasSupply(inputs, spaceHeatKwh, drawKwh) : heatPumpSupply(inputs, weather, spaceHeatKwh, drawKwh, options.copScale);
   const { hotWaterKwh, gasKwh, heatingElectricityKwh, auxiliaryElectricityKwh, copScale } = supply;
   const heatKwh = spaceHeatKwh.map((space, hour) => space + hotWaterKwh[hour]!);
-  const electricityKwh = heatingElectricityKwh.map((heating, hour) => heating + auxiliaryElectricityKwh[hour]! + baseKwh[hour]!);
+  const electricityKwh = heatingElectricityKwh.map((heatingKwh, hour) => heatingKwh + auxiliaryElectricityKwh[hour]! + baseKwh[hour]!);
 
   let generationKwh: Float64Array = new Float64Array(HOURS_PER_YEAR);
   let importKwh: Float64Array = electricityKwh;
@@ -217,9 +217,9 @@ export function simulate(inputs: EngineInputs, weather: PreparedWeather, setup: 
 
   const annualGeneration = sum(generationKwh);
   const annualExport = sum(exportKwh);
-  const fuel = { gasKwh: sum(gasKwh), electricityKwh: sum(importKwh), hasGasSupply: setup === 'gas' };
+  const fuel = { gasKwh: sum(gasKwh), electricityKwh: sum(importKwh), exportKwh: annualExport, hasGasSupply: heating === 'gas' };
   return {
-    setup,
+    heating,
     solar,
     pvPeakPowerKw: solar ? inputs.pv.peakPowerKw : 0,
     heatLoss: loss,

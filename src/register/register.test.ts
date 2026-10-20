@@ -103,7 +103,7 @@ describe('createAccessor', () => {
     );
     const withUncertainCell = createAccessor(loadRegister({ rows }));
     expect(() => withUncertainCell.cellNumber('fabric.doorUValue', 'A')).toThrow('"fabric.doorUValue", key "A" is an uncertain cell, not a fixed one');
-    expect(access.correlations().map((row) => row.id)).toEqual(['gains.perOccupantHotWaterCorrelation']);
+    expect(access.correlations().map((row) => row.id)).toEqual(['gains.perOccupantHotWaterCorrelation', 'prices.realChangeCorrelation']);
     expect(access.correlation('gains.perOccupantHotWaterCorrelation').between).toEqual(['gains.perOccupant', 'hotWater.litresPerOccupant']);
   });
 });

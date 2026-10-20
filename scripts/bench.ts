@@ -1,9 +1,10 @@
-// ABOUT: Timing check: runs the paired sampling (500 samples × 2 setups), without and with solar, and logs the times
+// ABOUT: Timing check: runs the paired sampling (500 samples) of the two setups without solar, then all four, and logs the times
 // ABOUT: Exits with an error if either run takes above 5 seconds, many times the expected time, so it catches a real slowdown
 
 import { readFileSync } from 'node:fs';
 import { performance } from 'node:perf_hooks';
-import { runPaired } from '../src/engine/compare.ts';
+import { runSetups } from '../src/engine/compare.ts';
+import { SETUPS, type Setup } from '../src/engine/setups.ts';
 import { readInputs } from '../src/engine/inputs.ts';
 import { prepareWeather, weatherFromSnapshot } from '../src/engine/weather.ts';
 import { createAccessor } from '../src/register/access.ts';
@@ -22,11 +23,12 @@ const snapshot = loadPvgisSnapshot(readJson(access.series('weather.pvgisTypicalY
 const weather = prepareWeather(weatherFromSnapshot(snapshot), readInputs(access));
 
 let failed = false;
-for (const solar of [false, true]) {
+const WORKLOADS: readonly (readonly Setup[])[] = [['gas', 'heatPump'], SETUPS];
+for (const setups of WORKLOADS) {
   const start = performance.now();
-  runPaired(access, weather, REPORT_PLAN, undefined, 'fieldTrial', { solar });
+  runSetups(access, weather, REPORT_PLAN, { setups });
   const elapsedMs = performance.now() - start;
-  console.log(`${REPORT_PLAN.count} samples × 2 setups ${solar ? 'with' : 'without'} solar took ${Math.round(elapsedMs)} ms (limit ${LIMIT_MS} ms)`);
+  console.log(`${REPORT_PLAN.count} samples × ${setups.join(', ')} took ${Math.round(elapsedMs)} ms (limit ${LIMIT_MS} ms)`);
   if (elapsedMs > LIMIT_MS) failed = true;
 }
 if (failed) {

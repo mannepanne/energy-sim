@@ -72,6 +72,10 @@ export const ROW_IDS = [
   'prices.electricityStandingCharge',
   'prices.gasUnitRate',
   'prices.gasStandingCharge',
+  'prices.exportRate',
+  'prices.gasRealChange',
+  'prices.electricityRealChange',
+  'prices.realChangeCorrelation',
   'carbon.gasFactor',
   'carbon.gridElectricityFactor',
   'electricity.baseUse',
@@ -85,6 +89,13 @@ export const ROW_IDS = [
   'solar.cellTemperatureRise',
   'solar.usableRoofFraction',
   'solar.peakPowerPerArea',
+  'costs.boilerInstalled',
+  'costs.heatPumpInstalled',
+  'costs.pvPerKwp',
+  'costs.boilerUpgradeSchemeGrant',
+  'costs.heatPumpLifetime',
+  'costs.boilerLifetime',
+  'costs.pvLifetime',
 ] as const;
 
 export type RowId = (typeof ROW_IDS)[number];

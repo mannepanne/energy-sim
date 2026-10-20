@@ -12,7 +12,11 @@ const UNCERTAIN_IDS: ReadonlySet<RowId> = new Set<RowId>(UNCERTAIN_ROW_IDS);
 const isUncertain = (id: RowId): id is UncertainRowId => UNCERTAIN_IDS.has(id);
 
 const SERIES_ID = 'weather.pvgisTypicalYearLondon';
-const CORRELATION_ID = 'gains.perOccupantHotWaterCorrelation';
+/** The fixture's correlation rows and the two rows each is between, anchor first. */
+const CORRELATIONS: Readonly<Partial<Record<RowId, readonly [UncertainRowId, UncertainRowId]>>> = {
+  'gains.perOccupantHotWaterCorrelation': ['gains.perOccupant', 'hotWater.litresPerOccupant'],
+  'prices.realChangeCorrelation': ['prices.gasRealChange', 'prices.electricityRealChange'],
+};
 const PROFILE_RESOLUTIONS: Readonly<Partial<Record<RowId, 'hour-of-day' | 'hour-of-week' | 'month'>>> = {
   'hotWater.drawOffProfile': 'hour-of-day',
   'electricity.baseProfileWeekly': 'hour-of-week',
@@ -177,6 +181,11 @@ export const FIXTURE_HOUSE: Readonly<Record<Exclude<RowId, typeof SERIES_ID>, Fi
   'prices.electricityStandingCharge': 50,
   'prices.gasUnitRate': 8,
   'prices.gasStandingCharge': 30,
+  'prices.exportRate': 10,
+  // No real price change, so every year costs what the first does unless a test sets one.
+  'prices.gasRealChange': 0,
+  'prices.electricityRealChange': 0,
+  'prices.realChangeCorrelation': 0,
   'carbon.gasFactor': 0.2,
   'carbon.gridElectricityFactor': 0.1,
   'electricity.baseUse': 2920,
@@ -193,6 +202,14 @@ export const FIXTURE_HOUSE: Readonly<Record<Exclude<RowId, typeof SERIES_ID>, Fi
   'solar.cellTemperatureRise': 0,
   'solar.usableRoofFraction': 1,
   'solar.peakPowerPerArea': 0.2,
+  // Round costs and lifetimes, so payback can be checked by hand.
+  'costs.boilerInstalled': 2000,
+  'costs.heatPumpInstalled': 12000,
+  'costs.pvPerKwp': 1500,
+  'costs.boilerUpgradeSchemeGrant': 7500,
+  'costs.heatPumpLifetime': 18,
+  'costs.boilerLifetime': 12,
+  'costs.pvLifetime': 25,
 };
 
 export type FixtureValues = Partial<typeof FIXTURE_HOUSE>;
@@ -254,10 +271,8 @@ function row(id: RowId, value: FixtureCells | undefined, ranges: FixtureRanges):
   if (id === SERIES_ID) {
     return { ...base, kind: 'series', file: 'data/snapshots/pvgis-tmy-london.json', schema: 'pvgis-tmy', columns: ['T2m'] };
   }
-  if (id === CORRELATION_ID) {
-    const between = ['gains.perOccupant', 'hotWater.litresPerOccupant'];
-    return { ...base, kind: 'correlation', value: numberValue(id, value), between, dependsOn: between };
-  }
+  const between = CORRELATIONS[id];
+  if (between) return { ...base, kind: 'correlation', value: numberValue(id, value), between, dependsOn: [...between] };
   const resolution = PROFILE_RESOLUTIONS[id];
   if (resolution) return { ...base, kind: 'profile', values: profileValues(id, value), resolution };
   if (isUncertain(id)) return { ...base, kind: 'uncertain', ...uncertainFields(numberValue(id, value), ranges[id]) };

@@ -1,12 +1,13 @@
-// ABOUT: Checks the one-row-at-a-time sensitivity table: each row at its low and high, others at default,
-// ABOUT: ranked by the swing in the cost difference, with ties ordered by row id
+// ABOUT: Checks the one-row-at-a-time sensitivity tables: each row at its low and high, others at default, one table per
+// ABOUT: pair of setups listing only the rows either reads, ranked by the swing in the cost difference, ties by row id
 
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { loadPvgisSnapshot } from '../snapshots/pvgisSchema.ts';
 import { defaultHouse } from './archetypes.ts';
 import { readInputs, rowsOutsideScenario, UNCERTAIN_ROW_IDS } from './inputs.ts';
-import { sensitivity } from './sensitivity.ts';
+import { SENSITIVITY_PAIRS, sensitivity } from './sensitivity.ts';
+import { CAPITAL_ROWS } from './setups.ts';
 import { simulate } from './simulate.ts';
 import { fixtureAccessor } from './testing/fixtureRegister.ts';
 import { prepareWeather, weatherFromSnapshot } from './weather.ts';
@@ -25,19 +26,34 @@ describe('sensitivity', () => {
       'electricity.baseUse': { low: 2000, high: 3500 },
     },
   );
-  const table = sensitivity(access, weather);
+  const tables = sensitivity(access, weather);
+  const table = tables[0]!.rows;
+  const SOLAR_ROWS = ['solar.systemSize', 'solar.azimuth', 'solar.usableRoofFraction'];
 
-  it('has one row for every uncertain row', () => {
+  it('gives one table per pair, the heat pump against gas first', () => {
+    expect(tables.map((entry) => entry.pair)).toEqual(SENSITIVITY_PAIRS);
+    expect(tables[0]!.pair).toEqual({ setup: 'heatPump', against: 'gas' });
+  });
+
+  it('lists every row either setup reads: no roof solar rows without solar, and never a capital row', () => {
     // The well-installed SPF and standby share are read only in their own scenario.
     const fieldTrial = UNCERTAIN_ROW_IDS.filter((id) => !rowsOutsideScenario('fieldTrial').includes(id));
-    expect(table.map((row) => row.id).toSorted()).toEqual(fieldTrial.toSorted());
+    const expected = fieldTrial.filter((id) => !SOLAR_ROWS.includes(id) && !CAPITAL_ROWS.has(id));
+    expect(table.map((row) => row.id).toSorted()).toEqual(expected.toSorted());
+  });
+
+  it('lists the roof solar rows for solar against no solar, but not the boiler’s efficiency on the heat pump', () => {
+    const solarOnHeatPump = tables.find(({ pair }) => pair.setup === 'heatPumpSolar' && pair.against === 'heatPump')!.rows.map((row) => row.id);
+    for (const id of SOLAR_ROWS) expect(solarOnHeatPump).toContain(id);
+    expect(solarOnHeatPump).not.toContain('heating.boilerSeasonalEfficiency');
+    expect(solarOnHeatPump).toContain('heating.heatPumpSpf');
   });
 
   it('runs a house other than the default when given one', () => {
     const house = { ...defaultHouse(access, 'semi1930s'), loft: 'none' as const };
-    const noLoft = sensitivity(access, weather, house).find((row) => row.id === 'heating.heatPumpSpf')!;
+    const noLoft = sensitivity(access, weather, [SENSITIVITY_PAIRS[0]!], house)[0]!.rows.find((row) => row.id === 'heating.heatPumpSpf')!;
     const spf = table.find((row) => row.id === 'heating.heatPumpSpf')!;
-    expect(noLoft.low.costPounds.gas).toBeGreaterThan(spf.low.costPounds.gas);
+    expect(noLoft.low.costPounds.against).toBeGreaterThan(spf.low.costPounds.against);
   });
 
   it('runs each row at its low and its high with every other row at its default', () => {
@@ -45,10 +61,19 @@ describe('sensitivity', () => {
     expect(spf.low.value).toBe(2);
     expect(spf.high.value).toBe(4);
     const atLow = simulate(readInputs(access, { overrides: { 'heating.heatPumpSpf': 2 } }), weather, 'heatPump').annual.cost.totalPounds;
-    expect(spf.low.costPounds.heatPump).toBe(atLow);
-    expect(spf.low.costPounds.gas).toBe(simulate(readInputs(access), weather, 'gas').annual.cost.totalPounds);
+    expect(spf.low.costPounds.setup).toBe(atLow);
+    expect(spf.low.costPounds.against).toBe(simulate(readInputs(access), weather, 'gas').annual.cost.totalPounds);
     expect(spf.swingPounds).toBeCloseTo(spf.high.costDifferencePounds - spf.low.costDifferencePounds, 9);
     expect(spf.swingPounds).toBeGreaterThan(0);
+  });
+
+  it('runs solar setups with solar', () => {
+    const rows = tables.find(({ pair }) => pair.setup === 'gasSolar')!.rows;
+    const base = rows.find((row) => row.id === 'electricity.baseUse')!;
+    const withSolar = simulate(readInputs(access, { overrides: { 'electricity.baseUse': 2000 } }), weather, 'gas', { solar: true }).annual.cost.totalPounds;
+    expect(base.low.costPounds.setup).toBe(withSolar);
+    // Solar meets some of the extra base use, so more base use widens solar's saving.
+    expect(base.swingPounds).toBeGreaterThan(0);
   });
 
   it('ranks by the size of the swing, largest first', () => {
@@ -59,7 +84,7 @@ describe('sensitivity', () => {
   it('treats a row that cancels out of the difference as a tie, ordered by id', () => {
     const base = table.find((row) => row.id === 'electricity.baseUse')!;
     expect(Math.abs(base.swingPounds)).toBeLessThan(1e-6);
-    expect(base.low.costPounds.gas).toBeLessThan(base.high.costPounds.gas);
+    expect(base.low.costPounds.against).toBeLessThan(base.high.costPounds.against);
     const tied = table.slice(2).map((row) => row.id);
     expect(tied).toEqual(tied.toSorted());
   });
