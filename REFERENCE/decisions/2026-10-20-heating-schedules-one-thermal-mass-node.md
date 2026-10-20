@@ -1,7 +1,7 @@
 # ADR: Heating schedules on one thermal-mass node, calibrated by the setpoint
 
 **Date:** 2026-10-20
-**Status:** Proposed (awaiting Magnus's confirmation)
+**Status:** Accepted (confirmed by Magnus on 20 October 2026)
 **Supersedes:** in part, the [calibration ADR](./2026-10-17-air-temperature-calibrated-to-need.md): its continuous mean internal temperature and "no thermal mass". Its target, its air-temperature meaning and its "same household, different kit" stay.
 
 ---
