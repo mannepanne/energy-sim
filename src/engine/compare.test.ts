@@ -114,8 +114,10 @@ describe('runSetups', () => {
   });
 
   it('gives identical results for the same seed and different results for another seed', () => {
-    expect(forSetup(runSetups(access, weather, plan).samples, 'heatPump').costPounds).toEqual(samples('heatPump').costPounds);
-    expect(forSetup(runSetups(access, weather, { ...plan, seed: 12 }).samples, 'heatPump').costPounds).not.toEqual(samples('heatPump').costPounds);
+    // Only the heat pump setup is rerun: runs of some setups pair with runs of all four (the next test).
+    const heatPumpOnly = { setups: ['heatPump'] } as const;
+    expect(forSetup(runSetups(access, weather, plan, heatPumpOnly).samples, 'heatPump').costPounds).toEqual(samples('heatPump').costPounds);
+    expect(forSetup(runSetups(access, weather, { ...plan, seed: 12 }, heatPumpOnly).samples, 'heatPump').costPounds).not.toEqual(samples('heatPump').costPounds);
   });
 
   it('pairs a run of some setups with a run of all four, sample by sample', () => {
