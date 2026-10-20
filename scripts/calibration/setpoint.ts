@@ -23,7 +23,10 @@ export function centralGasKwh(access: RegisterAccessor, weather: PreparedWeather
   return simulate(inputs, weather, 'gas').annual.gasKwh;
 }
 
-/** The setpoint at which central annual gas use equals `targetGasKwh`, found by bisection. */
+/**
+ * The setpoint at which central annual gas use equals `targetGasKwh`, found by bisection. Gas use rises with the
+ * setpoint, so one crossing lies between the bracket ends, which are checked first.
+ */
 export function solveSetpoint(access: RegisterAccessor, weather: PreparedWeather, targetGasKwh: number): number {
   let low = SEARCH_LOW_C;
   let high = SEARCH_HIGH_C;

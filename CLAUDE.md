@@ -78,7 +78,7 @@ How-it-works documentation for implemented features:
 ```
 
 ### Naming
-- Descriptive names: `heatLossCoefficient`, `meanInternalTemperature`, `RegisterRow`; units in names where ambiguous (`annualHeatKwh`)
+- Descriptive names: `heatLossCoefficient`, `setpointC`, `RegisterRow`; units in names where ambiguous (`annualHeatKwh`)
 - TypeScript conventions: camelCase (variables), PascalCase (types)
 - Avoid temporal references: no "new", "improved", "old"
 

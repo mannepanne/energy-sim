@@ -28,7 +28,7 @@ export interface ThermalYear {
 export const PRE_ROLL_HOURS = HOURS_PER_WEEK;
 
 /**
- * Runs the node over the year. `heatingOn` is 1 in each hour of a heating period and 0 when heating is off; the
+ * Runs the node over the year. `heatingOn` is positive (1) in each hour of a heating period and 0 when heating is off; the
  * pre-roll starts at the setpoint. `outdoorC` and `gainsW` (solar plus internal) are hourly. One backward Euler step per hour:
  * the free temperature is T_free = (a T₀ + G + H T_out) ÷ (a + H), with a = C ÷ 1 h; in a heating period below
  * the setpoint, Q = (a + H)(T_set − T_free), capped, and T = T_free + Q ÷ (a + H).
@@ -61,7 +61,7 @@ export function runThermalNode(
     const hour = step < 0 ? step + HOURS_PER_YEAR : step;
     const free = (a * temperature + gainsW[hour]! + h * outdoorC[hour]!) / conductance;
     let heatW = 0;
-    if (heatingOn[hour] === 1 && free < setpointC) heatW = Math.min(conductance * (setpointC - free), cap);
+    if (heatingOn[hour]! > 0 && free < setpointC) heatW = Math.min(conductance * (setpointC - free), cap);
     temperature = free + heatW / conductance;
     if (step >= 0) {
       spaceHeatKwh[hour] = heatW / WH_PER_KWH;

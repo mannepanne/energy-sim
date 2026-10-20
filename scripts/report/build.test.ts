@@ -53,6 +53,9 @@ describe('buildReport', () => {
   it('puts the heat pump bias (issue 15) inside the comparison section, and lists the shared setpoint as a limitation', () => {
     const comparison = report.slice(report.indexOf('## Gas boiler versus heat pump'), report.indexOf('## Sensitivity'));
     expect(comparison).toContain('issues/15');
+    const heatPumpResults = report.slice(report.indexOf('### Heat pump'), report.indexOf('## Gas boiler versus heat pump'));
+    expect(heatPumpResults).toContain('6.7 points');
+    expect(heatPumpResults).toContain('issues/15');
     expect(comparison).toMatch(/cheaper to run in \d+% of samples/);
     const limitations = report.slice(report.indexOf('## Limitations'));
     expect(limitations).toContain('One calibrated setpoint applies to both setups');

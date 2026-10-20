@@ -74,6 +74,8 @@ function resultsSection(comparison: Comparison): string {
     '',
     resultsTable(comparison, 'heatPump'),
     '',
+    '**These heat pump figures carry a stated bias in the heat pump’s favour.** The heat pump heats from 7 am to 11 pm every day and the boiler in SAP’s two periods on weekdays; on those two schedules the engine understates the heat pump’s space heat against the boiler’s by about 6.7 points, against the government’s Home Energy Model ([issue 15](https://github.com/mannepanne/energy-sim/issues/15)).',
+    '',
     'Hot water heat is higher for the heat pump because its hot water cylinder loses heat all day; the gas combi boiler heats water as it is used and has no cylinder.',
   ].join('\n');
 }
@@ -132,7 +134,7 @@ function comparisonSection(comparison: Comparison, count: number): string {
     '',
     `**The heat pump is cheaper to run in ${share(shareHeatPumpCheaper(comparison))} of samples** (rounded to the nearest 5%; an exact tie counts as half). With ${wholeNumber(count)} samples, this share carries sampling noise of about ±${marginPoints(shareHeatPumpCheaper(comparison), count)} percentage points. That is noise from the method, not the real-world uncertainty, which the ranges above show.`,
     '',
-    '**This running-cost comparison may lean in the heat pump’s favour.** Both setups heat to one calibrated setpoint, taken from gas-heated homes. The heat pump heats from 7 am to 11 pm every day, SAP’s longer heat pump day, while the boiler follows SAP’s two periods on weekdays. On those two schedules the engine understates the heat pump’s space heat against the boiler’s by about 6.7%, against the government’s Home Energy Model, so the heat pump’s running cost may be a little low, and the share of samples in which it is cheaper a little high ([issue 15](https://github.com/mannepanne/energy-sim/issues/15); see the [schedules ADR](../REFERENCE/decisions/2026-10-20-heating-schedules-one-thermal-mass-node.md)).',
+    '**This running-cost comparison may lean in the heat pump’s favour.** Both setups heat to one calibrated setpoint, taken from gas-heated homes. The heat pump heats from 7 am to 11 pm every day, SAP’s longer heat pump day, while the boiler follows SAP’s two periods on weekdays. On those two schedules the engine understates the heat pump’s space heat against the boiler’s by about 6.7 points, against the government’s Home Energy Model, so the heat pump’s running cost may be a little low, and the share of samples in which it is cheaper a little high ([issue 15](https://github.com/mannepanne/energy-sim/issues/15); see the [schedules ADR](../REFERENCE/decisions/2026-10-20-heating-schedules-one-thermal-mass-node.md)).',
     ...(notes.length > 0 ? ['', ...notes] : []),
   ].join('\n');
 }
@@ -270,7 +272,7 @@ function dataDatesSection(register: Register, snapshot: PvgisSnapshot): string {
 const LIMITATIONS = [
   '## Limitations',
   '',
-  '- **One calibrated setpoint applies to both setups.** It comes from gas-heated homes. The heat pump’s longer day has no direct source for its hours, and on the two schedules the engine understates the heat pump’s space heat by about 6.7% against the boiler’s ([issue 15](https://github.com/mannepanne/energy-sim/issues/15)). The setpoint may also absorb errors in the default U-values ([issue 14](https://github.com/mannepanne/energy-sim/issues/14)).',
+  '- **One calibrated setpoint applies to both setups.** It comes from gas-heated homes. The heat pump’s longer day has no direct source for its hours, and on the two schedules the engine understates the heat pump’s space heat by about 6.7 points against the boiler’s ([issue 15](https://github.com/mannepanne/energy-sim/issues/15)). The setpoint may also absorb errors in the default U-values ([issue 14](https://github.com/mannepanne/energy-sim/issues/14)).',
   '- **One thermal-mass node** holds the air and the fabric at one temperature. Against HEM it is 4.3% high on SAP’s periods, 2.4% low on the heat pump’s day and 8.4% low when heated in every hour.',
   '- **The heat pump’s hourly COP follows a curve scaled to the sampled SPF.** On the price cap, on the gas schedule, the year’s heat ÷ electricity equals the sampled SPF; the heat pump’s own schedule then changes its efficiency through the curve. Its output is capped at 1.15 × its design heat loss, a simple limit rather than a sizing method, and it has no backup heater.',
   '- **Fixed prices and one typical weather year** ([issue 16](https://github.com/mannepanne/energy-sim/issues/16)), and an **annual average grid carbon factor** ([issue 17](https://github.com/mannepanne/energy-sim/issues/17)).',

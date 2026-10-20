@@ -2444,7 +2444,7 @@
       "label": "Gas combi boiler: maximum space heating output",
       "unit": "kW",
       "status": "approximate",
-      "rationale": "Combi boilers for a typical house are rated about 24–35 kW for hot water, and most are range-rated to about 18–24 kW for space heating. 24 kW is well above the design heat loss of every archetype (at most about 10 kW, for the pre-1900 end-terrace at its defaults), so the cap rarely binds; it limits only the recovery after the heating has been off. The engine caps the boiler's space heat output at this; hot water is outside the cap.",
+      "rationale": "Combi boilers for a typical house are rated about 24–35 kW for hot water, and most are range-rated to about 18–24 kW for space heating. 24 kW is well above the design heat loss of every archetype (at most about 10 kW, for the pre-1900 end-terrace at its defaults), so the cap rarely binds; it limits only the recovery after the heating has been off. The engine caps the boiler's space heat output at this; hot water is outside the cap. A very large or poorly insulated house beyond the archetypes could exceed it, and would then need a larger boiler row.",
       "lastChecked": "2026-10-20",
       "refreshCadence": "static",
       "overridable": false,
