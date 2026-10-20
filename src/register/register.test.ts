@@ -36,8 +36,10 @@ describe('data/register.json', () => {
     }
   });
 
-  it('records the calibration on the mean internal temperature row', () => {
-    const row = access.uncertain('heating.meanInternalTemperature');
+  it('records the calibration on the setpoint row, and has no continuous mean internal temperature', () => {
+    const ids: readonly string[] = ROW_IDS;
+    expect(ids).not.toContain('heating.meanInternalTemperature');
+    const row = access.uncertain('heating.setpoint');
     expect(row.source?.title).toContain('NEED');
     expect(row.rationale).toContain('air temperature');
     expect(row.rationale).toContain('13,200 kWh');
@@ -46,6 +48,15 @@ describe('data/register.json', () => {
     expect(row.dependsOn).toContain('heating.boilerSeasonalEfficiency');
     expect(row.dependsOn).toContain('hotWater.litresPerOccupant');
     expect(row.dependsOn).toContain('fabric.qualityFactor');
+    expect(row.dependsOn).toContain('fabric.thermalMassParameter');
+    expect(row.dependsOn).toContain('heating.scheduleGas');
+  });
+
+  it('sets the gas schedule to SAP’s periods: weekdays 07:00–09:00 and 16:00–23:00, weekends 07:00–23:00', () => {
+    const week = access.profile('heating.scheduleGas').values;
+    const onHours = (day: number) => week.slice(day * 24, day * 24 + 24).flatMap((on, hour) => (on === 1 ? [hour] : []));
+    for (const weekday of [0, 1, 2, 3, 4]) expect(onHours(weekday)).toEqual([7, 8, 16, 17, 18, 19, 20, 21, 22]);
+    for (const weekendDay of [5, 6]) expect(onHours(weekendDay)).toEqual([7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22]);
   });
 
   it('fits the SPF row to its target shares above 3.0 and 3.5', () => {

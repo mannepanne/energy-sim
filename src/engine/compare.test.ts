@@ -21,7 +21,7 @@ const weather = prepareWeather(rawWeather, readInputs(fixtureAccessor()));
 const RANGES: FixtureRanges = {
   'fabric.qualityFactor': { low: 0.75, high: 1.15 },
   'gains.perOccupant': { low: 70, high: 130 },
-  'heating.meanInternalTemperature': { low: 18, high: 21 },
+  'heating.setpoint': { low: 18, high: 21 },
   'heating.boilerSeasonalEfficiency': { low: 0.75, high: 0.85 },
   'heating.heatPumpSpf': { low: 2, high: 3.5, sigma: 0.15 },
   'hotWater.litresPerOccupant': { low: 12, high: 30 },

@@ -13,7 +13,7 @@ describe('readInputs', () => {
     const inputs = readInputs(fixtureAccessor({ 'fabric.wallUValue': 1.23, 'prices.gasUnitRate': 7.97 }));
     expect(inputs.wallUValue).toBe(1.23);
     expect(inputs.gasUnitRatePence).toBe(7.97);
-    expect(inputs.meanInternalTemperatureC).toBe(20);
+    expect(inputs.setpointC).toBe(20);
     expect(inputs.irradianceSampleMinute).toBe(10);
     expect(inputs.house.archetype).toBe('semi1930s');
   });

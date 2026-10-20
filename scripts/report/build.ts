@@ -28,7 +28,7 @@ import { hemResult } from '../benchmark/comparison.ts';
 import { HEM_RUNS } from '../benchmark/hemInput.ts';
 import { gapFromReference } from '../benchmark/needReference.ts';
 import { roughEstimate } from '../benchmark/roughEstimate.ts';
-import { NEED_GAS_RANGE_KWH, NEED_GAS_TARGET_KWH } from '../calibration/meanInternalTemperature.ts';
+import { NEED_GAS_RANGE_KWH, NEED_GAS_TARGET_KWH } from '../calibration/setpoint.ts';
 import { exactNumber, kgCo2e, kwh, plainValue, pounds, share, signedPercent, wholeNumber } from './format.ts';
 
 /**
@@ -190,7 +190,7 @@ function houseSection(access: RegisterAccessor): string {
     '',
     `- Geometry, derived from the floor area and the footprint shape: ${plainValue(Math.round(inputs.exposedPerimeterM * 10) / 10)} m of exposed perimeter, ${plainValue(Math.round(inputs.externalWallAreaM2))} m² of external wall and ${plainValue(Math.round(inputs.windowAreaM2 * 10) / 10)} m² of windows. The ground floor U-value is ${inputs.groundFloorUValue} W/m²K (BS EN ISO 13370, as RdSAP 10 applies it).`,
     `- Heat loss coefficient (central): ${wholeNumber(heatLoss(inputs).totalWPerK)} W/K, including a party wall and thermal bridging.`,
-    `- Mean internal air temperature (central): ${plainValue(inputs.meanInternalTemperatureC)} °C, held continuously.`,
+    `- Heating setpoint (central): ${plainValue(inputs.setpointC)} °C air, in SAP’s heating periods (weekdays 7–9 am and 4–11 pm, weekends 7 am to 11 pm). Between them the heating is off and the house cools against its thermal mass.`,
     `- Prices: the Ofgem price cap, GB average by Direct Debit, for ${pricePeriod(access)}. Electricity ${inputs.electricityUnitRatePence}p a kWh and ${inputs.electricityStandingChargePencePerDay}p a day; gas ${inputs.gasUnitRatePence}p a kWh and ${inputs.gasStandingChargePencePerDay}p a day. The heat pump house has no gas supply, so it pays no gas standing charge.`,
     `- Carbon: ${inputs.gasCarbonKgPerKwh} kgCO₂e a kWh of gas and ${inputs.gridCarbonKgPerKwh} kgCO₂e a kWh of grid electricity (annual average).`,
   ].join('\n');

@@ -198,7 +198,7 @@ describe('the curve on the real register', () => {
         const overrides: UncertainOverrides = {
           [spfRow]: access.uncertain(spfRow).high,
           [shareRow]: access.uncertain(shareRow).high,
-          'heating.meanInternalTemperature': access.uncertain('heating.meanInternalTemperature').low,
+          'heating.setpoint': access.uncertain('heating.setpoint').low,
           'fabric.qualityFactor': access.uncertain('fabric.qualityFactor').low,
         };
         const inputs = readInputs(access, { house, overrides, spfScenario });

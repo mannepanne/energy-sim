@@ -1739,7 +1739,7 @@
         "title": "DESNZ National Energy Efficiency Data-Framework (NEED) 2026 consumption data tables",
         "url": "https://www.gov.uk/government/statistics/national-energy-efficiency-data-framework-need-consumption-data-tables-2026"
       },
-      "rationale": "PLACEHOLDER, recalibrated below.",
+      "rationale": "An air temperature, not an operative one, held during the heating periods of heating.scheduleGas; outside them the heating is off and the house cools against its thermal mass. Calibrated so the 1930s semi's central annual gas use (space heat plus hot water, divided by heating.boilerSeasonalEfficiency, with hot water from the hotWater rows and no cylinder loss for the combi) is 13,200 kWh, the midpoint of NEED's readings for comparable homes; the result must stay within their 10,980–15,433 kWh range. The target was fixed on 17 October 2026, before the engine existed, and the phase 2 spec fixed it again for the schedule before this calibration. 17.6 °C solves that target with the hourly engine, its thermal-mass node and SAP's schedule on the PVGIS typical year, with the archetype's derived geometry, its default answers (filled cavity walls, 100 mm of loft insulation) and every other row at its default (npm run calibrate; solved 17.56 °C on 20 October 2026, rounded to 0.1 °C). The low and high (16.2 and 18.8 °C) are the setpoints that reproduce NEED's readings A (10,980 kWh) and C (15,433 kWh) by the same method: they describe uncertainty about the typical home, not the spread between households. The schedule is not fitted; it stays at SAP's pattern. The spec's plausible range for the solved setpoint is 16–21 °C. It is below SAP's 21 °C living area because it stands for the whole house, and because the calibration may absorb fabric error from pessimistic RdSAP U-values as well as heating behaviour. It comes from gas-heated homes and applies to every archetype and to both setups, gas and heat pump ('the same household, different kit'). Phase 1 calibrated a continuous mean internal temperature instead (16.3 °C), which this row replaces; see the heating schedules ADR.",
       "lastChecked": "2026-10-20",
       "refreshCadence": "static",
       "overridable": true,
@@ -1787,9 +1787,9 @@
         "heating.scheduleGas",
         "heating.boilerRatedOutput"
       ],
-      "default": 19.8,
-      "low": 18,
-      "high": 21,
+      "default": 17.6,
+      "low": 16.2,
+      "high": 18.8,
       "distribution": "triangular"
     },
     {

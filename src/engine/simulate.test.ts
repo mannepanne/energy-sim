@@ -29,6 +29,7 @@ const run = (values: FixtureValues, setup: 'gas' | 'heatPump' = 'gas') => {
 const HEM_CHECK_ENGINE_KWH = 12_999;
 const HEM_SCHEDULED_CHECK_ENGINE_KWH = 14_165;
 const HEM_CONTINUOUS_WITH_MASS_ENGINE_KWH = 15_851;
+const HEM_UNIMODAL_CHECK_ENGINE_KWH = 14_489;
 
 /** The fixture house's hot water: 100 litres a day heated by 40 K. */
 const hotWaterPerDay = (100 * 4.18 * 40) / 3600;
@@ -332,27 +333,35 @@ describe('the HEM checks (benchmark archetype on the PVGIS year)', () => {
   const THURSDAY = 3;
   const node = { heatLossWPerK: heatLoss(inputs).totalWPerK, heatCapacityWhPerK: inputs.heatCapacityWhPerK, outputCapW: Infinity };
   const gains = totalGainsW(inputs, prepared.meanVerticalIrradiance);
-  const runAt = (setpointC: number, scheduled: boolean): number => {
+  const runAt = (setpointC: number, pattern: 'sap' | 'unimodal' | 'continuous'): number => {
     const setpoints = new Float64Array(HOURS_PER_YEAR).fill(Number.NaN);
     for (let hour = 0; hour < HOURS_PER_YEAR; hour += 1) {
       const weekday = (Math.floor(hour / 24) + THURSDAY) % 7;
-      const hours = weekday < 5 ? SAP_WEEKDAY_HOURS : SAP_WEEKEND_HOURS;
-      if (!scheduled || hours.includes(hour % 24)) setpoints[hour] = setpointC;
+      const hours = weekday < 5 && pattern === 'sap' ? SAP_WEEKDAY_HOURS : SAP_WEEKEND_HOURS;
+      if (pattern === 'continuous' || hours.includes(hour % 24)) setpoints[hour] = setpointC;
     }
     return sum(runThermalNode(node, prepared.outdoorTemperatureC, gains, setpoints, setpointC).spaceHeatKwh);
   };
 
   it('scheduled: gives annual space heat within 10% of HEM’s schedule-sap run (13,580 kWh), the pre-registered check', () => {
     expect(inputs.heatCapacityWhPerK).toBeCloseTo((250 * 90) / 3.6, 9);
-    const annual = runAt(19.8, true);
+    const annual = runAt(19.8, 'sap');
     expect(Math.round(annual)).toBe(HEM_SCHEDULED_CHECK_ENGINE_KWH);
     expect(Math.abs(annual / 13_580 - 1)).toBeLessThan(0.1);
+  });
+
+  it('07:00–23:00 every day: 2.4% below HEM’s schedule-unimodal run (14,842 kWh): a bias of −6.7 points against SAP’s periods', () => {
+    // Pre-registered in scripts/benchmark/hem/README.md: within 15%, so the heat pump may use this schedule. The
+    // bias (this gap minus the SAP schedule's +4.3%) lowers the heat pump's space heat against the boiler's.
+    const annual = runAt(19.8, 'unimodal');
+    expect(Math.round(annual)).toBe(HEM_UNIMODAL_CHECK_ENGINE_KWH);
+    expect(Math.abs(annual / 14_842 - 1)).toBeLessThan(0.1);
   });
 
   it('continuous with the same mass: 8.4% below HEM’s continuous-sap-mass diagnostic (17,311 kWh)', () => {
     // A diagnostic, not a guard: one node, with all the mass at the air temperature, stores daytime surplus more
     // readily than HEM's elements, so it under-predicts heating in every hour and over-predicts heating in periods.
-    const annual = runAt(19.8, false);
+    const annual = runAt(19.8, 'continuous');
     expect(Math.round(annual)).toBe(HEM_CONTINUOUS_WITH_MASS_ENGINE_KWH);
     expect(annual / 17_311 - 1).toBeCloseTo(-0.084, 3);
   });
