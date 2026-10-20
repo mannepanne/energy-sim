@@ -3,8 +3,9 @@
 
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { band, byMetric } from '../../src/engine/compare.ts';
-import { rowsOutsideScenario } from '../../src/engine/inputs.ts';
+import { band, byMetric, type Comparison } from '../../src/engine/compare.ts';
+import { uncertainDraws } from '../../src/engine/inputs.ts';
+import { runningCostReads } from '../../src/engine/setups.ts';
 import { loadRegister } from '../../src/register/load.ts';
 import { loadPvgisSnapshot } from '../../src/snapshots/pvgisSchema.ts';
 import { createAccessor } from '../../src/register/access.ts';
@@ -57,12 +58,15 @@ describe('buildReport', () => {
     expect(limitations).toContain('One calibrated temperature applies to both setups');
   });
 
-  it('lists every uncertain row in the sensitivity table', () => {
+  it('lists every uncertain row either setup’s running cost reads in the sensitivity table, and no other', () => {
     const rows = report.slice(report.indexOf('## Sensitivity'), report.indexOf('## How the ranges are made'));
-    // The well-installed SPF and standby share are read only in their own scenario, which the phase 2 report shows.
-    const outside: readonly string[] = rowsOutsideScenario('fieldTrial');
-    const fieldTrialRows = register.rows.filter((candidate) => candidate.kind === 'uncertain' && !outside.includes(candidate.id));
-    for (const row of fieldTrialRows) expect(rows).toContain(row.label);
+    // The house's draws in the field-trial scenario; the well-installed SPF and standby share are left out.
+    const draws = uncertainDraws(createAccessor(register));
+    const reads = draws.filter((draw) => runningCostReads('gas', draw.id) || runningCostReads('heatPump', draw.id)).map((draw) => draw.label);
+    const unread = draws.filter((draw) => !reads.includes(draw.label)).map((draw) => `| ${draw.label} |`);
+    expect(unread.length).toBeGreaterThan(0);
+    for (const label of reads) expect(rows).toContain(label);
+    for (const cell of unread) expect(rows).not.toContain(cell);
   });
 
   it('states the benchmark gaps and the decisions, including that the rule was amended after the result', () => {
@@ -96,18 +100,21 @@ describe('outsideBandNotes', () => {
   const inside = band([1, 2, 3, 4, 5], 3);
   const outside = band([1, 2, 3, 4, 5], 0);
   const bands = byMetric(() => inside);
+  const comparisonOf = (gasBands: typeof bands, difference: typeof inside): Comparison => ({
+    reference: 'gas',
+    bands: { gas: gasBands, heatPump: bands },
+    differences: { heatPump: { costPounds: difference, carbonKg: difference } },
+    shareCheapest: { gas: 0.5, heatPump: 0.5 },
+    payback: {},
+    solarPayback: {},
+  });
 
   it('says nothing when every central value lies inside its band', () => {
-    expect(outsideBandNotes({ bands: { gas: bands, heatPump: bands }, costDifference: inside, carbonDifference: inside, shareHeatPumpCheaper: 0.5 })).toEqual([]);
+    expect(outsideBandNotes(comparisonOf(bands, inside))).toEqual([]);
   });
 
   it('names each band whose central value lies outside it', () => {
-    const notes = outsideBandNotes({
-      bands: { gas: { ...bands, costPounds: outside }, heatPump: bands },
-      costDifference: outside,
-      carbonDifference: outside,
-      shareHeatPumpCheaper: 0.5,
-    });
+    const notes = outsideBandNotes(comparisonOf({ ...bands, costPounds: outside }, outside));
     expect(notes).toHaveLength(3);
     expect(notes[0]).toContain('Gas boiler, running cost');
     expect(notes[1]).toContain('cost difference');

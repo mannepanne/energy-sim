@@ -56,6 +56,17 @@ describe('data/register.json', () => {
     expect(shareAbove(3.5)).toBeCloseTo(0.06, 2);
   });
 
+  it('keeps PV’s shortest lifetime at least the heat pump’s longest, in whole years, so PV is never replaced inside a heat pump horizon', () => {
+    const pv = access.uncertain('costs.pvLifetime');
+    const heatPump = access.uncertain('costs.heatPumpLifetime');
+    expect(Math.round(pv.low)).toBeGreaterThanOrEqual(Math.round(heatPump.high));
+  });
+
+  it('spans the export tariffs from the fixed Smart Export Guarantee to Outgoing Octopus’s earlier rate', () => {
+    const exportRate = access.uncertain('prices.exportRate');
+    expect([exportRate.low, exportRate.default, exportRate.high]).toEqual([4.1, 12, 15]);
+  });
+
   it('reproduces the spec’s worked price check to within 0.01p', () => {
     const heatPumpPencePerKwh = access.fixed('prices.electricityUnitRate').value / 2.8;
     const boilerPencePerKwh = access.fixed('prices.gasUnitRate').value / 0.85;
@@ -103,7 +114,7 @@ describe('createAccessor', () => {
     );
     const withUncertainCell = createAccessor(loadRegister({ rows }));
     expect(() => withUncertainCell.cellNumber('fabric.doorUValue', 'A')).toThrow('"fabric.doorUValue", key "A" is an uncertain cell, not a fixed one');
-    expect(access.correlations().map((row) => row.id)).toEqual(['gains.perOccupantHotWaterCorrelation']);
+    expect(access.correlations().map((row) => row.id)).toEqual(['gains.perOccupantHotWaterCorrelation', 'prices.realChangeCorrelation']);
     expect(access.correlation('gains.perOccupantHotWaterCorrelation').between).toEqual(['gains.perOccupant', 'hotWater.litresPerOccupant']);
   });
 });

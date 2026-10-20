@@ -1,7 +1,7 @@
 // ABOUT: Builds the phase 1 report (reports/phase-1-london-semi.md) from the register and the PVGIS snapshot
 // ABOUT: Pure and clock-free: the same inputs always give byte-identical Markdown
 
-import { compare, centralOutsideBand, runPaired, type Band, type Comparison, type Metric, type PairedRun } from '../../src/engine/compare.ts';
+import { compare, centralOutsideBand, runSetups, type Band, type Comparison, type Metric, type SetupRun } from '../../src/engine/compare.ts';
 import { PENCE_PER_POUND } from '../../src/engine/constants.ts';
 import { heatLoss } from '../../src/engine/geometry.ts';
 import {
@@ -18,7 +18,7 @@ import { ARCHETYPE_NAMES } from '../archetypes/table.ts';
 import { readInputs, uncertainDraws } from '../../src/engine/inputs.ts';
 import type { SamplingPlan } from '../../src/engine/sampling.ts';
 import { sensitivity, type SensitivityRow } from '../../src/engine/sensitivity.ts';
-import type { Setup } from '../../src/engine/simulate.ts';
+import { forSetup, type Setup } from '../../src/engine/setups.ts';
 import { prepareWeather, weatherFromSnapshot } from '../../src/engine/weather.ts';
 import { createAccessor, type RegisterAccessor } from '../../src/register/access.ts';
 import { dueDate } from '../../src/register/load.ts';
@@ -33,13 +33,17 @@ import { exactNumber, kgCo2e, kwh, plainValue, pounds, share, signedPercent, who
 
 /**
  * The method settings for the committed report. They are not house parameters, so they live here rather than
- * in the register. At 500 samples the share of wins has a standard error of about 2 percentage points.
+ * in the register. At 500 samples the share cheapest has a standard error of about 2 percentage points.
  */
 export const REPORT_PLAN: SamplingPlan = { seed: 1, count: 500 };
 
 export const REPORT_PATH = 'reports/phase-1-london-semi.md';
 
-const SETUP_NAMES: Record<Setup, string> = { gas: 'Gas boiler', heatPump: 'Heat pump' };
+/** The phase 1 report compares these two setups, both without solar. */
+const REPORT_SETUPS = ['gas', 'heatPump'] as const satisfies readonly Setup[];
+type ReportSetup = (typeof REPORT_SETUPS)[number];
+
+const SETUP_NAMES: Record<ReportSetup, string> = { gas: 'Gas boiler', heatPump: 'Heat pump' };
 
 const METRIC_ROWS: readonly { metric: Metric; label: string; format: (value: number) => string }[] = [
   { metric: 'spaceHeatKwh', label: 'Space heat', format: kwh },
@@ -74,32 +78,37 @@ function resultsSection(comparison: Comparison): string {
   ].join('\n');
 }
 
+/** Gas minus heat pump, per sample. */
+const costDifferenceOf = (comparison: Comparison): Band => forSetup(comparison.differences, 'heatPump').costPounds;
+const shareHeatPumpCheaper = (comparison: Comparison): number => forSetup(comparison.shareCheapest, 'heatPump');
+
 function variantSection(comparison: Comparison): string {
-  const { costDifference } = comparison;
+  const costDifference = costDifferenceOf(comparison);
   return [
     '## The variant with no loft insulation',
     '',
-    `With no loft insulation, the house needs more heat: ${kwh(comparison.bands.gas.spaceHeatKwh.central)} of space heat a year, central. Gas minus heat pump running cost is ${pounds(costDifference.central)} central (${range(pounds(costDifference.p10), pounds(costDifference.p90))}), and the heat pump is cheaper in ${share(comparison.shareHeatPumpCheaper)} of samples. The same samples and the same bias (issue 15) apply.`,
+    `With no loft insulation, the house needs more heat: ${kwh(forSetup(comparison.bands, 'gas').spaceHeatKwh.central)} of space heat a year, central. Gas minus heat pump running cost is ${pounds(costDifference.central)} central (${range(pounds(costDifference.p10), pounds(costDifference.p90))}), and the heat pump is cheaper in ${share(shareHeatPumpCheaper(comparison))} of samples. The same samples and the same bias (issue 15) apply.`,
   ].join('\n');
 }
 
-function resultsTable(comparison: Comparison, setup: Setup): string {
-  const rows = METRIC_ROWS.map(({ metric, label, format }) => `| ${label} | ${bandCells(comparison.bands[setup][metric], format)} |`);
+function resultsTable(comparison: Comparison, setup: ReportSetup): string {
+  const rows = METRIC_ROWS.map(({ metric, label, format }) => `| ${label} | ${bandCells(forSetup(comparison.bands, setup)[metric], format)} |`);
   return ['| A year | Central | Median | 10th to 90th percentile |', '| --- | ---: | ---: | ---: |', ...rows].join('\n');
 }
 
 /** Plain sentences for every band whose central value falls outside P10–P90. */
 export function outsideBandNotes(comparison: Comparison): string[] {
   const notes: string[] = [];
-  for (const setup of ['gas', 'heatPump'] as const) {
+  for (const setup of REPORT_SETUPS) {
     for (const { metric, label } of METRIC_ROWS) {
-      if (centralOutsideBand(comparison.bands[setup][metric])) {
+      if (centralOutsideBand(forSetup(comparison.bands, setup)[metric])) {
         notes.push(`- ${SETUP_NAMES[setup]}, ${label.toLowerCase()}: the central value lies outside the 10th to 90th percentile band, because the ranges are skewed.`);
       }
     }
   }
-  if (centralOutsideBand(comparison.costDifference)) notes.push('- The cost difference: the central value lies outside the 10th to 90th percentile band, because the ranges are skewed.');
-  if (centralOutsideBand(comparison.carbonDifference)) notes.push('- The carbon difference: the central value lies outside the 10th to 90th percentile band, because the ranges are skewed.');
+  const { costPounds: costDifference, carbonKg: carbonDifference } = forSetup(comparison.differences, 'heatPump');
+  if (centralOutsideBand(costDifference)) notes.push('- The cost difference: the central value lies outside the 10th to 90th percentile band, because the ranges are skewed.');
+  if (centralOutsideBand(carbonDifference)) notes.push('- The carbon difference: the central value lies outside the 10th to 90th percentile band, because the ranges are skewed.');
   return notes;
 }
 
@@ -109,7 +118,7 @@ export function marginPoints(fraction: number, count: number): number {
 }
 
 function comparisonSection(comparison: Comparison, count: number): string {
-  const { costDifference, carbonDifference } = comparison;
+  const { costPounds: costDifference, carbonKg: carbonDifference } = forSetup(comparison.differences, 'heatPump');
   const notes = outsideBandNotes(comparison);
   return [
     '## Gas boiler versus heat pump',
@@ -121,7 +130,7 @@ function comparisonSection(comparison: Comparison, count: number): string {
     `| Running cost | ${bandCells(costDifference, pounds)} |`,
     `| Carbon (kgCO₂e) | ${bandCells(carbonDifference, kgCo2e)} |`,
     '',
-    `**The heat pump is cheaper to run in ${share(comparison.shareHeatPumpCheaper)} of samples** (rounded to the nearest 5%; an exact tie counts as half). With ${wholeNumber(count)} samples, this share carries sampling noise of about ±${marginPoints(comparison.shareHeatPumpCheaper, count)} percentage points. That is noise from the method, not the real-world uncertainty, which the ranges above show.`,
+    `**The heat pump is cheaper to run in ${share(shareHeatPumpCheaper(comparison))} of samples** (rounded to the nearest 5%; an exact tie counts as half). With ${wholeNumber(count)} samples, this share carries sampling noise of about ±${marginPoints(shareHeatPumpCheaper(comparison), count)} percentage points. That is noise from the method, not the real-world uncertainty, which the ranges above show.`,
     '',
     '**This running-cost comparison leans in the heat pump’s favour.** One calibrated mean internal temperature, taken from gas-heated homes, applies to both setups. Heat pump households often heat for longer, so the heat pump’s running cost is likely too low here, and the share of samples in which it is cheaper too high ([issue 15](https://github.com/mannepanne/energy-sim/issues/15)). The model does not yet give the two setups different temperatures.',
     ...(notes.length > 0 ? ['', ...notes] : []),
@@ -136,20 +145,18 @@ function sensitivitySection(access: RegisterAccessor, rows: readonly Sensitivity
   const lines = rows.map((row) => {
     const unit = row.unit === 'ratio' ? '' : ` ${row.unit}`;
     const values = `${plainValue(row.low.value)} to ${plainValue(row.high.value)}${unit}`;
-    return `| ${row.label} | ${values} | ${range(pounds(row.low.costPounds.gas), pounds(row.high.costPounds.gas))} | ${range(pounds(row.low.costPounds.heatPump), pounds(row.high.costPounds.heatPump))} | ${range(pounds(row.low.costDifferencePounds), pounds(row.high.costDifferencePounds))} |`;
+    return `| ${row.label} | ${values} | ${range(pounds(row.low.costPounds.against), pounds(row.high.costPounds.against))} | ${range(pounds(row.low.costPounds.setup), pounds(row.high.costPounds.setup))} | ${range(pounds(row.low.costDifferencePounds), pounds(row.high.costDifferencePounds))} |`;
   });
   return [
     '## Sensitivity',
     '',
-    'Each uncertain row is run at its low and then its high value, with every other row at its default. The rows are ranked by how much they move the cost difference.',
+    'Each uncertain row is run at its low and then its high value, with every other row at its default. The rows are ranked by how much they move the cost difference. Only rows that either setup’s running cost reads are listed, so the roof solar rows, installed costs, lifetimes and price changes are left out.',
     '',
     `At the central values, a kWh of heat costs almost the same from either system: ${pence(gasPence)} from the boiler (${inputs.gasUnitRatePence}p ÷ ${inputs.boilerSeasonalEfficiency}) and ${pence(heatPumpPence)} from the heat pump (${inputs.electricityUnitRatePence}p ÷ ${inputs.heatPumpSpf}). So rows that change how much heat the house needs, such as fabric quality or the temperature, move both running costs by hundreds of pounds but barely move the difference. The difference turns on the SPF and the boiler efficiency, and on the gas standing charge the heat pump house does not pay. The boiler’s pump and fan electricity (${wholeNumber(inputs.boilerAuxiliaryElectricityKwhPerYear)} kWh a year) adds £${wholeNumber(Math.round(auxiliaryPounds))} to the gas setup’s bill, so it is part of the difference too. Base electricity use moves both setups equally.`,
     '',
     'The low and high are the ends of each row’s range, not percentiles. For the heat pump SPF, they are the clip limits of its lognormal distribution, far out in its tails, so its row shows an extreme spread.',
     '',
     'The heat pump’s flow temperature and standby share rows move nothing here. On the price cap, the heat pump’s COP curve is scaled so the year matches the sampled SPF, so these rows change when the heat pump uses electricity, not how much. They matter only where hours are priced differently, as on time-of-use tariffs.',
-    '',
-    'The three roof solar rows (size, usable roof share and direction) move nothing here either, because this report compares the two setups without solar.',
     '',
     '| Row | Low to high | Gas boiler cost | Heat pump cost | Gas minus heat pump |',
     '| --- | --- | ---: | ---: | ---: |',
@@ -189,10 +196,10 @@ function houseSection(access: RegisterAccessor): string {
   ].join('\n');
 }
 
-function methodSection(register: Register, access: RegisterAccessor, run: PairedRun): string {
+function methodSection(register: Register, access: RegisterAccessor, run: SetupRun): string {
   const uncertain = uncertainDraws(access, run.house).map((draw) => draw.label);
-  const labels = new Map(register.rows.map((row) => [row.id, row.label.toLowerCase()]));
-  const correlations = access.correlations().map((row) => `${labels.get(row.between[0])} and ${labels.get(row.between[1])} (${plainValue(row.value)})`);
+  // Each correlation row's label names its pair, such as "Correlation of the gas and electricity real price changes".
+  const correlations = access.correlations().map((row) => `${row.label.replace(/^Correlation of /, '')} (${plainValue(row.value)})`);
   return [
     '## How the ranges are made',
     '',
@@ -200,7 +207,7 @@ function methodSection(register: Register, access: RegisterAccessor, run: Paired
     '- **Stable draws:** each value comes from a hash of the seed, the sample number and the row id, passed through the row’s inverse distribution function. Triangular rows use their default as the mode. The SPF is lognormal and clipped to its low and high.',
     '- **Central** is the run with every row at its default. **Median** and the **10th to 90th percentile** come from the samples (linear interpolation between ranked samples).',
     '- **Fabric quality** is one shared factor on every U-value and the air change rate.',
-    `- **Correlated rows:** a Gaussian copula correlates ${correlations.join('; ')}, in normal-score space. The other rows are drawn independently of each other.`,
+    `- **Correlated rows:** a Gaussian copula correlates, in normal-score space, ${correlations.join('; and ')}. The other rows are drawn independently of each other.`,
     '- **Rounding:** costs to £10, energy to 100 kWh, carbon to 10 kg and shares to 5%.',
   ].join('\n');
 }
@@ -279,7 +286,7 @@ export function buildReport(register: Register, snapshot: PvgisSnapshot, plan: S
   const access = createAccessor(register);
   const house = defaultHouse(access, REFERENCE_ARCHETYPE);
   const weather = prepareWeather(weatherFromSnapshot(snapshot), readInputs(access, { house }));
-  const run = runPaired(access, weather, plan);
+  const run = runSetups(access, weather, plan, { setups: REPORT_SETUPS });
   const comparison = compare(run);
   const sections = [
     [
@@ -294,10 +301,10 @@ export function buildReport(register: Register, snapshot: PvgisSnapshot, plan: S
     houseSection(access),
     resultsSection(comparison),
     comparisonSection(comparison, plan.count),
-    sensitivitySection(access, sensitivity(access, weather)),
-    variantSection(compare(runPaired(access, weather, plan, noLoftInsulation(house)))),
+    sensitivitySection(access, sensitivity(access, weather, [{ setup: 'heatPump', against: 'gas' }])[0]!.rows),
+    variantSection(compare(runSetups(access, weather, plan, { house: noLoftInsulation(house), setups: REPORT_SETUPS }))),
     methodSection(register, access, run),
-    benchmarkSection(run.central.gas.gasKwh),
+    benchmarkSection(forSetup(run.central, 'gas').gasKwh),
     dataDatesSection(register, snapshot),
     LIMITATIONS,
   ];

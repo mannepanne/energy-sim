@@ -2,7 +2,8 @@
 // ABOUT: pre-registered NEED readings, its gap from them and the flag. Pure and clock-free, so output is byte-identical
 
 import { ARCHETYPE_KEYS, defaultHouse, type ArchetypeKey } from '../../src/engine/archetypes.ts';
-import { band, compare, runPaired, type Band } from '../../src/engine/compare.ts';
+import { band, compare, runSetups, type Band } from '../../src/engine/compare.ts';
+import { forSetup } from '../../src/engine/setups.ts';
 import { heatLoss } from '../../src/engine/geometry.ts';
 import { readInputs } from '../../src/engine/inputs.ts';
 import type { SamplingPlan } from '../../src/engine/sampling.ts';
@@ -42,7 +43,9 @@ export interface ArchetypeRow {
 export function archetypeRows(access: RegisterAccessor, weather: PreparedWeather, plan: SamplingPlan = ARCHETYPE_PLAN): ArchetypeRow[] {
   return ARCHETYPE_KEYS.map((archetype) => {
     const house = defaultHouse(access, archetype);
-    const run = runPaired(access, weather, plan, house);
+    const run = runSetups(access, weather, plan, { house, setups: ['gas', 'heatPump'] });
+    const gas = forSetup(run.samples, 'gas');
+    const gasCentral = forSetup(run.central, 'gas');
     const comparison = compare(run);
     const readings = needReadings(archetype);
     return {
@@ -50,11 +53,11 @@ export function archetypeRows(access: RegisterAccessor, weather: PreparedWeather
       floorAreaM2: house.floorAreaM2,
       occupants: house.occupants,
       heatLossWPerK: heatLoss(readInputs(access, { house })).totalWPerK,
-      gasKwh: band(run.samples.gas.gasKwh, run.central.gas.gasKwh),
-      gasCostPounds: comparison.bands.gas.costPounds,
-      heatPumpCostPounds: comparison.bands.heatPump.costPounds,
+      gasKwh: band(gas.gasKwh, gasCentral.gasKwh),
+      gasCostPounds: forSetup(comparison.bands, 'gas').costPounds,
+      heatPumpCostPounds: forSetup(comparison.bands, 'heatPump').costPounds,
       readings,
-      gap: archetypeGap(run.central.gas.gasKwh, readings),
+      gap: archetypeGap(gasCentral.gasKwh, readings),
     };
   });
 }

@@ -19,6 +19,7 @@ import { deriveGeometry } from './geometry.ts';
 import { groundFloorParameters, groundFloorUValue } from './groundFloor.ts';
 import { RADIANS_PER_DEGREE } from './constants.ts';
 import { checkCompensation, checkCurve, type CompensationLine, type CopCurve } from './heatPump.ts';
+import type { CapitalCosts, PriceScenario } from './payback.ts';
 import { checkPvSystem, roofMaximumKw, type PvSystem } from './pv.ts';
 import type { UncertainSpec } from './sampling.ts';
 
@@ -39,6 +40,15 @@ export const UNCERTAIN_ROW_IDS = [
   'solar.systemSize',
   'solar.azimuth',
   'solar.usableRoofFraction',
+  'prices.exportRate',
+  'prices.gasRealChange',
+  'prices.electricityRealChange',
+  'costs.boilerInstalled',
+  'costs.heatPumpInstalled',
+  'costs.pvPerKwp',
+  'costs.heatPumpLifetime',
+  'costs.boilerLifetime',
+  'costs.pvLifetime',
 ] as const satisfies readonly RowId[];
 
 export type UncertainRowId = (typeof UNCERTAIN_ROW_IDS)[number];
@@ -126,6 +136,8 @@ export interface EngineInputs {
   electricityStandingChargePencePerDay: number;
   gasUnitRatePence: number;
   gasStandingChargePencePerDay: number;
+  /** Paid for every exported kWh. */
+  exportRatePence: number;
 
   gasCarbonKgPerKwh: number;
   gridCarbonKgPerKwh: number;
@@ -141,6 +153,11 @@ export interface EngineInputs {
   /** The sampled size before the roof limit. */
   pvRequestedPeakPowerKw: number;
   pvRoofMaximumKw: number;
+
+  /** Installed costs, the grant and lifetimes. They do not change the year's running cost; payback reads them. */
+  capital: CapitalCosts;
+  /** The real price changes after the first year, shared by every setup in a sample. */
+  priceScenario: PriceScenario;
 }
 
 /**
@@ -384,6 +401,7 @@ type PriceInputs = Pick<
   | 'electricityStandingChargePencePerDay'
   | 'gasUnitRatePence'
   | 'gasStandingChargePencePerDay'
+  | 'exportRatePence'
   | 'gasCarbonKgPerKwh'
   | 'gridCarbonKgPerKwh'
   | 'baseElectricityKwhPerYear'
@@ -405,6 +423,7 @@ function readPrices(reader: Reader): PriceInputs {
     electricityStandingChargePencePerDay: reader.fixed('prices.electricityStandingCharge'),
     gasUnitRatePence: reader.fixed('prices.gasUnitRate'),
     gasStandingChargePencePerDay: reader.fixed('prices.gasStandingCharge'),
+    exportRatePence: reader.uncertain('prices.exportRate'),
     gasCarbonKgPerKwh: reader.fixed('carbon.gasFactor'),
     gridCarbonKgPerKwh: reader.fixed('carbon.gridElectricityFactor'),
     baseElectricityKwhPerYear: reader.uncertain('electricity.baseUse'),
@@ -437,6 +456,27 @@ function readSolar(reader: Reader, roofFootprintM2: number): SolarInputs {
   return { pv, pvRequestedPeakPowerKw: requested, pvRoofMaximumKw: roofMaximum };
 }
 
+type CapitalInputs = Pick<EngineInputs, 'capital' | 'priceScenario'>;
+
+/** Installed costs, the grant, lifetimes and the price scenario. Read last, so the engine's earlier draws keep their order. */
+function readCapital(reader: Reader): CapitalInputs {
+  return {
+    capital: {
+      boilerPounds: reader.uncertain('costs.boilerInstalled'),
+      heatPumpPounds: reader.uncertain('costs.heatPumpInstalled'),
+      pvPoundsPerKwp: reader.uncertain('costs.pvPerKwp'),
+      grantPounds: reader.fixed('costs.boilerUpgradeSchemeGrant'),
+      boilerLifetimeYears: reader.uncertain('costs.boilerLifetime'),
+      heatPumpLifetimeYears: reader.uncertain('costs.heatPumpLifetime'),
+      pvLifetimeYears: reader.uncertain('costs.pvLifetime'),
+    },
+    priceScenario: {
+      gasChangePerYear: reader.uncertain('prices.gasRealChange'),
+      electricityChangePerYear: reader.uncertain('prices.electricityRealChange'),
+    },
+  };
+}
+
 /** Reads every subsystem in a fixed order, which sets the order `uncertainDraws` returns. */
 function read(access: RegisterAccessor, house: House, reader: Reader, spfScenario: SpfScenario): EngineInputs {
   checkHouse(access, house);
@@ -453,6 +493,7 @@ function read(access: RegisterAccessor, house: House, reader: Reader, spfScenari
     ...readHotWater(reader, house),
     ...readPrices(reader),
     ...readSolar(reader, geometry.footprintM2),
+    ...readCapital(reader),
   };
 }
 

@@ -54,6 +54,14 @@ Add an entry here when a problem takes more than a few minutes to work out.
 - *The pinned gap (−2.55%) moved:* a change to the sun position, the transposition, the PV formulas or the weather moved the engine's yield. If the change is intended and the gap stays within 8%, re-pin it and update the table in [engine.md](./engine.md#checks-against-outside-references).
 - *Outside 8%:* stop and look for the cause before touching any row; the tolerance was fixed before the check ran.
 
+**"Setup "…" is not in this run" or "The reference setup "gas" is not in this run".** A caller asked `forSetup` or `compare` for a setup that `runSetups` was not given. Pass it in `setups`, or leave `setups` out to run all four.
+
+**`setups.test.ts` fails on "… on gasSolar" (or another setup).** A row that `runningCostReads` says a setup does not read now moves that setup's running cost, so the sensitivity tables would drop a row that matters. Add the row to the right set in `src/engine/setups.ts` (heat pump, boiler, solar or capital), or remove it from the set it wrongly sits in.
+
+**The payback examples fail** (`src/engine/payback.test.ts`). The tests reproduce the hand-worked examples in [engine.md](./engine.md#the-hand-worked-examples) exactly. If the payback rules changed on purpose (the horizon, when replacements land, the grant), rework the examples in engine.md by hand first, then update the tests to match. Don't change the expected years to whatever the code now gives.
+
+**A payback summary shows "beyond lifetime" for the median, or a large share "cheaper up front, costs more to run".** At least half the ranked samples don't pay back within their horizon, or many samples cost less up front after the grant than the boiler but more to run. Both are results, not errors. Check the inputs that drive it: the installed cost rows, the running-cost difference, and the lifetimes.
+
 **The calibration test fails** (`scripts/calibration/meanInternalTemperature.test.ts`). A change to a row the 1930s semi's gas setup reads, such as an archetype fact, a U-value, the windows or the weather, has moved central gas use away from its calibration target. Re-solve the `heating.meanInternalTemperature` row with `npm run calibrate`, as [register.md](./register.md#the-mean-internal-temperature-calibration) describes, then regenerate the report.
 
 ## The report and CI
@@ -64,7 +72,7 @@ Add an entry here when a problem takes more than a few minutes to work out.
 
 **`npm run archetypes` shows an archetype newly flagged.** The flag rule and the NEED readings were fixed before any archetype ran ([scripts/archetypes/README.md](../scripts/archetypes/README.md)), so don't change them to clear a flag. A flag is an honest result. Check instead that the archetype's register rows are right, and record the gap as evidence on [#14](https://github.com/mannepanne/energy-sim/issues/14).
 
-**CI's "Bench" step fails.** 500 samples × 2 setups, without or with solar, took longer than 5 seconds. On a recent Mac each takes about 1.5 seconds (19 October 2026, with the heat pump curve, the cylinder, the hourly base profile and roof solar), and CI runners are somewhat slower, so a failure means a real slowdown, not noise. Look for a slowdown in the hourly loop: per-hour objects instead of typed arrays, or weather prepared again for every sample instead of once.
+**CI's "Bench" step fails.** 500 samples took longer than 2.5 seconds per setup: 5 seconds for the two setups without solar, or 10 for all four. On a recent Mac they take about 1.5 and 3 seconds, and on the CI runner about 2.9 and 5.7 seconds (20 October 2026, with the heat pump curve, the cylinder, the hourly base profile and roof solar). So a failure means a real slowdown, not noise. Look for a slowdown in the hourly loop: per-hour objects instead of typed arrays, or weather prepared again for every sample instead of once.
 
 ## The benchmark
 
@@ -81,5 +89,13 @@ Add an entry here when a problem takes more than a few minutes to work out.
 **Refreshing the PVcalc figure.** Run `npm run fetch:pvcalc` (network), commit `data/snapshots/pvgis-pvcalc-london.json`, and rerun the PV check; re-pin its gap if PVGIS's figure moved.
 
 **Refreshing the base electricity profile.** Download Elexon's average profiling data from its profiling page (ask first; it is not committed), unzip it, run `npm run derive:base-profile -- <folder>`, and paste the two printed arrays into the profile rows. A newer file may have another layout; the reader throws naming the cell it did not expect.
+
+**Refreshing costs, the grant and the export rate.**
+- *The heat pump cost* (`costs.heatPumpInstalled`, quarterly): download the latest Boiler Upgrade Scheme statistics from GOV.UK (ask first), read table Q1.1A's latest quarter for air-to-water heat pumps, and update the median and the rationale's quartiles. Keep the file in `REFERENCE/data-downloads/`.
+- *PV per kWp* (yearly): DESNZ publishes solar PV cost data each financial year. Read the summary table's 0–4 kW median, then scale it by the domestic 0–4 kW mean ÷ the all-installs 0–4 kW mean (domestic costs table and summary table). The median includes cheaper non-domestic installs, so entering it unscaled flatters solar. Record both figures and the ratio in the rationale.
+- *The grant* (monthly): check GOV.UK's "Apply for the Boiler Upgrade Scheme" pages for the amount and the conditions, and update the row's rationale and `lastChecked`.
+- *The export rate* (quarterly): query the Octopus API for London (region C) unit rates of Outgoing Octopus (the mode) and of the fixed Smart Export Guarantee tariff (the low end). The high end is Outgoing Octopus's highest recent rate. The tariffs PR snapshots them.
+
+Each change moves payback, and the price rows also move running cost, so regenerate the report.
 
 **Updating prices at a new price cap period.** Update the price rows, their `lastChecked` and `validUntil` dates, and their source, then regenerate the report. The report's "Rows due for a fresh check" table shows which rows are due.

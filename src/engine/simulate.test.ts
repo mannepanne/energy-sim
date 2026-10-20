@@ -245,11 +245,13 @@ describe('roof solar on the PVGIS year', () => {
     expect(solar.annual.exportKwh).toBeGreaterThan(0);
   });
 
-  it('lowers cost and carbon by the imports saved, with no credit for export', () => {
+  it('lowers cost by the imports saved plus export income, and carbon by the imports saved, with no credit for export', () => {
     for (const { without, with: solar } of results) {
       const saved = without.annual.importKwh - solar.annual.importKwh;
       expect(saved).toBeCloseTo(solar.annual.selfConsumedKwh, 9);
-      expect(without.annual.cost.totalPounds - solar.annual.cost.totalPounds).toBeCloseTo((saved * 25) / 100, 9);
+      // 25p a kWh saved on imports, and the fixture's 10p a kWh for export.
+      expect(solar.annual.cost.exportPounds).toBeCloseTo((solar.annual.exportKwh * 10) / 100, 9);
+      expect(without.annual.cost.totalPounds - solar.annual.cost.totalPounds).toBeCloseTo((saved * 25 + solar.annual.exportKwh * 10) / 100, 9);
       expect(without.annual.carbonKg - solar.annual.carbonKg).toBeCloseTo(saved * 0.1, 9);
     }
   });
