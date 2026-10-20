@@ -2300,22 +2300,25 @@
     },
     {
       "id": "prices.exportRate",
-      "kind": "fixed",
+      "kind": "uncertain",
       "section": "prices",
-      "label": "Export rate, Outgoing Octopus (flat), London",
+      "label": "Export rate for solar setups, flat, London",
       "unit": "p/kWh",
       "status": "approximate",
       "source": {
         "title": "Octopus Energy public API: Outgoing Octopus (OUTGOING-VAR-24-10-26), London region (C) unit rates",
         "url": "https://api.octopus.energy/v1/products/OUTGOING-VAR-24-10-26/"
       },
-      "rationale": "Approximate until the tariffs PR snapshots it with the other Octopus rates; the source is the API query it was taken from on 19 October 2026. The flat export tariff the spec calls Octopus Outgoing Fixed is sold as Outgoing Octopus: one rate for every exported kWh, 12p/kWh in London from 1 March 2026 (15p before), with no VAT and no standing charge. Octopus's fixed Smart Export Guarantee tariff pays 4.1p, so the choice matters for solar's payback. The engine assumes every solar setup qualifies for the flat rate.",
+      "rationale": "Approximate until the tariffs PR snapshots the Octopus rates; the source is the API query the mode was taken from on 19 October 2026. The range spans the export tariffs a solar household in London can get from Octopus, as Magnus decided on 20 October 2026: the low end is Octopus's fixed Smart Export Guarantee tariff (4.1p/kWh since February 2022), the mode is Outgoing Octopus, the flat tariff the spec calls Outgoing Fixed (12p/kWh in London from 1 March 2026), and the high end is Outgoing Octopus's earlier rate (15p/kWh from October 2024 to February 2026). All are flat, with no VAT and no standing charge. Triangular, so the mean is 10.4p. The engine assumes every solar setup qualifies for the tariff it is drawn.",
+      "lastChecked": "2026-10-19",
       "refreshCadence": "quarterly",
       "overridable": true,
       "overrideHint": "The export rate on your export tariff.",
-      "value": 12,
-      "lastChecked": "2026-10-19",
-      "dependsOn": []
+      "dependsOn": [],
+      "default": 12,
+      "low": 4.1,
+      "high": 15,
+      "distribution": "triangular"
     },
     {
       "id": "prices.gasRealChange",

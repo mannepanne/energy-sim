@@ -28,14 +28,14 @@ describe('sensitivity', () => {
   );
   const tables = sensitivity(access, weather);
   const table = tables[0]!.rows;
-  const SOLAR_ROWS = ['solar.systemSize', 'solar.azimuth', 'solar.usableRoofFraction'];
+  const SOLAR_ROWS = ['solar.systemSize', 'solar.azimuth', 'solar.usableRoofFraction', 'prices.exportRate'];
 
   it('gives one table per pair, the heat pump against gas first', () => {
     expect(tables.map((entry) => entry.pair)).toEqual(SENSITIVITY_PAIRS);
     expect(tables[0]!.pair).toEqual({ setup: 'heatPump', against: 'gas' });
   });
 
-  it('lists every row either setup reads: no roof solar rows without solar, and never a capital row', () => {
+  it('lists every row either setup reads: no roof solar or export rows without solar, and never a capital row', () => {
     // The well-installed SPF and standby share are read only in their own scenario.
     const fieldTrial = UNCERTAIN_ROW_IDS.filter((id) => !rowsOutsideScenario('fieldTrial').includes(id));
     const expected = fieldTrial.filter((id) => !SOLAR_ROWS.includes(id) && !CAPITAL_ROWS.has(id));

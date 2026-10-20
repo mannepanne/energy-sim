@@ -33,7 +33,7 @@ import { exactNumber, kgCo2e, kwh, plainValue, pounds, share, signedPercent, who
 
 /**
  * The method settings for the committed report. They are not house parameters, so they live here rather than
- * in the register. At 500 samples the share of wins has a standard error of about 2 percentage points.
+ * in the register. At 500 samples the share cheapest has a standard error of about 2 percentage points.
  */
 export const REPORT_PLAN: SamplingPlan = { seed: 1, count: 500 };
 

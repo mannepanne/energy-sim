@@ -260,7 +260,8 @@ It can't run out, because a reheat is forced at the minimum. No immersion backup
 - extra upfront = setup upfront − reference upfront;
 - each year's saving = reference running cost − setup running cost, under the price scenario;
 - payback = the first year in which cumulative savings, less any extra replacement costs, cover the extra upfront;
-- if extra upfront ≤ 0, payback is year 0;
+- if extra upfront ≤ 0, payback is year 0 only when the setup's cumulative running cost never exceeds the reference's within the horizon. Otherwise the sample is "cheaper up front, costs more to run", has no payback year, and is left out of the share that pays back and of the percentiles (Magnus, 20 October 2026, after the [PR 38 review](https://github.com/mannepanne/energy-sim/pull/38));
+- payback is the first crossing: a later replacement that sets the position back does not undo it;
 - if it never pays back within the horizon, including when savings are negative, the sample is "doesn't pay back".
 
 **The summary:**
@@ -352,7 +353,7 @@ That gives 10 combinations: 2 gas setups × 2 tariffs, plus 2 heat pump setups �
 **Price rows for each tariff:**
 - unit rates and standing charges, including VAT (the Octopus API's inc-VAT values);
 - negative Agile prices are passed through, so the house is paid to import;
-- one flat export rate (Octopus Outgoing Fixed, checked when the snapshot is built) applies to every solar setup;
+- one flat export rate applies to every solar setup. It is an uncertain row from 4.1p (Octopus's fixed Smart Export Guarantee) to 15p, with a mode of 12p for Outgoing Octopus, the flat tariff once called Outgoing Fixed (Magnus, 20 October 2026). The rates are checked when the snapshot is built;
 - each tariff has its `lastChecked`, cadence and `validUntil`.
 
 **Control rules for the heat pump setups.** These are the same for every tariff, and published in `REFERENCE/engine.md`:
@@ -387,7 +388,7 @@ That gives 10 combinations: 2 gas setups × 2 tariffs, plus 2 heat pump setups �
 - payback summaries.
 
 **The report** (`reports/phase-2-v1-model.md`):
-- **The London 1930s semi in full,** at N=500. For each of the 10 combinations, it shows running cost, carbon, upfront cost after the grant and payback, each as central, median and P10–P90. It also shows the paired differences, the shares cheapest, solar's own payback, the sensitivity table, and the well-installed scenario.
+- **The London 1930s semi in full,** at N=500. For each of the 10 combinations, it shows running cost, carbon, upfront cost after the grant and payback, each as central, median and P10–P90. It also shows the paired differences, the shares cheapest, solar's own payback, the running-cost sensitivity tables, a payback sensitivity table for the capital costs, lifetimes and price changes, and the well-installed scenario.
 - **The archetype table,** at N=200. It covers the reference setup and the heat pump on the cap, showing central and P10–P90 results, the two NEED readings, the gap and the flag.
 - **The checks:** HEM (continuous and scheduled) and PV.
 - **The data dates, the conventions** (time base, carbon, undiscounted payback, a boiler needing replacement now) **and the limitations.**
@@ -407,7 +408,7 @@ Magnus approves these in one go when implementation starts. Packages follow the 
 - **RdSAP 10 specification tables** (BRE PDF, already cited).
 - **NEED 2026 tables** by type, age and bedrooms (refetched for the extra archetypes).
 - **Ofgem price cap** regional rates (London) for the current quarter.
-- **Octopus API** (no key needed; checked on 18 October 2026): Cosy and Agile product and unit-rate endpoints for London, and Outgoing Fixed. Agile is paginated and may span two product codes over 12 months.
+- **Octopus API** (no key needed; checked on 18 October 2026): Cosy and Agile product and unit-rate endpoints for London, and the export tariffs (Outgoing Octopus and the fixed Smart Export Guarantee). Agile is paginated and may span two product codes over 12 months.
 - **PVGIS:** `PVcalc` for the reference system, and `seriescalc` if it can return the typical year.
 - **DESNZ solar PV cost data,** and Boiler Upgrade Scheme statistics for heat pump costs.
 - **Electrification of Heat** daily data (SN 9210) or its reports (see "The heat pump over the year").
@@ -521,7 +522,7 @@ The flat-tariff work comes first, so a failed HEM check under a schedule still l
 4. `feature/phase-2-costs-payback`:
    - costs, the grant and its conditions, and lifetimes;
    - the price scenario and payback;
-   - the flat export rate row (Octopus Outgoing Fixed, approximate until PR 6 snapshots it), so solar's payback counts export income (moved from PR 6 after the [PR 35 review](https://github.com/mannepanne/energy-sim/pull/35), Magnus, 19 October 2026);
+   - the flat export rate row (Outgoing Octopus, as a range from 4.1p to 15p, approximate until PR 6 snapshots it), so solar's payback counts export income (moved from PR 6 after the [PR 35 review](https://github.com/mannepanne/energy-sim/pull/35), Magnus, 19 October 2026);
    - solar's own payback;
    - the comparison layer for N setups, with a sensitivity swing for each setup against the reference and for solar against no solar, listing only the rows the compared setups read. A gas-minus-heat-pump swing can't show roof direction, which cancels when both setups have solar.
 5. `feature/phase-2-heating-schedules`:
@@ -530,7 +531,7 @@ The flat-tariff work comes first, so a failed HEM check under a schedule still l
    - the HEM run and decision;
    - the recalibration and its ADR, with the sourced heat pump schedule (closes #13, with evidence on #14 and #15).
 6. `feature/phase-2-tariffs`: London cap rates, the Octopus snapshots (Cosy, Agile, export), and the control rules and their ADR.
-7. `feature/phase-2-report`: the phase 2 report, the archetype table, the bench workloads and the CI drift switch.
+7. `feature/phase-2-report`: the phase 2 report, the archetype table, the bench workloads and the CI drift switch. The report adds a payback sensitivity table that ranks the capital costs, lifetimes and price changes by how much they move payback, since the running-cost tables can't show them (Magnus, 20 October 2026, after the [PR 38 review](https://github.com/mannepanne/energy-sim/pull/38)).
 
 Until PR 5 lands, the engine heats continuously, as in phase 1. PRs 2–4 are built and tested on that, and their numbers shift once when schedules arrive. The report is only generated in PR 7.
 
@@ -576,6 +577,7 @@ New, tracked when their code lands:
 - a simple output cap rather than heat pump sizing, and no backup heat;
 - one location;
 - undiscounted payback, assuming the boiler needs replacing now ([#37](https://github.com/mannepanne/energy-sim/issues/37));
+- the PV inverter is never replaced within PV's lifetime ([#39](https://github.com/mannepanne/energy-sim/issues/39));
 - Agile represented by a past year on typical weather;
 - weekdays taken from the 2026 reference year ([#25](https://github.com/mannepanne/energy-sim/issues/25));
 - no carbon credit for export ([#34](https://github.com/mannepanne/energy-sim/issues/34));

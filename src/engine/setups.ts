@@ -44,7 +44,8 @@ const HEAT_PUMP_ROWS: ReadonlySet<DrawKey> = new Set<UncertainRowId>([
   'heating.flowTemperatureAtMild',
 ]);
 const BOILER_ROWS: ReadonlySet<DrawKey> = new Set<UncertainRowId>(['heating.boilerSeasonalEfficiency']);
-const SOLAR_ROWS: ReadonlySet<DrawKey> = new Set<UncertainRowId>(['solar.systemSize', 'solar.azimuth', 'solar.usableRoofFraction']);
+/** The roof's size and direction, and the export rate, which only exported kWh earn. */
+const SOLAR_ROWS: ReadonlySet<DrawKey> = new Set<UncertainRowId>(['solar.systemSize', 'solar.azimuth', 'solar.usableRoofFraction', 'prices.exportRate']);
 
 /** Costs, lifetimes and price changes: payback reads them, but they never change a year's running cost. */
 export const CAPITAL_ROWS: ReadonlySet<DrawKey> = new Set<UncertainRowId>([
@@ -61,8 +62,9 @@ export const CAPITAL_ROWS: ReadonlySet<DrawKey> = new Set<UncertainRowId>([
 /**
  * Whether an uncertain row or cell can change this setup's annual running cost. Every setup reads every row, so
  * draws pair; this says which ones matter. The heat pump's rows matter only to heat pump setups, the boiler's
- * efficiency only to gas setups, the roof solar rows only to solar setups, and capital rows to none. Every other
- * row (fabric, gains, hot water, base use) matters to all four. A test checks each exclusion moves nothing.
+ * efficiency only to gas setups, the roof solar rows and the export rate only to solar setups, and capital rows to
+ * none. Every other row (fabric, gains, hot water, base use) matters to all four. A test checks each exclusion
+ * moves nothing.
  */
 export function runningCostReads(setup: Setup, id: DrawKey): boolean {
   const { heating, solar } = SETUP_KIT[setup];

@@ -12,7 +12,7 @@ What phase 1 built and why is in the [phase 1 spec](../SPECIFICATIONS/ARCHIVE/01
 | --- | --- |
 | `constants.ts` | Physical constants and unit conversions: hours in a year, 0.33 Wh/m³K for air, 4.18 kJ/kgK for water |
 | `archetypes.ts` | The archetype keys, the quick-facts answers, `House`, `defaultHouse(access, archetype)`, `wallAnswers` and SAP occupancy |
-| `inputs.ts` | `readInputs(access, { house, overrides, spfScenario })`: reads every input for one house into one `EngineInputs` object, one reader per subsystem (geometry, fabric, gains, heating, hot water, prices, solar), deriving geometry, the ground floor U-value and the roof's PV maximum; `uncertainDraws(access, house, spfScenario)` lists the uncertain values it reads |
+| `inputs.ts` | `readInputs(access, { house, overrides, spfScenario })`: reads every input for one house into one `EngineInputs` object, one reader per subsystem (geometry, fabric, gains, heating, hot water, prices, solar, and the capital costs, grant, lifetimes and price scenario), deriving geometry, the ground floor U-value and the roof's PV maximum; `uncertainDraws(access, house, spfScenario)` lists the uncertain values it reads |
 | `weather.ts` | `weatherFromSnapshot(snapshot)` and `prepareWeather(weather, inputs)` |
 | `solar.ts` | Sun position, irradiance on a tilted surface, the hourly mean irradiance on four walls, and the sun's path (`sunPath`, `planeIrradiance`) for irradiance on the roof |
 | `pv.ts` | Roof solar: the roof's maximum size, hourly generation, and `useSolar`, which shares each hour's generation between the loads and export |
@@ -199,7 +199,7 @@ standby         = standby share × Σheat ÷ SPF ÷ 8,760, the same in every hou
 ### Cost and carbon
 
 - Cost = kWh × unit rate + standing charges, at the flat price cap, less export income. Both setups pay the electricity standing charge. **The heat-pump-only house has no gas supply, so it pays no gas standing charge.**
-- **Electricity is costed on imports, and export earns the flat export rate** (`prices.exportRate`, Outgoing Octopus). Without solar, imports are all the electricity used and export is zero. So **the running cost of a solar setup is net of its export income.**
+- **Electricity is costed on imports, and export earns a flat export rate** (`prices.exportRate`, uncertain: from 4.1p, Octopus's fixed Smart Export Guarantee, to 15p, mode 12p for Outgoing Octopus). Without solar, imports are all the electricity used and export is zero. So **the running cost of a solar setup is net of its export income.**
 - **The cost is split by fuel:** `gasPounds` (gas unit and standing charges) and `electricityPounds` (electricity unit and standing charges less export income). Payback grows each part by its own real price change.
 - Carbon = gas kWh × gas factor + imported electricity kWh × the annual average grid factor. Exported kWh are reported but earn no carbon credit; the phase 2 report will state this convention.
 
@@ -218,14 +218,14 @@ standby         = standby share × Σheat ÷ SPF ÷ 8,760, the same in every hou
 
 - **The grant** (`costs.boilerUpgradeSchemeGrant`, £7,500) comes off the heat pump's first installation, capped at its cost. It never comes off a replacement heat pump, because a property that has had the grant cannot claim it again. Gas setups get no grant.
 - **PV size** is the system size after the roof limit (`inputs.pv.peakPowerKw`).
-- **v1 assumes the boiler needs replacing now,** so the reference pays for a boiler today. A question about the boiler's age is a phase 3 option.
+- **v1 assumes the boiler needs replacing now,** so the reference pays for a boiler today, and that boiler is a real cost the heat pump setups avoid. So a heat pump at the cheap end of its range can cost less up front after the grant than the boiler. A question about the boiler's age is a phase 3 option.
 - **Lifetimes** are drawn as uncertain rows and rounded to whole years (at least one).
 
 ### Horizons and replacements
 
 - **A setup against the reference:** the horizon is the heat pump's lifetime for `heatPump` and `heatPumpSolar` (any PV value left at the end is ignored), and PV's lifetime for `gasSolar`.
 - **Solar's own payback** compares `gasSolar` with `gas`, and `heatPumpSolar` with `heatPump`, over PV's lifetime. It is reported separately, so solar can't hide a heat pump that doesn't pay back.
-- **Replacements:** every component is replaced, at today's real cost, at the end of each year in which its lifetime ends, while that year is strictly inside the horizon. A lifetime ending exactly at the horizon is not replaced, because the horizon ends with it. The rule applies to both sides, so the reference's boiler replacements count against the reference, and a gas setup's own boiler replacements cancel against them. PV's shortest lifetime is no shorter than the heat pump's longest, so PV is never replaced inside a heat pump horizon.
+- **Replacements:** every component is replaced, at today's real cost, at the end of each year in which its lifetime ends, while that year is strictly inside the horizon. A lifetime ending exactly at the horizon is not replaced, because the horizon ends with it. The rule applies to both sides, so the reference's boiler replacements count against the reference, and a gas setup's own boiler replacements cancel against them. PV's shortest lifetime is no shorter than the heat pump's longest, so PV is never replaced inside a heat pump horizon. That holds only while the register's ranges keep it so, and a test on the real register (`src/register/register.test.ts`) fails if they stop.
 
 ### The price scenario
 
@@ -237,13 +237,20 @@ standby         = standby share × Σheat ÷ SPF ÷ 8,760, the same in every hou
 ### Payback
 
 For one sample, with the option and the baseline (the reference, or the same heating without solar):
-1. **Extra upfront** = option upfront − baseline upfront. If it is £0 or less, **payback is year 0**.
-2. Start the position at −extra upfront. For each year t = 1 to the horizon, add the baseline's running cost minus the option's (both under the price scenario), then add the baseline's replacements and subtract the option's.
+1. **Extra upfront** = option upfront − baseline upfront. If it is £0 or less, there is nothing to pay back:
+   - **payback is year 0** if the option's cumulative running cost never exceeds the baseline's at the end of any year in the horizon;
+   - otherwise the sample is **"cheaper up front, costs more to run"** (`CHEAPER_UP_FRONT_COSTS_MORE_TO_RUN`). It has no payback year (Magnus, 20 October 2026).
+2. Otherwise, start the position at −extra upfront. For each year t = 1 to the horizon, add the baseline's running cost minus the option's (both under the price scenario), then add the baseline's replacements and subtract the option's.
 3. **Payback is the first year in which the position reaches £0 or more.** If it never does within the horizon, including when the option costs more to run, the sample **doesn't pay back** (`DOES_NOT_PAY_BACK`, which ranks after every year).
 
-The position is checked at the end of each year, after that year's replacements. Payback is in whole years.
+The position is checked at the end of each year, after that year's replacements. Payback is in whole years. **It is the first crossing:** a later replacement that sets the position back below £0 does not undo it.
 
-**The summary** for a comparison is the central run's payback, the share of samples that pay back, and the median and P10–P90. Percentiles use the same interpolation as every other band (type 7). A percentile that falls on a sample that doesn't pay back, or between one and a year, is **"beyond lifetime"**.
+**The summary** for a comparison is:
+- the central run's payback;
+- three shares that sum to 1: the samples that pay back (year 0 included), those cheaper up front that cost more to run, and those that don't pay back;
+- the median and P10–P90, over the samples that pay back or don't. Samples cheaper up front that cost more to run have no payback year, so the percentiles leave them out.
+
+Percentiles use the same interpolation as every other band (type 7). A percentile that falls on a sample that doesn't pay back, or between one and a year, is **"beyond lifetime"**.
 
 ### The hand-worked examples
 
@@ -260,21 +267,28 @@ The position is checked at the end of each year, after that year's replacements.
 | 5 | 972.41 + 400 = £1,372.41 | £372.41 | £1,420.51 |
 | 6 | 1,021.03 + 400 = £1,421.03 | £421.03 | £1,841.53 |
 
-The cumulative saving first covers £1,500 in **year 6**. The boiler's first replacement would be at year 10, so it plays no part.
+The rows are rounded to the penny, and the cumulative column sums the unrounded values, so it can differ from the rounded rows' sum by a penny. The cumulative saving first covers £1,500 in **year 6**. The boiler's first replacement would be at year 10, so it plays no part.
 
 **2. A reference boiler replacement inside the horizon.** As example 1, but the heat pump costs £1,100 a year to run and prices don't change, so the saving is £100 a year.
 - With a boiler that outlasts the horizon, £1,500 at £100 a year takes until **year 15**.
 - With a 10-year boiler, the reference pays £3,000 for a new one at the end of year 10. The position after year 10 is −1,500 + 10 × 100 + 3,000 = £2,500, and after year 9 it is −£600. So payback is **year 10**.
 
-**3. Year 0.** A heat pump that costs £9,000 costs £1,500 after the grant, which is less than the £3,000 boiler. The extra upfront is −£1,500, so payback is **year 0**, whatever it costs to run.
+**3. Year 0.** A heat pump that costs £9,000 costs £1,500 after the grant, which is less than the £3,000 boiler, so the extra upfront is −£1,500. It costs £1,100 a year to run, £100 less than the reference, with no price change. Its cumulative running cost never exceeds the reference's, so payback is **year 0**. At £1,200 a year, the same as the reference, it is year 0 too.
 
-**4. Doesn't pay back.** As example 2, but the heat pump costs £1,300 a year to run, £100 more than the reference, and the boiler lasts 15 years. Its lifetime ends exactly at the horizon, so it is not replaced, and the position only falls: the sample **doesn't pay back**. With a 10-year boiler instead, the replacement alone recovers the cost: −1,500 − 10 × 100 + 3,000 = £500 at year 10.
+**3b. Cheaper up front, costs more to run.**
+- As example 3, but the heat pump costs £1,300 a year to run, £100 more than the reference. Its cumulative running cost exceeds the reference's from year 1, so the sample is **cheaper up front, costs more to run**.
+- As example 3 at £1,100 a year, but electricity rises 2% a year in real terms and gas stays flat. Each year's saving is 800 − 700 × 1.02^(t−1). The cumulative saving peaks at £396 in year 7, is still £18.24 after year 14, and falls to −£105.39 in year 15. Over a 14-year horizon payback is **year 0**; over a 15-year horizon the sample is **cheaper up front, costs more to run**.
 
-**5. The summary.** Five samples pay back in years 6, 10 and 0, and two don't. Ranked: 0, 6, 10, then the two that don't.
-- The share that pays back is 3 ÷ 5 = 60%.
+**4. Doesn't pay back.** As example 2, but the heat pump costs £1,300 a year to run, £100 more than the reference, and the boiler lasts 15 years. Its lifetime ends exactly at the horizon, so it is not replaced, and the position only falls: the sample **doesn't pay back**. With a 10-year boiler instead, the replacement alone recovers the cost: −1,500 − 10 × 100 + 3,000 = £500 at year 10, so payback is **year 10**.
+
+**5. The summary.** Of six samples, three pay back (in years 6, 10 and 0), two don't, and one is cheaper up front but costs more to run.
+- The shares are 3 ÷ 6 = 50% that pay back, 2 ÷ 6 that don't and 1 ÷ 6 cheaper up front that cost more to run.
+- The percentiles rank the other five: 0, 6, 10, then the two that don't.
 - The median sits on the third value: year 10.
 - P10 sits 0.4 of the way from 0 to 6: year 2.4.
 - P90 sits between two samples that don't pay back: **beyond lifetime**.
+
+**6. The first crossing.** £1,500 extra, saving £100 a year, against a 5-year boiler. The reference's replacement at year 5 takes the position to −1,500 + 5 × 100 + 3,000 = £2,000, so payback is **year 5**. If a component on the option's side then needs a £3,000 replacement at year 6, the position falls to 2,000 + 100 − 3,000 = −£900, but payback stays year 5.
 
 ## The fixture house
 
@@ -436,7 +450,7 @@ const tables = sensitivity(access, weather); // one table per pair in SENSITIVIT
 
 ### Sampling
 
-- **What is sampled:** the uncertain rows in `UNCERTAIN_ROW_IDS` that the house reads under its SPF scenario (21 of the 23: each scenario reads its own SPF and standby share), plus any uncertain table cell the house reads (none in the register yet). Every run reads every one of them, whichever setups it runs, so runs of different setups pair sample by sample. That includes the three solar rows (size, usable roof share and direction) and the capital rows (installed costs, lifetimes and the two price changes). `uncertainDraws(access, house, spfScenario)` lists them, and `sampleOverrides(access, plan, house, spfScenario)` draws them. Every other row is fixed. The fabric quality factor is one shared multiplier, so fabric uncertainty is not averaged away.
+- **What is sampled:** the uncertain rows in `UNCERTAIN_ROW_IDS` that the house reads under its SPF scenario (22 of the 24: each scenario reads its own SPF and standby share), plus any uncertain table cell the house reads (none in the register yet). Every run reads every one of them, whichever setups it runs, so runs of different setups pair sample by sample. That includes the three solar rows (size, usable roof share and direction), the export rate, and the capital rows (installed costs, lifetimes and the two price changes). `uncertainDraws(access, house, spfScenario)` lists them, and `sampleOverrides(access, plan, house, spfScenario)` draws them. Every other row is fixed. The fabric quality factor is one shared multiplier, so fabric uncertainty is not averaged away.
 - **Correlated rows:** a Gaussian copula pairs the rows named by each `correlation` row. The anchor (the first row named) keeps its own uniform u_a. The partner's normal score becomes z = ρ Φ⁻¹(u_a) + √(1 − ρ²) Φ⁻¹(u_p), and its uniform is Φ(z), clipped to the same open interval as every other uniform. So ρ is a correlation of normal scores; the correlation of the drawn values is slightly lower. Rows outside a pair keep their own independent draws. Φ is Hart's double-precision approximation (as given by West, 2005). There are two pairs, both estimates: the per-occupant gains and hot water terms, at 0.5, and the gas and electricity real price changes, at 0.6. A test checks the sample correlation within 0.05 of ρ over 100,000 draws.
 - **Stable draws:** each value comes from its own uniform number, `u = (hash32("seed|sample|rowId") + 0.5) ÷ 2³²`, so u is never 0 or 1. An uncertain table cell uses `rowId|key` in place of the row id. `hash32` is FNV-1a followed by the murmur3 finaliser, in plain TypeScript, so it runs in the browser too. Because a draw depends only on (seed, sample, row id), adding or reordering rows never moves another row's draws. A test pins some hash values, so a change to the hash fails loudly.
 - **Inverse distribution functions:** a triangular row uses its default as the mode. A lognormal row gives `median × exp(sigma × Φ⁻¹(u))`, clipped to its low and high, with Φ⁻¹ from Acklam's approximation (relative error below 1.2 × 10⁻⁹). A row whose low equals its high always returns its default.
@@ -456,7 +470,7 @@ const tables = sensitivity(access, weather); // one table per pair in SENSITIVIT
 
 - **Each row moves alone,** at its low and then its high value, with every other row at its default. Correlations are ignored.
 - **The swing** is the change in the pair's running-cost difference (baseline minus setup) from the low end to the high end. Rows are ranked by its size, largest first. Swings within £0.000001 count as a tie and are ordered by row id, so floating-point noise never decides the order. Base electricity use, for example, moves gas and the heat pump equally and drops out of their difference.
-- **Only rows the pair reads are listed.** `runningCostReads(setup, id)` says which rows can change a setup's running cost: the heat pump's SPF, standby share and flow temperatures only for heat pump setups, the boiler's efficiency only for gas setups, the roof solar rows only for solar setups, and every other engine row for all four. A row is listed if either setup in the pair reads it. Capital rows (costs, lifetimes and price changes) never change a year's running cost, so no table lists them. `setups.test.ts` checks that every row a setup is said not to read leaves its cost unchanged.
+- **Only rows the pair reads are listed.** `runningCostReads(setup, id)` says which rows can change a setup's running cost: the heat pump's SPF, standby share and flow temperatures only for heat pump setups, the boiler's efficiency only for gas setups, the roof solar rows and the export rate only for solar setups, and every other engine row for all four. A row is listed if either setup in the pair reads it. Capital rows (costs, lifetimes and price changes) never change a year's running cost, so no table lists them. `setups.test.ts` checks that every row a setup is said not to read leaves its cost unchanged.
 - A lognormal row's low and high are its clip limits (for the SPF, about its 1st and 99th percentiles), so its row shows an extreme spread.
 - **Each value is simulated once** for all the setups the pairs need.
 
@@ -478,9 +492,9 @@ The phase 1 and phase 2 specs list these as technical debt:
 - no thermal mass, and continuous heating to one temperature;
 - one calibrated temperature for both setups and every archetype, which may also absorb fabric error ([#14](https://github.com/mannepanne/energy-sim/issues/14));
 - fixed weather and an annual average grid carbon factor; prices change only through one real change a year for each fuel, drawn per sample;
-- undiscounted payback, a boiler that needs replacing now, installed costs at today's real prices for replacements, and no inverter replacement for PV ([#37](https://github.com/mannepanne/energy-sim/issues/37));
+- undiscounted payback, a boiler that needs replacing now, installed costs at today's real prices for replacements ([#37](https://github.com/mannepanne/energy-sim/issues/37)), and no inverter replacement for PV ([#39](https://github.com/mannepanne/energy-sim/issues/39));
 - one installed heat pump cost for every archetype, whatever its heat loss, and one PV cost per kWp whatever the system's size;
-- one flat export rate, and no carbon credit for export ([#34](https://github.com/mannepanne/energy-sim/issues/34));
+- one flat export rate per sample (drawn between 4.1p and 15p), and no carbon credit for export ([#34](https://github.com/mannepanne/energy-sim/issues/34));
 - roof solar on one slope facing between south-east and south-west, with an isotropic sky, no reflection or spectral losses, no shading and no inverter clipping; east–west roofs using both slopes are not modelled;
 - base electricity is one weekly shape × a month level from profile class 1 (2013/14), which keeps the winter–summer level but not the small change of daily shape between seasons; the class includes some electric heating, which raises winter use against summer, so solar self-consumption may be slightly understated;
 - the heat pump's COP curve is an approximate shape scaled to the field SPF, with no capacity limit and no backup heater;

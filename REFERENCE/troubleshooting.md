@@ -60,7 +60,7 @@ Add an entry here when a problem takes more than a few minutes to work out.
 
 **The payback examples fail** (`src/engine/payback.test.ts`). The tests reproduce the hand-worked examples in [engine.md](./engine.md#the-hand-worked-examples) exactly. If the payback rules changed on purpose (the horizon, when replacements land, the grant), rework the examples in engine.md by hand first, then update the tests to match. Don't change the expected years to whatever the code now gives.
 
-**A payback summary shows "beyond lifetime" for the median.** At least half the samples don't pay back within their horizon. That is a result, not an error. Check the inputs that drive it: the installed cost rows, the running-cost difference, and the lifetimes.
+**A payback summary shows "beyond lifetime" for the median, or a large share "cheaper up front, costs more to run".** At least half the ranked samples don't pay back within their horizon, or many samples cost less up front after the grant than the boiler but more to run. Both are results, not errors. Check the inputs that drive it: the installed cost rows, the running-cost difference, and the lifetimes.
 
 **The calibration test fails** (`scripts/calibration/meanInternalTemperature.test.ts`). A change to a row the 1930s semi's gas setup reads, such as an archetype fact, a U-value, the windows or the weather, has moved central gas use away from its calibration target. Re-solve the `heating.meanInternalTemperature` row with `npm run calibrate`, as [register.md](./register.md#the-mean-internal-temperature-calibration) describes, then regenerate the report.
 
@@ -92,9 +92,9 @@ Add an entry here when a problem takes more than a few minutes to work out.
 
 **Refreshing costs, the grant and the export rate.**
 - *The heat pump cost* (`costs.heatPumpInstalled`, quarterly): download the latest Boiler Upgrade Scheme statistics from GOV.UK (ask first), read table Q1.1A's latest quarter for air-to-water heat pumps, and update the median and the rationale's quartiles. Keep the file in `REFERENCE/data-downloads/`.
-- *PV per kWp* (yearly): DESNZ publishes solar PV cost data each financial year. Read the summary table's 0–4 kW and 4–10 kW medians.
+- *PV per kWp* (yearly): DESNZ publishes solar PV cost data each financial year. Read the summary table's 0–4 kW median, then scale it by the domestic 0–4 kW mean ÷ the all-installs 0–4 kW mean (domestic costs table and summary table). The median includes cheaper non-domestic installs, so entering it unscaled flatters solar. Record both figures and the ratio in the rationale.
 - *The grant* (monthly): check GOV.UK's "Apply for the Boiler Upgrade Scheme" pages for the amount and the conditions, and update the row's rationale and `lastChecked`.
-- *The export rate* (quarterly): query the Octopus API for the Outgoing Octopus product's London (region C) unit rates. The tariffs PR snapshots it.
+- *The export rate* (quarterly): query the Octopus API for London (region C) unit rates of Outgoing Octopus (the mode) and of the fixed Smart Export Guarantee tariff (the low end). The high end is Outgoing Octopus's highest recent rate. The tariffs PR snapshots them.
 
 Each change moves payback, and the price rows also move running cost, so regenerate the report.
 

@@ -1,8 +1,9 @@
-// ABOUT: Checks payback against the hand-worked examples in REFERENCE/engine.md: normal payback, year 0,
-// ABOUT: "doesn't pay back" and a reference boiler replacement inside the horizon; plus the grant, horizons and summaries
+// ABOUT: Checks payback against the hand-worked examples in REFERENCE/engine.md: normal payback, year 0, cheaper up front
+// ABOUT: but dearer to run, "doesn't pay back" and a reference boiler replacement; plus the grant, horizons and summaries
 
 import { describe, expect, it } from 'vitest';
 import {
+  CHEAPER_UP_FRONT_COSTS_MORE_TO_RUN,
   components,
   DOES_NOT_PAY_BACK,
   horizonAgainstReference,
@@ -46,8 +47,22 @@ describe('the hand-worked payback examples (REFERENCE/engine.md)', () => {
     expect(paybackYear(option, reference(10), 15, NO_CHANGE)).toBe(10);
   });
 
-  it('example 3, year 0: a heat pump costing less up front after the grant than the boiler', () => {
-    expect(paybackYear(heatPumpSide(1_500, 1_300), reference(10), 15, NO_CHANGE)).toBe(0);
+  it('example 3, year 0: a heat pump costing less up front after the grant, and no more to run', () => {
+    expect(paybackYear(heatPumpSide(1_500, 1_100), reference(10), 15, NO_CHANGE)).toBe(0);
+    expect(paybackYear(heatPumpSide(1_500, 1_200), reference(10), 15, NO_CHANGE)).toBe(0);
+  });
+
+  it('example 3b, cheaper up front but costs more to run: no payback year', () => {
+    expect(paybackYear(heatPumpSide(1_500, 1_300), reference(10), 15, NO_CHANGE)).toBe(CHEAPER_UP_FRONT_COSTS_MORE_TO_RUN);
+    // £100 a year cheaper to run at first, but electricity rises 2% a year against flat gas. The cumulative saving
+    // peaks at £396 in year 7, is still £18.24 after year 14, and falls to −£105.39 in year 15.
+    const rising = { gasChangePerYear: 0, electricityChangePerYear: 0.02 };
+    const saving = (year: number): number => runningCostInYear(reference(10).running, rising, year) - runningCostInYear({ gasPounds: 0, electricityPounds: 1_100 }, rising, year);
+    const cumulative = (years: number): number => Array.from({ length: years }, (_, index) => saving(index + 1)).reduce((total, value) => total + value, 0);
+    expect(cumulative(14)).toBeCloseTo(18.24, 2);
+    expect(cumulative(15)).toBeCloseTo(-105.39, 2);
+    expect(paybackYear(heatPumpSide(1_500, 1_100), reference(10), 14, rising)).toBe(0);
+    expect(paybackYear(heatPumpSide(1_500, 1_100), reference(10), 15, rising)).toBe(CHEAPER_UP_FRONT_COSTS_MORE_TO_RUN);
   });
 
   it('example 4, doesn’t pay back: costing £100 a year more to run, with the boiler’s lifetime ending at the horizon', () => {
@@ -56,10 +71,12 @@ describe('the hand-worked payback examples (REFERENCE/engine.md)', () => {
     expect(paybackYear(heatPumpSide(4_500, 1_300), reference(10), 15, NO_CHANGE)).toBe(10);
   });
 
-  it('example 5, the summary: years 6, 10, 0 and two that don’t pay back', () => {
-    const years = [6, 10, 0, DOES_NOT_PAY_BACK, DOES_NOT_PAY_BACK];
+  it('example 5, the summary: years 6, 10 and 0, two that don’t pay back and one cheaper up front that costs more to run', () => {
+    const years = [6, 10, 0, DOES_NOT_PAY_BACK, CHEAPER_UP_FRONT_COSTS_MORE_TO_RUN, DOES_NOT_PAY_BACK];
     const summary = summarisePayback(years, 6);
-    expect(summary.sharePaysBack).toBe(0.6);
+    expect(summary.sharePaysBack).toBe(0.5);
+    expect(summary.shareDoesNotPayBack).toBeCloseTo(1 / 3, 12);
+    expect(summary.shareCheaperUpFrontCostsMoreToRun).toBeCloseTo(1 / 6, 12);
     expect(summary.median).toBe(10);
     expect(summary.p10).toBeCloseTo(2.4, 12);
     expect(summary.p90).toBe(DOES_NOT_PAY_BACK);
@@ -71,6 +88,15 @@ describe('replacements', () => {
   it('replaces a component each time its lifetime ends strictly inside the horizon', () => {
     const kit = [boiler(5)];
     expect([1, 4, 5, 6, 10, 14, 15].map((year) => replacementPounds(kit, year, 15))).toEqual([0, 0, 3_000, 0, 3_000, 0, 0]);
+  });
+
+  it('takes the first crossing: a later replacement that sets the position back does not undo it', () => {
+    // £1,500 extra, saving £100 a year; the reference's boiler is replaced at year 5, so the position is £2,000.
+    // A replacement on the option side costing £3,000 at year 6 then takes it to −£900.
+    const option: PaybackSide = { kit: [heatPump(4_500), { name: 'pv', installPounds: 0, replacementPounds: 3_000, lifetimeYears: 6 }], running: { gasPounds: 0, electricityPounds: 1_100 } };
+    expect(-1_500 + 5 * 100 + 3_000).toBe(2_000);
+    expect(2_000 + 100 - replacementPounds(option.kit, 6, 15)).toBe(-900);
+    expect(paybackYear(option, reference(5), 15, NO_CHANGE)).toBe(5);
   });
 
   it('counts the option’s own replacements against it', () => {
@@ -156,6 +182,13 @@ describe('payback quantiles', () => {
     expect(paybackQuantile([DOES_NOT_PAY_BACK, DOES_NOT_PAY_BACK], 0.5)).toBe(DOES_NOT_PAY_BACK);
     expect(paybackQuantile([1, 2, DOES_NOT_PAY_BACK], 0)).toBe(1);
     expect(summarisePayback([DOES_NOT_PAY_BACK, DOES_NOT_PAY_BACK], DOES_NOT_PAY_BACK).sharePaysBack).toBe(0);
+  });
+
+  it('refuses a sample with no payback year, which summaries leave out first', () => {
+    expect(() => paybackQuantile([CHEAPER_UP_FRONT_COSTS_MORE_TO_RUN, 3], 0.5)).toThrow(/years 0 or more/);
+    const allCheaper = summarisePayback([CHEAPER_UP_FRONT_COSTS_MORE_TO_RUN, CHEAPER_UP_FRONT_COSTS_MORE_TO_RUN], CHEAPER_UP_FRONT_COSTS_MORE_TO_RUN);
+    expect(allCheaper.shareCheaperUpFrontCostsMoreToRun).toBe(1);
+    expect([allCheaper.p10, allCheaper.median, allCheaper.p90]).toEqual([-1, -1, -1]);
   });
 
   it('rejects no values or a quantile outside 0–1', () => {
