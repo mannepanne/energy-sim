@@ -15,6 +15,28 @@ This section was written and committed before HEM was run on the archetype. It f
 - **HEM version:** the Rust implementation `communitiesuk/epb-home-energy-model` at commit `77590b6181ef0a6dba4f9e792864e919ccd29a78` (version 1.0.0-alpha-7). Its README calls it functionally incomplete compared with the Python reference, so its result carries that caveat.
 - **Time box:** two working days, starting 17 October 2026, 14:48.
 
+## Agreed before the scheduled run (20 October 2026)
+
+Phase 2 adds thermal mass and heating periods to the engine, and checks them against HEM under the same schedule ([phase 2 spec](../../../SPECIFICATIONS/02-complete-v1-model.md), "Heating over time"). This section was written and committed before HEM was run on the scheduled inputs. It fixes what counts as the answer, so the answer can't be chosen afterwards.
+
+- **The house:** the phase 1 benchmark house, as above: the draft values in `draftValues.ts`, with HEM's own element areas (heat loss coefficient 302 W/K). The engine side uses the same fixture as the continuous HEM check in `src/engine/simulate.test.ts`, not the register's semi with derived geometry.
+- **The quantity compared:** annual space heat in kWh: HEM's "Space heat demand" in the results summary × 90 m², against the engine's annual space heat. HEM's heater stays the 50 kW instant electric heater and the engine's output cap is off for the check, so on both sides the heat delivered equals the demand. After the run, HEM's delivered space heat is checked to equal its demand to within 1%.
+- **The schedule:** SAP's heating periods. Weekdays 07:00–09:00 and 16:00–23:00 (SAP 10.2 Table 9), weekends 07:00–23:00 (SAP's unimodal day, Table N7 note b). Heating is off outside the periods, with no setback and no early start, on both sides.
+  - In HEM: a `SetpointTimeControl` with `weekday` and `weekend` blocks, null outside the periods, and a one-hour step (`thermostatSchedule` in `hemInput.ts`).
+  - Days of the week: the engine takes them from 2026, when 1 January is a Thursday. HEM's week blocks run from simulation day 0, so the schedule opens with two weekdays and a weekend.
+  - Clock time: HEM's year has no British Summer Time. The engine side of the check uses the same hours, on GMT all year, so both sides heat in exactly the same 8,760 hours. (The engine's own runs convert local time with the calendar module; the one-hour summer shift falls mostly outside the heating season.)
+- **The setpoint:** HEM's thermostat is 19 °C operative in the heating periods. The engine's setpoint for the check is **19.8 °C air**, from phase 1's measured pair (17 °C operative gave 17.8 °C air, and 18 °C gave 18.8 °C, in this house). HEM's mean air temperature over the hours it heats is reported as a diagnostic only. It does not adjust the engine's setpoint.
+- **Thermal mass:** the engine's heat capacity C is SAP's thermal mass parameter × floor area: 250 kJ/m²K (RdSAP 10 Table 22, masonry without internal insulation) × 90 m² = 22,500 kJ/K. In HEM, every building element's areal heat capacity is scaled by one factor (1.217), so that the sum of areal heat capacity × area is the same 22,500 kJ/K. Each element keeps its mass distribution class (`I`, mass at the inside face). SAP's parameter includes internal walls and floors, which HEM's input does not have, so HEM's external and party walls, roof, door and floor carry all of it. HEM's ground model adds its own soil layer, which the engine does not have.
+- **The decision run** is `schedule-sap.input.json`. `continuous-sap-mass.input.json` is a diagnostic: the same house and capacity heated in every hour at 19 °C operative. It shows how much of any gap comes from the schedule rather than from the steady-state difference phase 1 found. It doesn't enter the decision.
+- **Run settings:** a one-hour step on both sides, over the 8,760 hours of the year, with the same weather file and HEM commit as phase 1. HEM starts from its `temp_setpnt_init` (19 °C). The engine starts each year from the temperature its node reaches over a pre-roll of the year's last 7 days, beginning at the setpoint.
+- **The tolerance and the decision rule:** the gap is engine ÷ HEM − 1 on annual space heat.
+  - |gap| within 15%: proceed with the one-node engine;
+  - 15–30%: build the two-node fallback (air and mass, as in ISO 13790's 5R1C) and compare it with the same HEM result;
+  - above 30%: stop and review with Magnus.
+
+  Afterwards, an engine test pins the engine's figure and guards it within 10% of HEM.
+- **Time box:** two working days, starting 20 October 2026, 21:05.
+
 ## How to reproduce the run
 
 1. Install Rust with [rustup](https://rustup.rs), then clone and build HEM at the commit above:

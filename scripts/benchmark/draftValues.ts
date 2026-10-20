@@ -137,6 +137,17 @@ export const occupancy = {
   ),
 } satisfies Record<string, DraftValue>;
 
+export const thermalMass = {
+  parameterKjPerM2K: {
+    value: 250,
+    unit: 'kJ/m²K',
+    status: 'sourced',
+    source: RDSAP_10,
+    rationale:
+      'RdSAP 10 Table 22: 250 kJ/m²K for masonry (stone, solid brick, cavity or system built) without internal insulation. Used for the phase 2 scheduled check.',
+  },
+} satisfies Record<string, DraftValue>;
+
 export const degreeDayMethod = {
   hitchinK: toVerify(0.71, '1/K', CIBSE_TM41, 'Hitchin (1983) spread constant for UK monthly data.'),
 } satisfies Record<string, DraftValue>;
