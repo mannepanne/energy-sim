@@ -33,12 +33,12 @@ Semi-detached, cavity, 1930–49, in London (RdSAP age band C): 90 m² over 2 st
 
 | A year | Central | Median | 10th to 90th percentile |
 | --- | ---: | ---: | ---: |
-| Space heat | 8,800 kWh | 8,300 kWh | 6,900 kWh to 9,800 kWh |
+| Space heat | 9,300 kWh | 8,900 kWh | 7,300 kWh to 10,400 kWh |
 | Hot water heat | 2,400 kWh | 2,400 kWh | 2,200 kWh to 2,700 kWh |
 | Gas | 0 kWh | 0 kWh | 0 kWh |
-| Electricity | 6,500 kWh | 6,600 kWh | 5,500 kWh to 7,600 kWh |
-| Running cost | £1,910 | £1,930 | £1,650 to £2,210 |
-| Carbon (kgCO₂e) | 940 kg | 940 kg | 790 kg to 1,100 kg |
+| Electricity | 6,700 kWh | 6,700 kWh | 5,700 kWh to 7,900 kWh |
+| Running cost | £1,970 | £1,980 | £1,690 to £2,280 |
+| Carbon (kgCO₂e) | 970 kg | 970 kg | 820 kg to 1,140 kg |
 
 Hot water heat is higher for the heat pump because its hot water cylinder loses heat all day; the gas combi boiler heats water as it is used and has no cylinder.
 
@@ -48,10 +48,10 @@ Both setups run on the same samples, so each sample compares the same house and 
 
 | Gas minus heat pump, a year | Central | Median | 10th to 90th percentile |
 | --- | ---: | ---: | ---: |
-| Running cost | £140 | £130 | −£80 to £290 |
-| Carbon (kgCO₂e) | 1,860 kg | 1,780 kg | 1,490 kg to 2,110 kg |
+| Running cost | £80 | £80 | −£140 to £250 |
+| Carbon (kgCO₂e) | 1,830 kg | 1,750 kg | 1,470 kg to 2,080 kg |
 
-**The heat pump is cheaper to run in 80% of samples** (rounded to the nearest 5%; an exact tie counts as half). With 500 samples, this share carries sampling noise of about ±4 percentage points. That is noise from the method, not the real-world uncertainty, which the ranges above show.
+**The heat pump is cheaper to run in 70% of samples** (rounded to the nearest 5%; an exact tie counts as half). With 500 samples, this share carries sampling noise of about ±4 percentage points. That is noise from the method, not the real-world uncertainty, which the ranges above show.
 
 **This running-cost comparison leans in the heat pump’s favour.** One calibrated mean internal temperature, taken from gas-heated homes, applies to both setups. Heat pump households often heat for longer, so the heat pump’s running cost is likely too low here, and the share of samples in which it is cheaper too high ([issue 15](https://github.com/mannepanne/energy-sim/issues/15)). The model does not yet give the two setups different temperatures.
 
@@ -67,20 +67,20 @@ The heat pump’s flow temperature and standby share rows move nothing here. On 
 
 | Row | Low to high | Gas boiler cost | Heat pump cost | Gas minus heat pump |
 | --- | --- | ---: | ---: | ---: |
-| Air source heat pump seasonal performance factor (space heat and hot water combined) | 2 to 4 | £2,050 | £2,330 to £1,590 | −£290 to £450 |
-| Gas combi boiler seasonal efficiency (space heat and hot water) | 0.8 to 0.89 | £2,110 to £2,000 | £1,910 | £200 to £90 |
-| Heating setpoint: air temperature during heating periods (calibrated to measured gas use) | 16.2 to 18.8 °C | £1,860 to £2,220 | £1,740 to £2,060 | £120 to £160 |
-| Fabric quality factor (one multiplier on every U-value and the air change rate) | 0.75 to 1.15 | £1,740 to £2,220 | £1,630 to £2,070 | £110 to £150 |
-| Internal gains per occupant | 75 to 140 W per occupant | £2,100 to £2,000 | £1,950 to £1,870 | £140 to £130 |
-| Hot water use per occupant | 17 to 35 litres/day per occupant | £2,010 to £2,090 | £1,870 to £1,960 | £140 |
-| Base electricity use (lights and appliances), the same in both setups | 1,600 to 3,800 kWh/year | £1,810 to £2,390 | £1,670 to £2,250 | £140 |
-| Heat pump space heating flow temperature at the design outdoor temperature | 35 to 50 °C | £2,050 | £1,910 | £140 |
-| Heat pump space heating flow temperature at the mild outdoor temperature | 25 to 35 °C | £2,050 | £1,910 | £140 |
-| Heat pump standby electricity, as a share of its yearly electricity (field trial) | 0.01 to 0.25 share | £2,050 | £1,910 | £140 |
+| Air source heat pump seasonal performance factor (space heat and hot water combined) | 2 to 4 | £2,050 | £2,410 to £1,630 | −£360 to £410 |
+| Gas combi boiler seasonal efficiency (space heat and hot water) | 0.8 to 0.89 | £2,110 to £2,000 | £1,970 | £140 to £30 |
+| Heat pump standby electricity, as a share of its yearly electricity (field trial) | 0.01 to 0.25 share | £2,050 | £1,970 to £1,960 | £80 to £90 |
+| Fabric quality factor (one multiplier on every U-value and the air change rate) | 0.75 to 1.15 | £1,740 to £2,220 | £1,660 to £2,150 | £80 |
+| Heat pump space heating flow temperature at the design outdoor temperature | 35 to 50 °C | £2,050 | £1,960 to £1,970 | £80 |
+| Heating setpoint: air temperature during heating periods (calibrated to measured gas use) | 16.2 to 18.8 °C | £1,860 to £2,220 | £1,780 to £2,140 | £80 |
+| Heat pump space heating flow temperature at the mild outdoor temperature | 25 to 35 °C | £2,050 | £1,970 | £80 |
+| Internal gains per occupant | 75 to 140 W per occupant | £2,100 to £2,000 | £2,020 to £1,920 | £80 |
+| Hot water use per occupant | 17 to 35 litres/day per occupant | £2,010 to £2,090 | £1,930 to £2,010 | £80 |
+| Base electricity use (lights and appliances), the same in both setups | 1,600 to 3,800 kWh/year | £1,810 to £2,390 | £1,730 to £2,310 | £80 |
 
 ## The variant with no loft insulation
 
-With no loft insulation, the house needs more heat: 13,300 kWh of space heat a year, central. Gas minus heat pump running cost is £160 central (−£120 to £370), and the heat pump is cheaper in 75% of samples. The same samples and the same bias (issue 15) apply.
+With no loft insulation, the house needs more heat: 13,300 kWh of space heat a year, central. Gas minus heat pump running cost is £70 central (−£220 to £300), and the heat pump is cheaper in 65% of samples. The same samples and the same bias (issue 15) apply.
 
 ## How the ranges are made
 

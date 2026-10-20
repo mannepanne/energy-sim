@@ -334,13 +334,13 @@ describe('the HEM checks (benchmark archetype on the PVGIS year)', () => {
   const node = { heatLossWPerK: heatLoss(inputs).totalWPerK, heatCapacityWhPerK: inputs.heatCapacityWhPerK, outputCapW: Infinity };
   const gains = totalGainsW(inputs, prepared.meanVerticalIrradiance);
   const runAt = (setpointC: number, pattern: 'sap' | 'unimodal' | 'continuous'): number => {
-    const setpoints = new Float64Array(HOURS_PER_YEAR).fill(Number.NaN);
+    const heating = new Uint8Array(HOURS_PER_YEAR);
     for (let hour = 0; hour < HOURS_PER_YEAR; hour += 1) {
       const weekday = (Math.floor(hour / 24) + THURSDAY) % 7;
       const hours = weekday < 5 && pattern === 'sap' ? SAP_WEEKDAY_HOURS : SAP_WEEKEND_HOURS;
-      if (pattern === 'continuous' || hours.includes(hour % 24)) setpoints[hour] = setpointC;
+      if (pattern === 'continuous' || hours.includes(hour % 24)) heating[hour] = 1;
     }
-    return sum(runThermalNode(node, prepared.outdoorTemperatureC, gains, setpoints, setpointC).spaceHeatKwh);
+    return sum(runThermalNode(node, prepared.outdoorTemperatureC, gains, heating, setpointC).spaceHeatKwh);
   };
 
   it('scheduled: gives annual space heat within 10% of HEM’s schedule-sap run (13,580 kWh), the pre-registered check', () => {

@@ -1,7 +1,7 @@
 // ABOUT: Runs one house with one heating setup, with or without roof solar, over the 8,760 hours of the typical year
 // ABOUT: Returns hourly typed arrays and annual totals for heat, fuel, solar, import, export, cost and carbon, and the COP scale
 
-import { buildCalendar, expandDaily, expandWeekly } from './calendar.ts';
+import { buildCalendar, expandDaily } from './calendar.ts';
 import { HOURS_PER_YEAR } from './constants.ts';
 import { annualCarbonKg, annualCost, type AnnualCost } from './costCarbon.ts';
 import { runCylinder } from './cylinder.ts';
@@ -12,7 +12,7 @@ import type { EngineInputs } from './inputs.ts';
 import { pvGenerationKwh, useSolar } from './pv.ts';
 import { planeIrradiance } from './solar.ts';
 import { auxiliaryElectricity, baseElectricityKwh, fuelForHeat } from './supply.ts';
-import { hourlySetpoints, runThermalNode } from './thermal.ts';
+import { heatingHours, runThermalNode } from './thermal.ts';
 import type { PreparedWeather } from './weather.ts';
 
 /**
@@ -138,8 +138,7 @@ interface SpaceHeatContext {
 function spaceHeatOn(context: SpaceHeatContext, schedule: readonly number[], outputCapW: number) {
   const { inputs } = context;
   const node = { heatLossWPerK: context.heatLossWPerK, heatCapacityWhPerK: inputs.heatCapacityWhPerK, outputCapW };
-  const setpoints = hourlySetpoints(expandWeekly(schedule, CALENDAR), inputs.setpointC);
-  return runThermalNode(node, context.outdoorC, context.gainsW, setpoints, inputs.setpointC);
+  return runThermalNode(node, context.outdoorC, context.gainsW, heatingHours(schedule, CALENDAR), inputs.setpointC);
 }
 
 const sameSchedule = (a: readonly number[], b: readonly number[]): boolean =>
