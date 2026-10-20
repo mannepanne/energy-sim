@@ -63,7 +63,7 @@ At the central values, a kWh of heat costs almost the same from either system: 9
 
 The low and high are the ends of each row’s range, not percentiles. For the heat pump SPF, they are the clip limits of its lognormal distribution, far out in its tails, so its row shows an extreme spread.
 
-The heat pump’s flow temperature and standby share rows move nothing here. On the price cap, the heat pump’s COP curve is scaled so the year matches the sampled SPF, so these rows change when the heat pump uses electricity, not how much. They matter only where hours are priced differently, as on time-of-use tariffs.
+The heat pump’s flow temperature and standby share rows move little here. On the price cap, the heat pump’s COP curve is scaled so its year matches the sampled SPF on the gas boiler’s schedule; on its own longer day it heats more in the night’s colder hours, which these rows change only slightly. They matter more where hours are priced differently, as on time-of-use tariffs.
 
 | Row | Low to high | Gas boiler cost | Heat pump cost | Gas minus heat pump |
 | --- | --- | ---: | ---: | ---: |

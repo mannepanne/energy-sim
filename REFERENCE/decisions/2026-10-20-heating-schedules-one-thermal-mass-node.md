@@ -15,7 +15,7 @@ The engine heats the house in **heating periods**, to a **setpoint**, up to each
   - Each year starts from the temperature the node reaches over the year's last week.
 - **Schedules** are `hour-of-week` profile rows (1 heating, 0 off) in UK local time, converted by the calendar module.
   - The gas setups use SAP's pattern: weekdays 07:00–09:00 and 16:00–23:00 (SAP 10.2 Table 9), weekends 07:00–23:00 (SAP's unimodal day).
-  - The heat pump setups use their own row. Its value is set out under "The heat pump schedule" below.
+  - The heat pump setups heat 07:00–23:00 every day: SAP's longer heat pump day (Magnus, 20 October 2026; see "The heat pump schedule" below).
 - **Output caps:**
   - the heat pump's is its design heat loss × a margin: H × 24.2 K (SAP 10.2 Appendix N) × 1.15 (the median ratio of rated output to design heat loss on HeatpumpMonitor.org);
   - the gas boiler's is a rated output row, 24 kW.
@@ -41,7 +41,7 @@ The decision run is inside 15%, so the one-node engine proceeds. A sensitivity r
 
 **The one node's error depends on the heating pattern.** With all its mass at the air temperature, the node stores daytime surplus more readily than HEM's elements (lowering continuous heating), and it charges that mass at the air temperature after each off period (raising intermittent heating). Under SAP's periods the two partly cancel.
 
-**The spec expected continuous heating with full C to stay within 5% of phase 1.** It doesn't: on the 1930s semi the mass lowers continuous heating by 11.4%, 8.0% and 5.5% at 16, 19 and 21 °C, and by 7–22% across the archetypes at 16.3 °C. The tests pin these figures instead (see "Implications").
+**The spec expected continuous heating with full C to stay within 5% of phase 1.** It doesn't: on the 1930s semi the mass lowers continuous heating by 11.4%, 8.0% and 5.5% at 16, 19 and 21 °C, and by 7–22% across the archetypes at 16.3 °C. Magnus agreed on 20 October 2026 that the tests pin these figures in place of the 5% bound (see "Implications").
 
 ## The heat pump schedule
 
@@ -63,7 +63,7 @@ The spec asks for a sourced heat pump schedule ("longer, lower heating"), never 
 
 **Reading:** on the gas schedule the capped heat pump can't recover after each off period, so the house runs 2 K colder on cold days and uses 6.7% less heat than the boiler house. That flatters the heat pump on comfort the household doesn't get, which the measured heat pump homes don't show. Heating 07:00–23:00 every day matches SAP's own longer heat pump day, recovers most of the cold-day shortfall, and passed its pre-registered HEM check. Its bias of −6.7 points still favours the heat pump, and is stated. Heating in every hour is closest to the measured shape, but the engine understates it by about 12.7 points against the boiler, which it can't correct without the two-node model.
 
-**Magnus's choice:** *(to be recorded on confirmation)*
+**Magnus's choice (20 October 2026): 07:00–23:00 every day,** with its bias of about 6.7 points stated in the report, the register row and the limitations. Issue 15 stays open: the hours are SAP's, not measured heat pump households'.
 
 ## Alternatives considered
 
