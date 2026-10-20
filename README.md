@@ -38,7 +38,7 @@ Other commands:
 | `npm run fetch:pvgis` | Re-fetches the PVGIS weather snapshot for London (needs network access; commit the result) |
 | `npm run fetch:pvcalc` | Re-fetches PVGIS's PV calculator result for the PV check (needs network access; commit the result) |
 | `npm run derive:base-profile -- <folder>` | Prints the base electricity profile rows from Elexon's unzipped profiling spreadsheet |
-| `npm run calibrate` | Solves the mean internal temperature for the measured-gas target with the hourly engine |
+| `npm run calibrate` | Solves the heating setpoint for the measured-gas target with the hourly engine and its schedule |
 | `npm run archetypes` | Prints the archetype table against the pre-registered NEED readings (offline) |
 | `npm run report` | Writes the phase 1 report, `reports/phase-1-london-semi.md` (offline; commit the result) |
 | `npm run bench` | Times 500 samples × 2 setups, without and with solar, and fails above 5 seconds |

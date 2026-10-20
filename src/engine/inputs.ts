@@ -17,17 +17,18 @@ import {
 } from './archetypes.ts';
 import { deriveGeometry } from './geometry.ts';
 import { groundFloorParameters, groundFloorUValue } from './groundFloor.ts';
-import { RADIANS_PER_DEGREE } from './constants.ts';
+import { RADIANS_PER_DEGREE, W_PER_KW } from './constants.ts';
 import { checkCompensation, checkCurve, type CompensationLine, type CopCurve } from './heatPump.ts';
 import type { CapitalCosts, PriceScenario } from './payback.ts';
 import { checkPvSystem, roofMaximumKw, type PvSystem } from './pv.ts';
 import type { UncertainSpec } from './sampling.ts';
+import { checkSchedule } from './thermal.ts';
 
 /** The uncertain rows the engine reads. Sampling draws them, and any uncertain table cell a house reads. */
 export const UNCERTAIN_ROW_IDS = [
   'fabric.qualityFactor',
   'gains.perOccupant',
-  'heating.meanInternalTemperature',
+  'heating.setpoint',
   'heating.boilerSeasonalEfficiency',
   'heating.heatPumpSpf',
   'heating.heatPumpSpfWellInstalled',
@@ -100,6 +101,8 @@ export interface EngineInputs {
   thermalBridgingWPerM2K: number;
   airChangesPerHour: number;
   fabricQualityFactor: number;
+  /** C: the thermal mass parameter × floor area, in Wh/K. */
+  heatCapacityWhPerK: number;
 
   /** Floor-area term plus occupants × the per-occupant term. */
   internalGainsW: number;
@@ -110,7 +113,17 @@ export interface EngineInputs {
   solarAccessFactor: number;
   groundReflectance: number;
 
-  meanInternalTemperatureC: number;
+  /** The air temperature the heating holds during heating periods. */
+  setpointC: number;
+  /** Heating periods by local hour of the week (168 values, Monday 00:00 first): 1 heating, 0 off. */
+  gasSchedule: readonly number[];
+  heatPumpSchedule: readonly number[];
+  /** The boiler's space heating output cap, W. */
+  boilerOutputCapW: number;
+  /** The design temperature difference; × H gives the design heat loss. */
+  designTemperatureDifferenceK: number;
+  /** The heat pump's rated output ÷ the design heat loss; × the design heat loss gives its output cap. */
+  heatPumpOutputMargin: number;
   boilerSeasonalEfficiency: number;
   boilerAuxiliaryElectricityKwhPerYear: number;
   /** The sampled SPF of the chosen scenario: field trial or well-installed. */
@@ -289,7 +302,11 @@ type FabricInputs = Pick<
   | 'thermalBridgingWPerM2K'
   | 'airChangesPerHour'
   | 'fabricQualityFactor'
+  | 'heatCapacityWhPerK'
 >;
+
+/** kJ per m²K × m² gives kJ/K; ÷ 3.6 gives Wh/K. */
+const KJ_PER_WH = 3.6;
 
 function readFabric(reader: Reader, house: House, facts: ArchetypeFacts): FabricInputs {
   const band = facts.ageBand;
@@ -304,6 +321,7 @@ function readFabric(reader: Reader, house: House, facts: ArchetypeFacts): Fabric
     thermalBridgingWPerM2K: reader.cell('fabric.thermalBridging', band),
     airChangesPerHour: reader.cell('fabric.airChangeRate', band),
     fabricQualityFactor: reader.uncertain('fabric.qualityFactor'),
+    heatCapacityWhPerK: (reader.cell('fabric.thermalMassParameter', facts.wallConstruction) * house.floorAreaM2) / KJ_PER_WH,
   };
 }
 
@@ -325,7 +343,12 @@ function readGains(reader: Reader, house: House): GainsInputs {
 
 type HeatingInputs = Pick<
   EngineInputs,
-  | 'meanInternalTemperatureC'
+  | 'setpointC'
+  | 'gasSchedule'
+  | 'heatPumpSchedule'
+  | 'boilerOutputCapW'
+  | 'designTemperatureDifferenceK'
+  | 'heatPumpOutputMargin'
   | 'boilerSeasonalEfficiency'
   | 'boilerAuxiliaryElectricityKwhPerYear'
   | 'heatPumpSpf'
@@ -350,7 +373,12 @@ function readHeating(reader: Reader, spfScenario: SpfScenario): HeatingInputs {
   checkCurve(copCurve);
   checkCompensation(compensation);
   return {
-    meanInternalTemperatureC: reader.uncertain('heating.meanInternalTemperature'),
+    setpointC: reader.uncertain('heating.setpoint'),
+    gasSchedule: checkSchedule(reader.profile('heating.scheduleGas'), 'gas heating'),
+    heatPumpSchedule: checkSchedule(reader.profile('heating.scheduleHeatPump'), 'heat pump heating'),
+    boilerOutputCapW: reader.fixed('heating.boilerRatedOutput') * W_PER_KW,
+    designTemperatureDifferenceK: reader.fixed('heating.designTemperatureDifference'),
+    heatPumpOutputMargin: reader.fixed('heating.heatPumpOutputMargin'),
     boilerSeasonalEfficiency: reader.uncertain('heating.boilerSeasonalEfficiency'),
     boilerAuxiliaryElectricityKwhPerYear: reader.fixed('heating.boilerAuxiliaryElectricity'),
     heatPumpSpf: reader.uncertain(SCENARIO_ROWS[spfScenario].spf),

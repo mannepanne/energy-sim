@@ -21,7 +21,7 @@ const weather = prepareWeather(rawWeather, readInputs(fixtureAccessor()));
 const RANGES: FixtureRanges = {
   'fabric.qualityFactor': { low: 0.75, high: 1.15 },
   'gains.perOccupant': { low: 70, high: 130 },
-  'heating.meanInternalTemperature': { low: 18, high: 21 },
+  'heating.setpoint': { low: 18, high: 21 },
   'heating.boilerSeasonalEfficiency': { low: 0.75, high: 0.85 },
   'heating.heatPumpSpf': { low: 2, high: 3.5, sigma: 0.15 },
   'hotWater.litresPerOccupant': { low: 12, high: 30 },
@@ -114,8 +114,10 @@ describe('runSetups', () => {
   });
 
   it('gives identical results for the same seed and different results for another seed', () => {
-    expect(forSetup(runSetups(access, weather, plan).samples, 'heatPump').costPounds).toEqual(samples('heatPump').costPounds);
-    expect(forSetup(runSetups(access, weather, { ...plan, seed: 12 }).samples, 'heatPump').costPounds).not.toEqual(samples('heatPump').costPounds);
+    // Only the heat pump setup is rerun: runs of some setups pair with runs of all four (the next test).
+    const heatPumpOnly = { setups: ['heatPump'] } as const;
+    expect(forSetup(runSetups(access, weather, plan, heatPumpOnly).samples, 'heatPump').costPounds).toEqual(samples('heatPump').costPounds);
+    expect(forSetup(runSetups(access, weather, { ...plan, seed: 12 }, heatPumpOnly).samples, 'heatPump').costPounds).not.toEqual(samples('heatPump').costPounds);
   });
 
   it('pairs a run of some setups with a run of all four, sample by sample', () => {

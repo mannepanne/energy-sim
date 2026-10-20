@@ -4,7 +4,7 @@
 
 The engine is a pure TypeScript library in `src/engine/`. It reads no files and makes no network calls, so the same code runs in tests, scripts and (in phase 3) the browser. It runs one house with one heating setup, with or without roof solar, over the 8,760 hours of a typical year, using typed arrays rather than an object per hour. A house is one of ten archetypes, adjusted by quick facts. Every number it uses comes from the [register](./register.md); only physical constants and method settings live in code.
 
-What phase 1 built and why is in the [phase 1 spec](../SPECIFICATIONS/ARCHIVE/01-engine-core.md); phase 2's plan is in the [phase 2 spec](../SPECIFICATIONS/02-complete-v1-model.md). Why the temperature is an air temperature calibrated to measured gas use is in the [calibration ADR](./decisions/2026-10-17-air-temperature-calibrated-to-need.md).
+What phase 1 built and why is in the [phase 1 spec](../SPECIFICATIONS/ARCHIVE/01-engine-core.md); phase 2's plan is in the [phase 2 spec](../SPECIFICATIONS/02-complete-v1-model.md). Why the setpoint is an air temperature calibrated to measured gas use is in the [calibration ADR](./decisions/2026-10-17-air-temperature-calibrated-to-need.md); why heating runs in periods on one thermal-mass node, and how the heat pump's schedule was chosen, is in the [schedules ADR](./decisions/2026-10-20-heating-schedules-one-thermal-mass-node.md).
 
 ## Files
 
@@ -19,12 +19,13 @@ What phase 1 built and why is in the [phase 1 spec](../SPECIFICATIONS/ARCHIVE/01
 | `geometry.ts` | `deriveGeometry(facts)`: element areas and volume; `heatLoss(inputs)`: the heat loss coefficient H |
 | `groundFloor.ts` | The ground floor U-value by BS EN ISO 13370, as RdSAP 10 section 5.12 applies it |
 | `calendar.ts` | The time base: UTC engine hours to UK local time, weekly and daily profiles, and Agile half-hours (see "Time base") |
-| `demand.ts` | Solar gains, hourly space heat, and the day's hot water |
+| `demand.ts` | Solar and internal gains, and the day's hot water |
+| `thermal.ts` | The thermal-mass node: `runThermalNode(node, outdoor, gains, heatingOn, setpoint)` steps the year with backward Euler; `heatingHours(schedule, calendar)` expands an hour-of-week schedule to engine hours (see "Space heat on a thermal-mass node") |
 | `supply.ts` | Gas for heat (÷ boiler efficiency), the boiler's pump and fan electricity, base electricity by hour, and the cost of a kWh of heat |
 | `heatPump.ts` | The heat pump's hourly COP: the compensation line, the clamped shape, the k solve and the electricity (see "The heat pump over the year") |
 | `cylinder.ts` | The heat pump setups' hot water cylinder, stepped hour by hour |
 | `costCarbon.ts` | Annual cost, net of export income and split into a gas part and an electricity part, and annual carbon |
-| `simulate.ts` | `simulate(inputs, preparedWeather, heating, { copScale, solar })`: one house, one heating system (`gas` or `heatPump`), with or without solar, one year |
+| `simulate.ts` | `simulate(inputs, preparedWeather, heating, { copScale, solar })`: one house, one heating system (`gas` or `heatPump`) on its own schedule and output cap, with or without solar, one year; `heatPumpOutputCapW(inputs, H)` |
 | `setups.ts` | The four setups (`gas`, `gasSolar`, `heatPump`, `heatPumpSolar`), the reference (`gas`), and `runningCostReads(setup, id)`: which uncertain values can change a setup's running cost |
 | `payback.ts` | Each setup's kit and upfront cost after the grant, replacements inside a horizon, the price scenario, `paybackYear` and the payback summary (see "Costs, grants and payback") |
 | `sampling.ts` | Seeded, stable draws with a Gaussian copula: `drawSamples(rows, plan, correlations)`, `sampleOverrides(access, plan, house, spfScenario)`, the normal CDF and the inverse distribution functions |
@@ -49,12 +50,12 @@ gas.annual.gasKwh; // also spaceHeatKwh, hotWaterKwh, electricityKwh, generation
 - **Only answers that fit are offered.** `wallAnswers(access, archetype)` lists the wall answers that have a U-value for the archetype's band and construction: solid brick offers `asBuilt` and `solidWallInsulated`, cavity bands C–G offer `asBuilt` and `cavityFilled`, and bands K and L offer `asBuilt` only. `readInputs` throws on any other answer, on a floor area that is not positive, and on an occupant count outside 1–5.
 - **Overrides.** `readInputs(access, { overrides: { 'heating.heatPumpSpf': 3.2 } })` replaces an uncertain row's default, and is the hook for sampling. An uncertain table cell is overridden under `rowId|key`. A value that is not a finite number throws, and so does an override the house does not read (a typo, for example).
 - **The SPF scenario.** `spfScenario: 'wellInstalled'` reads `heating.heatPumpSpfWellInstalled` in place of `heating.heatPumpSpf`; every other value is the same. `sampleOverrides` and `runSetups` take the scenario too, and the two scenarios share every draw but the SPF, so they pair sample by sample.
-- **The heat pump's k.** `simulate` solves the COP scale k on its own run unless it is given one (`{ copScale }`), and returns the k it used as `copScale`. Solving on its own run is right only for the reference run (price cap, no control): a caller that applies control or a time-of-use tariff must pass the reference run's `copScale` (see "The heat pump over the year").
+- **The heat pump's k.** Unless it is given one (`{ copScale }`), `simulate` solves the COP scale k on the reference run: the heat pump, with its own output cap, on the gas setups' schedule, on the price cap with no control. It then runs the heat pump on its own schedule with that k, and returns the k as `copScale`. A caller that applies control or a time-of-use tariff must pass the reference run's `copScale` (see "The heat pump over the year").
 - **Solar.** `{ solar: true }` adds roof solar to either heating system, sized by `inputs.pv`. `setups.ts` names the four setups: each heating system with and without solar. Solar changes no heat, so it changes no k. Without solar, `importKwh` is `electricityKwh` and generation and export are zero, so a run without solar gives the same results as an engine with no solar model. `runSetups` computes the roof's generation once a sample and passes it to both solar setups (`{ generationKwh }`).
 - **Prepared weather** holds the outdoor temperature, the hourly mean wall irradiance, the horizontal irradiance and the sun's path. It depends only on fixed rows, so one preparation serves every sample. The roof's direction is sampled, so irradiance on the roof is computed on each solar run from the prepared sun path.
 - **Overrides are not user overrides.** The sampling hook follows row kind. The register's `overridable` flag, for what a visitor may change, also covers fixed rows (U-values, prices, cylinder loss), and excludes some uncertain ones (fabric quality factor, internal gains). How user overrides reach the engine is a phase 3 decision (see [SPECIFICATIONS/CLAUDE.md](../SPECIFICATIONS/CLAUDE.md)).
 - **Prepared weather must match the inputs.** `simulate` does not check that the weather was prepared with the same sample minute and ground reflectance. Both are fixed rows today; if either becomes uncertain, prepare the weather per sample.
-- **Speed.** `simulate` takes about 1–2 ms for a year on a recent Mac, and `prepareWeather` a few ms, run once. So 500 samples × 2 setups take about 1.5 seconds, and × 4 setups about 3 seconds (19 October 2026). Each result holds eight hourly arrays (about 560 KB), so a sampler should keep only the annual totals.
+- **Speed.** `simulate` takes about 1–2 ms for a year on a recent Mac, and `prepareWeather` a few ms, run once. The heat pump setups run the thermal node twice when their schedule differs from the gas one (once for the k solve). On a recent Mac, 500 samples × 2 setups take about 1.55 seconds, and × 4 setups about 3.0 seconds; on the CI runner about 3.2 and 6.2 seconds (20 October 2026). Each result holds nine hourly arrays (about 630 KB), so a sampler should keep only the annual totals. The node's hourly loop allocates nothing, and each schedule is expanded to engine hours once and kept.
 
 ## The physics
 
@@ -103,13 +104,26 @@ H = f_fabric × (Σ U·A + y × A_exposed + 0.33 · n · V)       W/K
 - **The air change rate n** is a table row by age band.
 - **`f_fabric`** is the fabric quality factor, one shared multiplier on every term.
 
-### Space heat at a mean internal temperature
+### Space heat on a thermal-mass node
 
 ```
-Q(t) = max(0, H (T_mean − T_out(t) − offset) − G_solar(t) − G_internal)      for each of 8,760 hours
+C dT/dt = Q(t) + G_solar(t) + G_internal − H (T(t) − T_out(t) − offset)
+one hour, backward Euler, with a = C ÷ 1 h:
+  T_free = (a T_before + G + H T_out) ÷ (a + H)
+  in a heating period, if T_free < T_set:  Q = min((a + H)(T_set − T_free), cap),  T = T_free + Q ÷ (a + H)
+  otherwise:                                Q = 0,  T = T_free
 ```
 
-`T_mean` is an **air** temperature, held continuously. The house has no thermal mass. `offset` is the outdoor-temperature offset row (0 for the typical year; tests lower it to build a colder year). The `max(0, …)` clamp means surplus gains in summer never make demand negative. Each hour's mean power in W ÷ 1,000 is its energy in kWh.
+- **One node** holds the air and the fabric at one temperature, an **air** temperature. Backward Euler is stable at every C, so C = 0 is allowed and gives phase 1's continuous method exactly: Q = max(0, H (T_set − T_out) − G).
+- **C** is SAP's thermal mass parameter × floor area: 250 kJ/m²K for masonry without internal insulation (RdSAP 10 Table 22, `fabric.thermalMassParameter`), so 6,250 Wh/K for the 1930s semi's 90 m². Every archetype's time constant C ÷ H is at least 17.7 hours at its defaults (the pre-1900 end-terrace) and up to 50 (the 2010s mid-terrace). A test keeps them all at 10 hours or more, the range where an hourly step stays within 2% of the exact exponential decay.
+- **Heating periods** come from the setup's schedule row, an hour-of-week profile of 1 (heating) and 0 (off) in UK local time (see "Time base"). In a period, the heating brings the house to the setpoint (`heating.setpoint`, 17.6 °C) if it can within the output cap. Outside a period, and on warm days, the house floats: there is no cooling, and it may sit above the setpoint.
+  - **The gas setups** follow SAP's pattern: weekdays 07:00–09:00 and 16:00–23:00, weekends 07:00–23:00 (`heating.scheduleGas`).
+  - **The heat pump setups** heat 07:00–23:00 every day, SAP's longer heat pump day (`heating.scheduleHeatPump`). On these two schedules the engine understates the heat pump's space heat against the boiler's by about 6.7 points, against HEM (see "Checks against outside references").
+- **Output caps:** the heat pump's is its design heat loss × a margin, H × 24.2 K (SAP 10.2 Appendix N, section N2) × 1.15 (HeatpumpMonitor.org's median ratio of rated output to design heat loss): 7.6 kW for the 1930s semi. The boiler's is 24 kW for space heating. Hot water is outside both caps. A cap that binds leaves the house below the setpoint until it catches up.
+- **The pre-roll:** each year starts from the temperature the node reaches over the year's last week, run first from the setpoint.
+- `offset` is the outdoor-temperature offset row (0 for the typical year; tests lower it to build a colder year). Each hour's mean power in W ÷ 1,000 is its energy in kWh.
+
+**What the mass does.** On the 1930s semi heated in every hour, the mass lowers the year's space heat against phase 1's method by 11.4%, 8.0% and 5.5% at 16, 19 and 21 °C: the house stores daytime surplus and uses it later. Under heating periods it raises space heat against no mass, because the fabric is recharged after each off period. On SAP's periods the central semi needs 9,390 kWh of space heat; on the heat pump's day the heat pump needs about the same, 9,350 kWh, and at its cap for 597 hours a year.
 
 ### Internal gains
 
@@ -150,7 +164,7 @@ L is litres a day: 36 plus an uncertain 25 per occupant (17–35), SAP 2012's 25
 
 - **Gas:** gas kWh = (space heat + hot water) ÷ boiler seasonal efficiency, hour by hour.
 - **The boiler's pump and fan:** 86 kWh of electricity a year (SAP 10.2 Table 4f), spread over the year in proportion to each hour's gas use. The heat pump setups have none.
-- **Heat pump:** each hour, electricity = space heat ÷ COP at the space heating flow + cylinder reheat ÷ COP at the hot water flow. The COP curve is scaled so the year matches the sampled SPF (see "The heat pump over the year"). Capacity is unlimited and there is no backup heater.
+- **Heat pump:** each hour, electricity = space heat ÷ COP at the space heating flow + cylinder reheat ÷ COP at the hot water flow. The COP curve is scaled so the reference run matches the sampled SPF (see "The heat pump over the year"). Space heating is capped (see "Space heat on a thermal-mass node"), and there is no backup heater.
 - **Base electricity** (lights and appliances) is the same in every setup. Each engine hour gets the weekly shape (`electricity.baseProfileWeekly`, by local hour of the week) × the month level (`electricity.baseProfileMonthly`, by local month), and the year is rescaled so its total equals the base use row exactly. Both rows come from Elexon's profile class 1 (domestic unrestricted), 2013/14, evaluated at 10-year average temperatures: a weekday peaks at 18:00 local and dips at 03:00, and January days use about 35% more than July days. On a flat tariff the shape changes no annual figure; it matters for solar self-consumption and, later, time-of-use costs.
 
 ### Roof solar PV
@@ -185,12 +199,12 @@ standby         = standby share × Σheat ÷ SPF ÷ 8,760, the same in every hou
 
 - **T_out** is the weather's temperature plus the outdoor offset row, as for space heat. Hot water uses a fixed 50 °C flow, the mean over a reheat. A test keeps it at or above the high of the design flow's range, so hot water's COP is never above space heating's in the same hour, and below it at the default flows.
 - **Standby** (controls, circulation pumps and crankcase heaters) is inside the SPF's H4 boundary. `heating.heatPumpStandbyShare` sets it as a share of the year's heat pump electricity: median 5.9%, from the trial's daily data, about 0.68 kWh a day for the 1930s semi. The well-installed scenario reads its own share (`heating.heatPumpStandbyShareWellInstalled`, median 2.5%, from HeatpumpMonitor.org). Standby is drawn evenly in every hour, so hours with little heat are less efficient, as the trial's data shows. It is a share rather than kWh a day so the solve works for any house: a fixed amount would leave a small house too little electricity for its heat. As a result, small houses get less standby in kWh than the trial's typical home, and their mild hours stay a little optimistic.
-- **The k solve** (`solveCopScale`) runs on the reference run: the price cap, no control, continuous heating. It makes the year's heat (space heat + cylinder reheats) ÷ heating electricity (standby included) equal the sampled SPF. The heat itself gets the electricity left after standby, E = (1 − share) × Σheat ÷ SPF.
+- **The k solve** (`solveCopScale`) runs on the reference run: the price cap, no control, the heat pump with its own cap on the gas setups' schedule. It makes the year's heat (space heat + cylinder reheats) ÷ heating electricity (standby included) equal the sampled SPF. The heat itself gets the electricity left after standby, E = (1 − share) × Σheat ÷ SPF.
   - **Without the ceiling:** k = Σ(heat ÷ shape) ÷ E, exactly.
   - **With the ceiling:** hours where k × shape would reach 7 run at 7, and k is re-solved on the rest: k = Σ(uncapped heat ÷ shape) ÷ (E − capped heat ÷ 7). Capping raises k, which may cap more hours, so this repeats until no further hour is capped. Each step caps at least one more hour, so it ends, and at the end it is exact. `copScale.ceilingBound` says whether it bound.
   - It throws if the run delivers no heat, or if the share is not below 1 − SPF ÷ 7: at or above that, even every hour at the ceiling couldn't supply the heat. A test keeps each scenario's highest share below the bound for its highest SPF (0.25 against 0.43 for the field trial, 0.10 against 0.23 for well-installed).
   - The returned `copScale` carries the standby per hour with k, so a run that reuses the scale reuses the reference run's standby too.
-- **On the reference run the curve changes when electricity is used, not how much.** So on the price cap, the flow temperature and standby share rows move nothing in the sensitivity table. They matter once control and tariffs move running between hours, which reuses the reference run's k.
+- **On the reference run the curve changes when electricity is used, not how much.** The heat pump's own schedule (07:00–23:00) puts more heat into the night's colder hours than the reference run, so its year runs a little below the sampled SPF, and its flow temperature and standby share rows move its running cost a little on the price cap. Control and tariffs move running between hours the same way, reusing the reference run's k.
 - **What the numbers look like** (19 October 2026, 200 samples, seed 1): k runs from 0.28 to 0.68 for the field-trial SPF (central 0.41), and from 0.40 to 0.76 for the well-installed one. The ceiling binds in 3 samples of 200 for the field trial and 68 of 200 for the well-installed scenario, whose SPF reaches 5.4. At the lowest SPF (2.0), k × the shape floor is still above 1, which a test checks.
 - **The well-installed scenario** reads `heating.heatPumpSpfWellInstalled` (lognormal, median 3.9, sigma 0.14, clipped to 2.8–5.4, from 379 air source systems on HeatpumpMonitor.org with a full year of data) in place of the field SPF (median 2.8). It changes the curve's level, not its shape. The sample is self-selected, and the report labels the scenario so.
 
@@ -313,6 +327,8 @@ Engine tests use small inline registers, built by `fixtureRegister(values)`, so 
 
 At a fabric quality factor of 0.9, H = 220.5 W/K. With a party wall U of 0.25 and y = 0.1, H = 245 + 50 × 0.25 + 0.1 × 200 = 277.5 W/K.
 
+**Heating:** the fixture heats in every hour at 20 °C (both schedules all 1), with C from 250 kJ/m²K × 100 m² (6,944 Wh/K) and caps of 24 kW for the boiler and H × 24 K × 1 = 5,880 W for the heat pump. Under steady weather the mass then never matters, so every hour is the same and the hand-worked figures below hold.
+
 **A year at a constant 5 °C with no sun**, heated to 20 °C. The fixture's occupancy formula gives 4 occupants at any floor area, so internal gains are 4 × 100 = 400 W and hot water is 20 + 4 × 20 = 100 litres a day:
 
 | Quantity | Working | Result |
@@ -356,7 +372,17 @@ At the same floor area, a mid-terrace has less exposed wall than an end-terrace,
 ## Checks against outside references
 
 - **Solar geometry** (accepted by Magnus on 18 October 2026 in place of a published vertical-wall example): Duffie and Beckman's Example 1.6.1 (beam incidence of 35° on a 45° surface facing 15° west of south, Madison, 13 February, 10:30) and Example 1.6.2 (zenith angles of 66.5° and 79.6°), to within 2%. A south wall at an equinox noon receives beam at cos θ = sin(latitude), exactly. London's midsummer noon sun sits at 61.9°.
-- **The HEM check:** the engine is given HEM's own element areas and inputs for the benchmark archetype (values copied from `scripts/benchmark/draftValues.ts`, not derived geometry, so both sides describe the same house), with no party wall loss, thermal bridging or curtains, as HEM's input has none. Run at 17.8 °C air on the PVGIS weather, it gives 12,999 kWh of annual space heat. That is 4.8% below HEM's `thermostat-17` run (13,660 kWh), inside the 10% regression guard, and the test pins 12,999 kWh. Phase 1's check gave 12,847 kWh (6.0% below); SAP's 0.9 for non-normal incidence on solar gains accounts for the difference. The fixture uses a solar access factor of 1, because the HEM input has no overshading.
+- **The HEM checks:** the engine is given HEM's own element areas and inputs for the benchmark archetype (values copied from `scripts/benchmark/draftValues.ts`, not derived geometry, so both sides describe the same house), with no party wall loss, thermal bridging or curtains, as HEM's input has none. The fixture uses a solar access factor of 1, because the HEM input has no overshading.
+  - **Continuous, without mass** (the steady-state guard on heat loss and gains): at 17.8 °C air, heated in every hour, it gives 12,999 kWh. That is 4.8% below HEM's `thermostat-17` run (13,660 kWh), inside the 10% guard, and the test pins 12,999 kWh. Phase 1's check gave 12,847 kWh (6.0% below); SAP's 0.9 for non-normal incidence on solar gains accounts for the difference.
+  - **Under schedules, with mass** (rules committed before HEM ran, in [scripts/benchmark/hem/README.md](../scripts/benchmark/hem/README.md)): SAP's periods on GMT, 19.8 °C air against HEM's 19 °C operative, C = 250 kJ/m²K × 90 m² on both sides, no cap.
+
+    | Schedule | HEM | The engine | Gap |
+    | --- | ---: | ---: | ---: |
+    | SAP's periods (the decision run) | 13,580 kWh | 14,165 kWh | +4.3% |
+    | 07:00–23:00 every day (the heat pump's) | 14,842 kWh | 14,489 kWh | −2.4% |
+    | Every hour (a diagnostic) | 17,311 kWh | 15,851 kWh | −8.4% |
+
+    The decision run is inside the pre-registered 15%, so the one-node engine is used. The tests pin the first two within 10% of HEM, and the third as a diagnostic. The gap depends on the pattern: the node stores daytime surplus more readily than HEM's elements and recharges its mass at the air temperature after each off period. So on the two setups' schedules, the engine understates the heat pump's space heat against the boiler's by about 6.7 points.
 
 - **Roof solar against PVGIS's PV calculator** (19 October 2026). The reference system and the 8% tolerance were committed before PVcalc was called (`scripts/pvgis/pvcalcCheck.ts`): central London, PVGIS-SARAH3 with the horizon, crystalline silicon, 4 kWp, 35°, facing south, a 14% system loss (the register's default, so it cancels out of the gap) and free-standing mounting, to match the NOCT module temperature. PVGIS's `seriescalc` returns only real years, and its typical-year tool returns weather without PV output, so neither gives PV output on the typical year, and the tolerance stays at 8% rather than 5%. `scripts/pvgis/pvcalcCheck.test.ts` runs the check on the committed register, typical year and PVcalc snapshot.
 
@@ -395,32 +421,37 @@ At the same floor area, a mid-terrace has less exposed wall than an end-terrace,
 
 ## The 1930s semi's central results
 
-With every row at its default (16.3 °C, filled cavity walls, 100 mm of loft insulation, 3 occupants), on the London typical year:
+With every row at its default (a 17.6 °C setpoint, filled cavity walls, 100 mm of loft insulation, 3 occupants), on the London typical year:
 
 | | Space heat | Hot water | Gas | Electricity | Cost | Carbon |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Gas boiler | 9,404 kWh | 1,882 kWh | 13,277 kWh | 2,586 kWh | £2,047 | 2,801 kg |
-| Heat pump | 9,404 kWh | 2,429 kWh | 0 | 6,726 kWh | £1,970 | 968 kg |
+| Gas boiler (SAP's periods) | 9,392 kWh | 1,882 kWh | 13,263 kWh | 2,586 kWh | £2,046 | 2,799 kg |
+| Heat pump (07:00–23:00 every day) | 9,348 kWh | 2,429 kWh | 0 | 6,714 kWh | £1,967 | 967 kg |
 
-With roof solar (3.85 kWp, the roof's maximum, generating 3,818 kWh), on imports only and with no export income yet:
+The heat pump's year runs at 2.795 against its sampled SPF of 2.8: k (0.407) is solved on the gas schedule, and its own longer day puts more heat into the night's colder hours.
+
+With roof solar (3.85 kWp, the roof's maximum, generating 3,818 kWh), with export paid at the central 12p:
 
 | | Electricity used | Of which from solar | Exported | Imported | Cost | Carbon |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Gas boiler with solar | 2,586 kWh | 1,127 kWh (30% of generation) | 2,691 kWh | 1,459 kWh | £1,751 | 2,639 kg |
-| Heat pump with solar | 6,726 kWh | 1,547 kWh (41%) | 2,271 kWh | 5,179 kWh | £1,563 | 746 kg |
+| Gas boiler with solar | 2,586 kWh | 1,129 kWh (30% of generation) | 2,689 kWh | 1,457 kWh | £1,426 | 2,636 kg |
+| Heat pump with solar | 6,714 kWh | 1,705 kWh (45%) | 2,113 kWh | 5,009 kWh | £1,265 | 721 kg |
 
-The heat pump uses more of the generation: its space heating and standby take 240 kWh, mostly in spring and autumn, and its cylinder reheats 192 kWh; base use takes 1,115 kWh in both. Solar meets standby with space heating, before the cylinder, because standby runs whatever the heat pump is doing.
+The heat pump uses more of the generation: its space heating and standby take 419 kWh, mostly in spring and autumn mornings and evenings, and its cylinder reheats 171 kWh; base use takes 1,115 kWh in both. Solar meets standby with space heating, before the cylinder, because standby runs whatever the heat pump is doing.
 
-These are central values only, measured on 19 October 2026 and not pinned by a test: rerun the engine if a price, SPF, carbon or base-use row changes. The gas setup's electricity includes 86 kWh of boiler pump and fan electricity, which adds about £24 to its bill; the heat pump's hot water is the cylinder's reheats, including its standing loss. The ranges, the paired comparison and the sensitivity table are in the [phase 1 report](../reports/phase-1-london-semi.md). The heat pump's small cost margin sits inside a known low bias on heat pump cost: one calibrated temperature applies to both setups ([#15](https://github.com/mannepanne/energy-sim/issues/15)). Gas use matches the calibration target (see [register.md](./register.md#the-mean-internal-temperature-calibration)).
+These are central values only, measured on 20 October 2026 and not pinned by a test: rerun the engine if a price, SPF, carbon or base-use row changes. The gas setup's electricity includes 86 kWh of boiler pump and fan electricity, which adds about £24 to its bill; the heat pump's hot water is the cylinder's reheats, including its standing loss. The ranges, the paired comparison and the sensitivity table are in the [phase 1 report](../reports/phase-1-london-semi.md). The heat pump's cost margin sits inside a stated bias: on the two setups' schedules the engine understates the heat pump's space heat against the boiler's by about 6.7 points against HEM, and one calibrated setpoint from gas-heated homes applies to both ([#15](https://github.com/mannepanne/energy-sim/issues/15)). Gas use matches the calibration target (see [register.md](./register.md#the-setpoint-calibration)).
 
 ## The archetype table
 
 `npm run archetypes` prints each archetype's central and sampled (200 samples, seed 1) gas use and running costs on the price cap, next to its two pre-registered NEED readings, its gap and the flag. The readings, the rule and the reasons for them are in [scripts/archetypes/README.md](../scripts/archetypes/README.md), committed before any archetype was run. The logic is in `scripts/archetypes/table.ts`.
 
-As a dated snapshot on 18 October 2026 (rerun `npm run archetypes` for current figures; the gaps are not pinned, but the set of flagged archetypes is, by a test in `scripts/archetypes/table.test.ts`), with the default answers Magnus chose (filled cavity walls for bands C–G), nine archetypes sat inside or within 13% of their interval:
-- the bungalow was 2% above it and the 1967–75 mid-terrace 3% above;
-- the 2007–11 semi was 1% below and the 2012 onwards mid-terrace 13% below;
-- the pre-1900 end-terrace was 39% above, so it is **flagged**.
+As a dated snapshot on 20 October 2026, with heating schedules and thermal mass (rerun `npm run archetypes` for current figures; the gaps are not pinned, but the set of flagged archetypes is, by a test in `scripts/archetypes/table.test.ts`), with the default answers Magnus chose (filled cavity walls for bands C–G), nine archetypes sat inside or within 15% of their interval:
+- five inside it: the pre-1900 mid-terrace, the 1930s and 1950s semis and the two detached houses;
+- the bungalow 1% above it and the 1967–75 mid-terrace 2% above;
+- the 2007–11 semi 1% below and the 2012 onwards mid-terrace 15% below;
+- the pre-1900 end-terrace 38% above, so it is **flagged**.
+
+Against the continuous engine on 18 October, every gap moved by 2 points or less. The largest move is the 2012 onwards mid-terrace, from 13% to 15% below: the schedule and the mass lower gas use most in the best-insulated houses, whose long time constants (about 50 hours) carry daytime gains into the evening.
 
 The end-terrace's solid brick walls (U 1.7, as built) cover more exposed wall than any other archetype for its floor area, which RdSAP's solid wall U-value may overstate. With unfilled cavities as the default, the first table instead flagged the 2012 onwards mid-terrace (28% below). Every archetype uses the same behaviour rows, calibrated on the 1930s semi alone, so these gaps are evidence on [#14](https://github.com/mannepanne/energy-sim/issues/14), not targets. The phase 2 report will carry the table, at 200 samples.
 
@@ -489,15 +520,16 @@ const tables = sensitivity(access, weather); // one table per pair in SENSITIVIT
 ## Known simplifications
 
 The phase 1 and phase 2 specs list these as technical debt:
-- no thermal mass, and continuous heating to one temperature;
-- one calibrated temperature for both setups and every archetype, which may also absorb fabric error ([#14](https://github.com/mannepanne/energy-sim/issues/14));
+- one thermal-mass node, whose error against HEM depends on the heating pattern (+4.3% on SAP's periods, −2.4% on the heat pump's day, −8.4% heated in every hour);
+- one calibrated setpoint for both setups and every archetype, which may also absorb fabric error ([#14](https://github.com/mannepanne/energy-sim/issues/14)); the heat pump's longer day is SAP's, not measured heat pump households' ([#15](https://github.com/mannepanne/energy-sim/issues/15));
+- simple output caps (the heat pump at 1.15 × its design heat loss, the boiler at 24 kW), not a sizing method, and no backup heater;
 - fixed weather and an annual average grid carbon factor; prices change only through one real change a year for each fuel, drawn per sample;
 - undiscounted payback, a boiler that needs replacing now, installed costs at today's real prices for replacements ([#37](https://github.com/mannepanne/energy-sim/issues/37)), and no inverter replacement for PV ([#39](https://github.com/mannepanne/energy-sim/issues/39));
 - one installed heat pump cost for every archetype, whatever its heat loss, and one PV cost per kWp whatever the system's size;
 - one flat export rate per sample (drawn between 4.1p and 15p), and no carbon credit for export ([#34](https://github.com/mannepanne/energy-sim/issues/34));
 - roof solar on one slope facing between south-east and south-west, with an isotropic sky, no reflection or spectral losses, no shading and no inverter clipping; east–west roofs using both slopes are not modelled;
 - base electricity is one weekly shape × a month level from profile class 1 (2013/14), which keeps the winter–summer level but not the small change of daily shape between seasons; the class includes some electric heating, which raises winter use against summer, so solar self-consumption may be slightly understated;
-- the heat pump's COP curve is an approximate shape scaled to the field SPF, with no capacity limit and no backup heater;
+- the heat pump's COP curve is an approximate shape scaled to the field SPF;
 - the cylinder is one stored-energy state, not a stratified tank, with no immersion backup and no legionella cycle;
 - constant internal gains, and windows split equally over four orientations;
 - the air change rate is an estimate by age band, not RdSAP's ventilation worksheet ([#27](https://github.com/mannepanne/energy-sim/issues/27));

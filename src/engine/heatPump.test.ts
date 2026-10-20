@@ -19,7 +19,7 @@ import {
   type HeatPumpLoad,
 } from './heatPump.ts';
 import { ARCHETYPE_KEYS, defaultHouse } from './archetypes.ts';
-import { readInputs, type SpfScenario, type UncertainOverrides } from './inputs.ts';
+import { readInputs, type EngineInputs, type SpfScenario, type UncertainOverrides } from './inputs.ts';
 import { sampleOverrides } from './sampling.ts';
 import { simulate } from './simulate.ts';
 import { prepareWeather, weatherFromSnapshot } from './weather.ts';
@@ -154,15 +154,18 @@ describe('the k solve', () => {
 
 const readJson = (path: string): unknown => JSON.parse(readFileSync(new URL(path, import.meta.url), 'utf8')) as unknown;
 
+/** The reference run's inputs: the heat pump on the gas setups' schedule, on which k is solved. */
+const onReferenceRun = (inputs: EngineInputs): EngineInputs => ({ ...inputs, heatPumpSchedule: inputs.gasSchedule });
+
 describe('the curve on the real register', () => {
   const access = createAccessor(loadRegister(readJson('../../data/register.json')));
   const weather = prepareWeather(weatherFromSnapshot(loadPvgisSnapshot(readJson('../../data/snapshots/pvgis-tmy-london.json'))), readInputs(access));
   const plan = { seed: 1, count: 200 };
 
-  it.each<SpfScenario>(['fieldTrial', 'wellInstalled'])('gives the sampled SPF to within 0.1%% in every sample (%s)', (spfScenario) => {
+  it.each<SpfScenario>(['fieldTrial', 'wellInstalled'])('gives the sampled SPF to within 0.1%% on the reference run in every sample (%s)', (spfScenario) => {
     let bound = 0;
     for (const overrides of sampleOverrides(access, plan, undefined, spfScenario)) {
-      const inputs = readInputs(access, { overrides, spfScenario });
+      const inputs = onReferenceRun(readInputs(access, { overrides, spfScenario }));
       const result = simulate(inputs, weather, 'heatPump');
       expect(Math.abs(result.annual.heatKwh / result.annual.heatingElectricityKwh / inputs.heatPumpSpf - 1)).toBeLessThan(0.001);
       if (result.copScale!.ceilingBound) bound += 1;
@@ -198,10 +201,10 @@ describe('the curve on the real register', () => {
         const overrides: UncertainOverrides = {
           [spfRow]: access.uncertain(spfRow).high,
           [shareRow]: access.uncertain(shareRow).high,
-          'heating.meanInternalTemperature': access.uncertain('heating.meanInternalTemperature').low,
+          'heating.setpoint': access.uncertain('heating.setpoint').low,
           'fabric.qualityFactor': access.uncertain('fabric.qualityFactor').low,
         };
-        const inputs = readInputs(access, { house, overrides, spfScenario });
+        const inputs = onReferenceRun(readInputs(access, { house, overrides, spfScenario }));
         const result = simulate(inputs, weather, 'heatPump');
         expect(result.annual.heatKwh / result.annual.heatingElectricityKwh).toBeCloseTo(inputs.heatPumpSpf, 9);
       }
@@ -237,6 +240,15 @@ describe('the curve on the real register', () => {
       const bothClamped = (hotWater === shapeFloor && space === shapeFloor) || (hotWater === shapeCeiling && space === shapeCeiling);
       expect(hotWater < space || bothClamped).toBe(true);
     }
+  });
+
+  it('reuses the reference run’s k on the heat pump’s own, longer schedule, where more heat goes into the night’s colder hours', () => {
+    const inputs = readInputs(access);
+    const reference = simulate(onReferenceRun(inputs), weather, 'heatPump');
+    const own = simulate(inputs, weather, 'heatPump');
+    expect(own.copScale).toEqual(reference.copScale);
+    expect(own.annual.spaceHeatKwh).toBeGreaterThan(reference.annual.spaceHeatKwh);
+    expect(simulate(inputs, weather, 'heatPump', { copScale: reference.copScale! }).annual).toEqual(own.annual);
   });
 
   it('keeps the scaled COP above 1 in every hour at the lowest SPF', () => {

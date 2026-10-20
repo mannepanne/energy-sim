@@ -1,9 +1,10 @@
 // ABOUT: Builds a Home Energy Model (HEM) input file for the benchmark archetype from the draft values
 // ABOUT: Converts U-values to HEM's construction resistances and spreads glazing over four orientations
 
-import { archetype, occupancy, uValues } from './draftValues.ts';
+import { archetype, occupancy, thermalMass, uValues } from './draftValues.ts';
 
 const HOURS_PER_YEAR = 8760;
+const J_PER_KJ = 1000;
 
 // HEM's surface heat transfer coefficients (building_element.rs), in W/m²K. HEM adds the matching
 // surface resistances to each element's construction resistance, so U = 1 / (R_si + R_c + R_se).
@@ -29,7 +30,37 @@ export interface HemInputOptions {
   thermostatC: number;
   latitude: number;
   longitude: number;
+  /** When the thermostat is on. Defaults to every hour of the year. */
+  heatingPattern?: HeatingPattern;
+  /**
+   * The total of areal heat capacity × area over the building elements, in J/K. When given, every element's areal
+   * heat capacity is scaled by one factor to reach it, keeping each element's mass distribution class.
+   */
+  totalHeatCapacityJPerK?: number;
 }
+
+/**
+ * `continuous`: heated every hour. `sap`: SAP's weekly pattern (see `SAP_HEATING_HOURS`), off between periods.
+ * `unimodal`: SAP's weekend day, 07:00–23:00, every day of the week.
+ */
+export type HeatingPattern = 'continuous' | 'sap' | 'unimodal';
+
+/**
+ * SAP's heating periods as the clock hours that start inside them: weekdays 07:00–09:00 and 16:00–23:00
+ * (SAP 10.2 Table 9), weekends 07:00–23:00 (SAP's unimodal pattern, Table N7 note b).
+ */
+export const SAP_HEATING_HOURS = {
+  weekday: [7, 8, 16, 17, 18, 19, 20, 21, 22],
+  weekend: [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22],
+} as const;
+
+/**
+ * HEM's week blocks run from simulation day 0. The engine takes weekdays from 2026, in which 1 January is a
+ * Thursday, so the year opens with two weekdays and a weekend before the first full week. 52 weeks then cover
+ * the rest of the year; HEM reads only the days it simulates.
+ */
+const OPENING_DAYS = ['weekday', 'weekday', 'weekend', 'weekend'] as const;
+const FULL_WEEKS = 52;
 
 const FOOTPRINT_DEPTH_M = 7;
 const FOOTPRINT_WIDTH_M = archetype.groundFloorAreaM2.value / FOOTPRINT_DEPTH_M;
@@ -47,6 +78,40 @@ const LIGHT_HEAT_CAPACITY = 18_170;
 const TIMBER_FLOOR_HEAT_CAPACITY = 20_000;
 
 const constant = <T>(value: T): HourlySchedule<T>['main'] => [{ value, repeat: HOURS_PER_YEAR }];
+
+/** A day's thermostat: the setpoint in the given hours, and null (heating off) in the others. */
+const dayOfHours = (hours: readonly number[], setpointC: number): (number | null)[] =>
+  Array.from({ length: 24 }, (_, hour) => (hours.includes(hour) ? setpointC : null));
+
+/** The thermostat schedule for a heating pattern, in HEM's schedule format. */
+export function thermostatSchedule(pattern: HeatingPattern, setpointC: number): ThermostatSchedule {
+  if (pattern === 'continuous') return { main: constant(setpointC) };
+  if (pattern === 'unimodal') return { main: [{ value: 'day', repeat: 365 }], day: dayOfHours(SAP_HEATING_HOURS.weekend, setpointC) };
+  return {
+    main: [...OPENING_DAYS, { value: 'week', repeat: FULL_WEEKS }],
+    week: [
+      { value: 'weekday', repeat: 5 },
+      { value: 'weekend', repeat: 2 },
+    ],
+    weekday: dayOfHours(SAP_HEATING_HOURS.weekday, setpointC),
+    weekend: dayOfHours(SAP_HEATING_HOURS.weekend, setpointC),
+  };
+}
+
+/** Scales every element's areal heat capacity by one factor so their total, × area, is `totalJPerK`. */
+function scaleHeatCapacity(elements: Record<string, HemBuildingElement>, totalJPerK: number): void {
+  const items = Object.values(elements);
+  const factor = totalJPerK / totalHeatCapacityJPerK(elements);
+  for (const item of items) if (item.areal_heat_capacity !== undefined) item.areal_heat_capacity *= factor;
+}
+
+/** The total of areal heat capacity × area over the building elements, in J/K. */
+export function totalHeatCapacityJPerK(elements: Record<string, HemBuildingElement>): number {
+  return Object.values(elements).reduce((total, item) => total + (item.areal_heat_capacity ?? 0) * elementArea(item), 0);
+}
+
+/** An element's area: given directly, or width × height. */
+export const elementArea = (item: HemBuildingElement): number => item.area ?? (item.width ?? 0) * (item.height ?? 0);
 
 /** The three exposed facades: front, back and one side. Net wall area is shared by facade length. */
 const facades = [
@@ -68,6 +133,8 @@ export interface HemBuildingElement {
   orientation360?: number;
   thermal_resistance_construction?: number;
   u_value?: number;
+  /** J/m²K. */
+  areal_heat_capacity?: number;
   [field: string]: unknown;
 }
 
@@ -81,11 +148,15 @@ interface HourlySeries {
   schedule: HourlySchedule<number>;
 }
 
+/** HEM's schedule format: `main` lists values, repeats or names of other blocks, which list the same. */
+type ScheduleEntry = number | null | string | { value: number | string; repeat: number };
+export type ThermostatSchedule = Record<string, ScheduleEntry[]> & { main: ScheduleEntry[] };
+
 /** The parts of the HEM input the benchmark checks; the rest passes through to HEM unchanged. */
 export interface HemInput {
   SimulationTime: { start: number; end: number; step: number };
   InternalGains: { 'metabolic gains': HourlySeries };
-  Control: Record<string, HourlySeries & { type: string }>;
+  Control: Record<string, Omit<HourlySeries, 'schedule'> & { type: string; schedule: ThermostatSchedule }>;
   Zone: {
     house: {
       area: number;
@@ -212,6 +283,8 @@ export function buildHemInput(options: HemInputOptions): HemInput {
     },
   };
 
+  if (options.totalHeatCapacityJPerK !== undefined) scaleHeatCapacity(buildingElements, options.totalHeatCapacityJPerK);
+
   const envelopeAreaM2 =
     exposedPerimeterM * HOUSE_HEIGHT_M + archetype.roofAreaM2.value + footprintM2 + PARTY_WALL_AREA_M2;
 
@@ -246,7 +319,7 @@ export function buildHemInput(options: HemInputOptions): HemInput {
         type: 'SetpointTimeControl',
         start_day: 0,
         time_series_step: 1,
-        schedule: { main: constant(options.thermostatC) },
+        schedule: thermostatSchedule(options.heatingPattern ?? 'continuous', options.thermostatC),
       },
     },
     // Hot water is outside this comparison. A small, well-insulated cylinder with no draw-offs
@@ -364,10 +437,49 @@ export const HEM_RUNS: [HemRun, ...HemRun[]] = [
 ];
 
 /**
+ * The house's heat capacity for the scheduled check: SAP's thermal mass parameter × the floor area. SAP's parameter
+ * counts internal walls and floors, which HEM's input lacks, so the elements HEM has carry all of it.
+ */
+export const SCHEDULED_CHECK_HEAT_CAPACITY_J_PER_K =
+  thermalMass.parameterKjPerM2K.value * J_PER_KJ * archetype.totalFloorAreaM2.value;
+
+const scheduledOptions: HemInputOptions = {
+  ...mainOptions,
+  thermostatC: 19,
+  totalHeatCapacityJPerK: SCHEDULED_CHECK_HEAT_CAPACITY_J_PER_K,
+};
+
+/**
+ * The scheduled checks (phase 2), each agreed in hem/README.md before HEM was run on it: the decision run first,
+ * the check of a longer heat pump schedule, then a diagnostic run with the same heat capacity heated in every hour.
+ * Their results are recorded in the engine's tests.
+ */
+export const SCHEDULED_HEM_RUNS: [HemRun, ...HemRun[]] = [
+  {
+    name: 'schedule-sap',
+    description: 'Decision run: SAP heating periods at 19 °C operative, heat capacity from SAP’s thermal mass parameter',
+    options: { ...scheduledOptions, heatingPattern: 'sap' },
+    comparableWithRough: false,
+  },
+  {
+    name: 'schedule-unimodal',
+    description: 'Heat pump schedule check: 07:00–23:00 every day at 19 °C operative, the same heat capacity',
+    options: { ...scheduledOptions, heatingPattern: 'unimodal' },
+    comparableWithRough: false,
+  },
+  {
+    name: 'continuous-sap-mass',
+    description: 'Diagnostic: the same house heated in every hour at 19 °C operative',
+    options: { ...scheduledOptions, heatingPattern: 'continuous' },
+    comparableWithRough: false,
+  },
+];
+
+/**
  * The committed input file for a run. Number arrays (such as the hourly cold-water temperatures)
  * go on one line to keep the files short.
  */
 export function hemInputFileContents(run: HemRun): string {
   const json = JSON.stringify(buildHemInput(run.options), null, 2);
-  return `${json.replace(/\[[\d.,\s-]+\]/g, (array) => array.replace(/\s+/g, ''))}\n`;
+  return `${json.replace(/\[(?:[\d.,\s-]|null)+\]/g, (array) => array.replace(/\s+/g, ''))}\n`;
 }

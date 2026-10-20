@@ -50,12 +50,15 @@ describe('buildReport', () => {
     expect(report).toContain('40 joint samples with seed 1');
   });
 
-  it('puts the heat pump bias (issue 15) inside the comparison section, and lists the shared temperature as a limitation', () => {
+  it('puts the heat pump bias (issue 15) inside the comparison section, and lists the shared setpoint as a limitation', () => {
     const comparison = report.slice(report.indexOf('## Gas boiler versus heat pump'), report.indexOf('## Sensitivity'));
     expect(comparison).toContain('issues/15');
+    const heatPumpResults = report.slice(report.indexOf('### Heat pump'), report.indexOf('## Gas boiler versus heat pump'));
+    expect(heatPumpResults).toContain('6.7 points');
+    expect(heatPumpResults).toContain('issues/15');
     expect(comparison).toMatch(/cheaper to run in \d+% of samples/);
     const limitations = report.slice(report.indexOf('## Limitations'));
-    expect(limitations).toContain('One calibrated temperature applies to both setups');
+    expect(limitations).toContain('One calibrated setpoint applies to both setups');
   });
 
   it('lists every uncertain row either setup’s running cost reads in the sensitivity table, and no other', () => {
@@ -75,7 +78,8 @@ describe('buildReport', () => {
     expect(benchmark).toContain('\u22124.6%');
     expect(benchmark).toContain('amended after seeing that result');
     expect(benchmark).toContain('Decision: proceed with no thermal mass');
-    expect(benchmark).toContain('Decision: calibrate the mean internal temperature');
+    expect(benchmark).toContain('Decision: calibrate the heating behaviour');
+    expect(benchmark).toContain('4.3% above HEM');
   });
 
   it('takes the price period from the price row’s label', () => {

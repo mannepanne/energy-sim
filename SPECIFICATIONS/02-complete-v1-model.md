@@ -300,6 +300,7 @@ C \frac{dT_{in}}{dt} = Q_{heat}(t) + G_{solar}(t) + G_{internal}(t) - H\,\big(T_
 - **Heat pump setups:** a separate row for longer, lower heating, the usual way heat pumps are run.
   - **Sourcing it is a phase 2 deliverable:** the Electrification of Heat trial's reports or data (heating hours, internal temperatures) or HeatpumpMonitor.org.
   - If no source is found by the report PR, the row equals the gas schedule, and the report states the issue 15 bias in its headline.
+  - **Decided in PR 5 (Magnus, 20 October 2026):** no source gives heat pump heating hours, and on the gas schedule the capped heat pump leaves the house about 2 K colder on cold days, which the Electrification of Heat homes don't show. The row is 07:00–23:00 every day, SAP's longer heat pump day (SAP 10.2 Appendix N), checked against HEM under pre-registered rules (−2.4%). On the two schedules the engine understates the heat pump's space heat against the boiler's by about 6.7 points, which the report states. See the [schedules ADR](../REFERENCE/decisions/2026-10-20-heating-schedules-one-thermal-mass-node.md).
   - Either way, the sensitivity table shows the effect.
   - Neutrality: the row is never tuned to favour either setup.
 
@@ -444,7 +445,7 @@ Rows that become derived are removed: element areas, volume and `heating.meanInt
 - Derived geometry matches hand calculations for two archetypes. A mid-terrace has less exposed wall than an end-terrace of the same size.
 - **Thermal mass:**
   - with continuous heating and C → 0, the node reproduces phase 1's annual space heat to within 0.5%;
-  - with continuous heating and full C, it stays within 5% (mass stores shoulder-season surplus that phase 1 discarded);
+  - with continuous heating and full C, it stays within 5% (mass stores shoulder-season surplus that phase 1 discarded). *PR 5 found 5–11% on the 1930s semi (11.4%, 8.0% and 5.5% at 16, 19 and 21 °C) and 7–22% across the archetypes at 16.3 °C; Magnus agreed on 20 October 2026 that the tests pin these figures instead (see the schedules ADR);*
   - with heating off, the temperature decays towards outdoor with time constant C ÷ H. For time constants of 10 hours or more, which covers every archetype, it is within 2% of the exact exponential at an hourly backward-Euler step;
   - the energy balance holds every hour and over the year;
   - the output cap is never exceeded.
@@ -531,7 +532,7 @@ The flat-tariff work comes first, so a failed HEM check under a schedule still l
    - the HEM run and decision;
    - the recalibration and its ADR, with the sourced heat pump schedule (closes #13, with evidence on #14 and #15).
 6. `feature/phase-2-tariffs`: London cap rates, the Octopus snapshots (Cosy, Agile, export), and the control rules and their ADR.
-7. `feature/phase-2-report`: the phase 2 report, the archetype table, the bench workloads and the CI drift switch. The report adds a payback sensitivity table that ranks the capital costs, lifetimes and price changes by how much they move payback, since the running-cost tables can't show them (Magnus, 20 October 2026, after the [PR 38 review](https://github.com/mannepanne/energy-sim/pull/38)).
+7. `feature/phase-2-report`: the phase 2 report, the archetype table, the bench workloads and the CI drift switch. The report shows the heat pump on the gas schedule as the sensitivity of the heat pump schedule row, which the row-by-row tables can't move (PR 5: central £1,911 against £1,967 a year on the price cap). The report adds a payback sensitivity table that ranks the capital costs, lifetimes and price changes by how much they move payback, since the running-cost tables can't show them (Magnus, 20 October 2026, after the [PR 38 review](https://github.com/mannepanne/energy-sim/pull/38)).
 
 Until PR 5 lands, the engine heats continuously, as in phase 1. PRs 2–4 are built and tested on that, and their numbers shift once when schedules arrive. The report is only generated in PR 7.
 

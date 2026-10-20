@@ -19,6 +19,7 @@ export const WATER_SPECIFIC_HEAT_KJ_PER_KGK = 4.18;
 
 export const KJ_PER_KWH = 3600;
 export const WH_PER_KWH = 1000;
+export const W_PER_KW = 1000;
 export const PENCE_PER_POUND = 100;
 
 export const RADIANS_PER_DEGREE = Math.PI / 180;

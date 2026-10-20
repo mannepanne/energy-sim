@@ -1,5 +1,5 @@
-// ABOUT: Calibrates the register's mean internal temperature to the NEED gas target with the hourly engine
-// ABOUT: Solves the temperature at which the gas setup's central annual gas use equals a given amount
+// ABOUT: Calibrates the register's heating setpoint to the NEED gas target with the hourly engine and its schedule
+// ABOUT: Solves the setpoint at which the gas setup's central annual gas use equals a given amount
 
 import type { RegisterAccessor } from '../../src/register/access.ts';
 import { readInputs } from '../../src/engine/inputs.ts';
@@ -11,21 +11,27 @@ export const NEED_GAS_TARGET_KWH = 13_200;
 export const NEED_GAS_RANGE_KWH = { low: 10_980, high: 15_433 } as const;
 
 const SEARCH_LOW_C = 5;
-const SEARCH_HIGH_C = 25;
+const SEARCH_HIGH_C = 30;
 const BISECTION_STEPS = 50;
 
+/** The range the spec allows the solved setpoint before it must be reviewed rather than used. */
+export const PLAUSIBLE_SETPOINT_C = { low: 16, high: 21 } as const;
+
 /** Central annual gas use (kWh) of the gas setup, with every other row at its default. */
-export function centralGasKwh(access: RegisterAccessor, weather: PreparedWeather, meanInternalTemperatureC: number): number {
-  const inputs = readInputs(access, { overrides: { 'heating.meanInternalTemperature': meanInternalTemperatureC } });
+export function centralGasKwh(access: RegisterAccessor, weather: PreparedWeather, setpointC: number): number {
+  const inputs = readInputs(access, { overrides: { 'heating.setpoint': setpointC } });
   return simulate(inputs, weather, 'gas').annual.gasKwh;
 }
 
-/** The mean internal temperature at which central annual gas use equals `targetGasKwh`, found by bisection. */
-export function solveMeanInternalTemperature(access: RegisterAccessor, weather: PreparedWeather, targetGasKwh: number): number {
+/**
+ * The setpoint at which central annual gas use equals `targetGasKwh`, found by bisection. Gas use rises with the
+ * setpoint, so one crossing lies between the bracket ends, which are checked first.
+ */
+export function solveSetpoint(access: RegisterAccessor, weather: PreparedWeather, targetGasKwh: number): number {
   let low = SEARCH_LOW_C;
   let high = SEARCH_HIGH_C;
   if (centralGasKwh(access, weather, low) > targetGasKwh || centralGasKwh(access, weather, high) < targetGasKwh) {
-    throw new Error(`No temperature between ${low} and ${high} °C gives ${targetGasKwh} kWh of gas`);
+    throw new Error(`No setpoint between ${low} and ${high} °C gives ${targetGasKwh} kWh of gas`);
   }
   for (let step = 0; step < BISECTION_STEPS; step += 1) {
     const middle = (low + high) / 2;
@@ -45,8 +51,8 @@ export interface Calibration {
 export function calibrate(access: RegisterAccessor, rawWeather: Weather): Calibration {
   const weather = prepareWeather(rawWeather, readInputs(access));
   return {
-    default: solveMeanInternalTemperature(access, weather, NEED_GAS_TARGET_KWH),
-    low: solveMeanInternalTemperature(access, weather, NEED_GAS_RANGE_KWH.low),
-    high: solveMeanInternalTemperature(access, weather, NEED_GAS_RANGE_KWH.high),
+    default: solveSetpoint(access, weather, NEED_GAS_TARGET_KWH),
+    low: solveSetpoint(access, weather, NEED_GAS_RANGE_KWH.low),
+    high: solveSetpoint(access, weather, NEED_GAS_RANGE_KWH.high),
   };
 }

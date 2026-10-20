@@ -1,9 +1,9 @@
-// ABOUT: Tests for hourly space heat, solar gains and hot water
-// ABOUT: Hand-calculated values for the fixture house, the zero clamp, and the outdoor-temperature offset
+// ABOUT: Tests for solar and internal gains, and hot water
+// ABOUT: Hand-calculated values for the fixture house
 
 import { describe, expect, it } from 'vitest';
 import { HOURS_PER_YEAR } from './constants.ts';
-import { dailyHotWaterKwh, hourlySpaceHeatKwh, solarGainsW } from './demand.ts';
+import { dailyHotWaterKwh, solarGainsW, totalGainsW } from './demand.ts';
 import { readInputs } from './inputs.ts';
 import { fixtureAccessor } from './testing/fixtureRegister.ts';
 
@@ -19,32 +19,12 @@ describe('solarGainsW', () => {
   });
 });
 
-describe('hourlySpaceHeatKwh', () => {
-  it('gives H (T_mean − T_out) − gains each hour: 266 × 15 − 400 = 3,590 W, so 3.59 kWh', () => {
-    const heat = hourlySpaceHeatKwh(inputs, 266, constant(5), constant(0));
-    expect(heat).toHaveLength(HOURS_PER_YEAR);
-    expect(heat[0]).toBeCloseTo(3.59, 12);
-  });
-
-  it('is zero in any hour where gains cover the loss', () => {
-    const outdoor = constant(5);
-    outdoor[100] = 19; // loss 266 W, below the 400 W of internal gains
-    const solar = constant(0);
-    solar[200] = 4000; // more than the 3,590 W net loss
-    const heat = hourlySpaceHeatKwh(inputs, 266, outdoor, solar);
-    expect(heat[100]).toBe(0);
-    expect(heat[200]).toBe(0);
-    expect(heat[101]).toBeGreaterThan(0);
-  });
-
-  it('adds the register’s outdoor-temperature offset to every hour', () => {
-    const heat = hourlySpaceHeatKwh({ ...inputs, outdoorTemperatureOffsetK: -2 }, 266, constant(5), constant(0));
-    expect(heat[0]).toBeCloseTo((266 * 17 - 400) / 1000, 12);
-  });
-
-  it('rejects weather of the wrong length', () => {
-    expect(() => hourlySpaceHeatKwh(inputs, 266, new Float64Array(24), constant(0))).toThrow('8760 hours');
-    expect(() => hourlySpaceHeatKwh(inputs, 266, constant(5), new Float64Array(24))).toThrow('8760 hours');
+describe('totalGainsW', () => {
+  it('adds the internal gains (4 occupants × 100 W) to the solar gains each hour', () => {
+    const gains = totalGainsW(inputs, constant(100));
+    expect(gains).toHaveLength(HOURS_PER_YEAR);
+    expect(gains[0]).toBeCloseTo(400 + 400, 12);
+    expect(totalGainsW(inputs, constant(0))[10]).toBe(400);
   });
 });
 

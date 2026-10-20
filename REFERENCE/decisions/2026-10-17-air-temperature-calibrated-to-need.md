@@ -1,7 +1,7 @@
 # ADR: Air-temperature heating with no thermal mass in phase 1, calibrated to NEED
 
 **Date:** 2026-10-17
-**Status:** Active
+**Status:** Partly superseded by the [schedules ADR](./2026-10-20-heating-schedules-one-thermal-mass-node.md) (20 October 2026): the continuous mean internal temperature and "no thermal mass" are replaced by a calibrated setpoint in heating periods on a thermal-mass node. The target, the air-temperature meaning and "the same household, different kit" stay.
 **Supersedes:** N/A
 
 ---
