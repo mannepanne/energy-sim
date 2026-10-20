@@ -139,7 +139,7 @@ npm run derive:base-profile -- <folder>  # Print the base electricity profile ro
 npm run calibrate            # Solve the mean internal temperature for the NEED gas target
 npm run archetypes           # Print the archetype table against the pre-registered NEED readings (offline)
 npm run report               # Write reports/phase-1-london-semi.md (offline; commit it, CI checks drift)
-npm run bench                # Time 500 samples of 2 setups, then all 4; fails above 5 seconds
+npm run bench                # Time 500 samples of 2 setups, then all 4; fails above 2.5 seconds per setup
 ```
 
 Tests sit next to the code they test (`*.test.ts`), as the phase 1 spec lays out.
