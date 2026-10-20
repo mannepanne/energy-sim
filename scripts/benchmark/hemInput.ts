@@ -39,8 +39,11 @@ export interface HemInputOptions {
   totalHeatCapacityJPerK?: number;
 }
 
-/** `continuous`: heated every hour. `sap`: SAP's weekly pattern (see `SAP_HEATING_HOURS`), off between periods. */
-export type HeatingPattern = 'continuous' | 'sap';
+/**
+ * `continuous`: heated every hour. `sap`: SAP's weekly pattern (see `SAP_HEATING_HOURS`), off between periods.
+ * `unimodal`: SAP's weekend day, 07:00–23:00, every day of the week.
+ */
+export type HeatingPattern = 'continuous' | 'sap' | 'unimodal';
 
 /**
  * SAP's heating periods as the clock hours that start inside them: weekdays 07:00–09:00 and 16:00–23:00
@@ -83,6 +86,7 @@ const dayOfHours = (hours: readonly number[], setpointC: number): (number | null
 /** The thermostat schedule for a heating pattern, in HEM's schedule format. */
 export function thermostatSchedule(pattern: HeatingPattern, setpointC: number): ThermostatSchedule {
   if (pattern === 'continuous') return { main: constant(setpointC) };
+  if (pattern === 'unimodal') return { main: [{ value: 'day', repeat: 365 }], day: dayOfHours(SAP_HEATING_HOURS.weekend, setpointC) };
   return {
     main: [...OPENING_DAYS, { value: 'week', repeat: FULL_WEEKS }],
     week: [
@@ -446,14 +450,21 @@ const scheduledOptions: HemInputOptions = {
 };
 
 /**
- * The scheduled check (phase 2), agreed in hem/README.md before HEM was run: the decision run first, then a
- * diagnostic run with the same heat capacity heated in every hour. Their results are recorded in the engine's tests.
+ * The scheduled checks (phase 2), each agreed in hem/README.md before HEM was run on it: the decision run first,
+ * the check of a longer heat pump schedule, then a diagnostic run with the same heat capacity heated in every hour.
+ * Their results are recorded in the engine's tests.
  */
 export const SCHEDULED_HEM_RUNS: [HemRun, ...HemRun[]] = [
   {
     name: 'schedule-sap',
     description: 'Decision run: SAP heating periods at 19 °C operative, heat capacity from SAP’s thermal mass parameter',
     options: { ...scheduledOptions, heatingPattern: 'sap' },
+    comparableWithRough: false,
+  },
+  {
+    name: 'schedule-unimodal',
+    description: 'Heat pump schedule check: 07:00–23:00 every day at 19 °C operative, the same heat capacity',
+    options: { ...scheduledOptions, heatingPattern: 'unimodal' },
     comparableWithRough: false,
   },
   {

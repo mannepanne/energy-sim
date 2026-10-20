@@ -37,6 +37,17 @@ Phase 2 adds thermal mass and heating periods to the engine, and checks them aga
   Afterwards, an engine test pins the engine's figure and guards it within 10% of HEM.
 - **Time box:** two working days, starting 20 October 2026, 21:05.
 
+## Agreed before the heat pump schedule run (20 October 2026)
+
+The scheduled results below show that the one node's error depends on the heating pattern. Before a heat pump schedule longer than the gas one is used, HEM checks the engine on it. This section was committed before HEM was run on `schedule-unimodal.input.json`.
+
+- **The candidate schedule:** 07:00–23:00 every day, SAP's unimodal day (SAP 10.2 Table N7 note b), which SAP's Appendix N gives heat pumps on their days of longer heating. Heating is off from 23:00 to 07:00.
+- **Everything else as the decision run above:** the same house, quantity, 19 °C operative in HEM and 19.8 °C air in the engine, heat capacity, uncapped heating on both sides, weather, step, pre-roll and GMT hours.
+- **What it decides:**
+  - the gap is engine ÷ HEM − 1 on annual space heat, with the same bands: within 15%, the engine may use this schedule for the heat pump; 15–30%, it may not until the two-node fallback is built; above 30%, stop and review with Magnus;
+  - the **bias** is this gap minus the decision run's +4.3%. It is how far the engine moves the heat pump's space heat against the boiler's when the two run on these different schedules. A negative bias favours the heat pump. It is reported, and stated with the schedule wherever the schedule is used. It does not adjust anything.
+- **Not decided by this run:** whether the heat pump schedule is this one. That is Magnus's call, on the evidence in the schedules ADR.
+
 ## Scheduled results (20 October 2026)
 
 HEM was rebuilt at the pinned commit and run on the committed input files with the same weather file (SHA-256 checked). Rerunning `main.input.json` reproduced 15,455 kWh, so the build matches phase 1.

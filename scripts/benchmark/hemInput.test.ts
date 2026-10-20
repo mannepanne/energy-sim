@@ -116,6 +116,12 @@ describe('thermostatSchedule', () => {
     expect(schedule.weekend?.filter((value) => value === null)).toHaveLength(8);
   });
 
+  it('heats 07:00–23:00 every day for the unimodal pattern', () => {
+    const schedule = thermostatSchedule('unimodal', 19);
+    expect(schedule.main).toEqual([{ value: 'day', repeat: 365 }]);
+    expect(schedule.day?.flatMap((value, hour) => (value === 19 ? [hour] : []))).toEqual(SAP_HEATING_HOURS.weekend);
+  });
+
   it('opens on a Thursday, as 1 January 2026 does, and covers at least the 365 days', () => {
     const { main, week } = thermostatSchedule('sap', 19);
     expect(main.slice(0, 4)).toEqual(['weekday', 'weekday', 'weekend', 'weekend']);
