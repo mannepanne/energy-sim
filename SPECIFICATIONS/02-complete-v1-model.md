@@ -532,7 +532,7 @@ The flat-tariff work comes first, so a failed HEM check under a schedule still l
    - the HEM run and decision;
    - the recalibration and its ADR, with the sourced heat pump schedule (closes #13, with evidence on #14 and #15).
 6. `feature/phase-2-tariffs`: London cap rates, the Octopus snapshots (Cosy, Agile, export), and the control rules and their ADR.
-7. `feature/phase-2-report`: the phase 2 report, the archetype table, the bench workloads and the CI drift switch. The report adds a payback sensitivity table that ranks the capital costs, lifetimes and price changes by how much they move payback, since the running-cost tables can't show them (Magnus, 20 October 2026, after the [PR 38 review](https://github.com/mannepanne/energy-sim/pull/38)).
+7. `feature/phase-2-report`: the phase 2 report, the archetype table, the bench workloads and the CI drift switch. The report shows the heat pump on the gas schedule as the sensitivity of the heat pump schedule row, which the row-by-row tables can't move (PR 5: central £1,911 against £1,967 a year on the price cap). The report adds a payback sensitivity table that ranks the capital costs, lifetimes and price changes by how much they move payback, since the running-cost tables can't show them (Magnus, 20 October 2026, after the [PR 38 review](https://github.com/mannepanne/energy-sim/pull/38)).
 
 Until PR 5 lands, the engine heats continuously, as in phase 1. PRs 2–4 are built and tested on that, and their numbers shift once when schedules arrive. The report is only generated in PR 7.
 

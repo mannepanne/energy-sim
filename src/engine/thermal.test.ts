@@ -177,6 +177,8 @@ describe('input checks and schedule helpers', () => {
     expect(hours[186 * 24 + 6]).toBe(1);
     expect(hours.reduce((total, on) => total + on, 0)).toBe(52);
     expect(heatingHours(week, calendar)).toBe(hours);
+    // Another calendar gets its own expansion: in 2025, 1 January is a Wednesday, so the first Monday is day 5.
+    expect(heatingHours(week, buildCalendar(2025)).indexOf(1)).toBe(5 * 24 + 7);
   });
 
   it('accepts 168 values of 0 or 1 only', () => {

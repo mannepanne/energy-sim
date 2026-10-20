@@ -71,17 +71,22 @@ export function runThermalNode(
   return { spaceHeatKwh, internalTemperatureC, startTemperatureC };
 }
 
-const expandedSchedules = new WeakMap<readonly number[], Uint8Array>();
+const expandedSchedules = new WeakMap<Calendar, WeakMap<readonly number[], Uint8Array>>();
 
 /**
  * A heating schedule (168 values, Monday 00:00 local first) as 1 or 0 for every engine hour. Schedules come from
- * the register and are read once, so each is expanded once and kept.
+ * the register and are read once, so each is expanded once per calendar and kept.
  */
 export function heatingHours(schedule: readonly number[], calendar: Calendar): Uint8Array {
-  let hours = expandedSchedules.get(schedule);
+  let forCalendar = expandedSchedules.get(calendar);
+  if (!forCalendar) {
+    forCalendar = new WeakMap();
+    expandedSchedules.set(calendar, forCalendar);
+  }
+  let hours = forCalendar.get(schedule);
   if (!hours) {
     hours = Uint8Array.from(expandWeekly(schedule, calendar));
-    expandedSchedules.set(schedule, hours);
+    forCalendar.set(schedule, hours);
   }
   return hours;
 }

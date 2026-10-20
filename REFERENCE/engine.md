@@ -119,7 +119,7 @@ one hour, backward Euler, with a = C ÷ 1 h:
 - **Heating periods** come from the setup's schedule row, an hour-of-week profile of 1 (heating) and 0 (off) in UK local time (see "Time base"). In a period, the heating brings the house to the setpoint (`heating.setpoint`, 17.6 °C) if it can within the output cap. Outside a period, and on warm days, the house floats: there is no cooling, and it may sit above the setpoint.
   - **The gas setups** follow SAP's pattern: weekdays 07:00–09:00 and 16:00–23:00, weekends 07:00–23:00 (`heating.scheduleGas`).
   - **The heat pump setups** heat 07:00–23:00 every day, SAP's longer heat pump day (`heating.scheduleHeatPump`). On these two schedules the engine understates the heat pump's space heat against the boiler's by about 6.7%, against HEM (see "Checks against outside references").
-- **Output caps:** the heat pump's is its design heat loss × a margin, H × 24.2 K (SAP 10.2 Appendix N) × 1.15 (HeatpumpMonitor.org's median ratio of rated output to design heat loss): 7.6 kW for the 1930s semi. The boiler's is 24 kW for space heating. Hot water is outside both caps. A cap that binds leaves the house below the setpoint until it catches up.
+- **Output caps:** the heat pump's is its design heat loss × a margin, H × 24.2 K (SAP 10.2 Appendix N, section N2) × 1.15 (HeatpumpMonitor.org's median ratio of rated output to design heat loss): 7.6 kW for the 1930s semi. The boiler's is 24 kW for space heating. Hot water is outside both caps. A cap that binds leaves the house below the setpoint until it catches up.
 - **The pre-roll:** each year starts from the temperature the node reaches over the year's last week, run first from the setpoint.
 - `offset` is the outdoor-temperature offset row (0 for the typical year; tests lower it to build a colder year). Each hour's mean power in W ÷ 1,000 is its energy in kWh.
 
@@ -326,6 +326,8 @@ Engine tests use small inline registers, built by `fixtureRegister(values)`, so 
 | **H** (fabric quality factor 1) | | | **245** |
 
 At a fabric quality factor of 0.9, H = 220.5 W/K. With a party wall U of 0.25 and y = 0.1, H = 245 + 50 × 0.25 + 0.1 × 200 = 277.5 W/K.
+
+**Heating:** the fixture heats in every hour at 20 °C (both schedules all 1), with C from 250 kJ/m²K × 100 m² (6,944 Wh/K) and caps of 24 kW for the boiler and H × 24 K × 1 = 5,880 W for the heat pump. Under steady weather the mass then never matters, so every hour is the same and the hand-worked figures below hold.
 
 **A year at a constant 5 °C with no sun**, heated to 20 °C. The fixture's occupancy formula gives 4 occupants at any floor area, so internal gains are 4 × 100 = 400 W and hot water is 20 + 4 × 20 = 100 litres a day:
 

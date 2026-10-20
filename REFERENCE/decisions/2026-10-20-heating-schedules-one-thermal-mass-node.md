@@ -17,7 +17,7 @@ The engine heats the house in **heating periods**, to a **setpoint**, up to each
   - The gas setups use SAP's pattern: weekdays 07:00–09:00 and 16:00–23:00 (SAP 10.2 Table 9), weekends 07:00–23:00 (SAP's unimodal day).
   - The heat pump setups heat 07:00–23:00 every day: SAP's longer heat pump day (Magnus, 20 October 2026; see "The heat pump schedule" below).
 - **Output caps:**
-  - the heat pump's is its design heat loss × a margin: H × 24.2 K (SAP 10.2 Appendix N) × 1.15 (the median ratio of rated output to design heat loss on HeatpumpMonitor.org);
+  - the heat pump's is its design heat loss × a margin: H × 24.2 K (SAP 10.2 Appendix N, section N2) × 1.15 (the median ratio of rated output to design heat loss on HeatpumpMonitor.org);
   - the gas boiler's is a rated output row, 24 kW.
 - **The calibrated behaviour row is the setpoint**, `heating.setpoint`, an air temperature. It replaces `heating.meanInternalTemperature`, which is removed.
   - The target is unchanged: the 1930s semi's central gas use is 13,200 kWh.
