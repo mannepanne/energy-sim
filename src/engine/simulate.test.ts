@@ -8,6 +8,9 @@ import { HOURS_PER_YEAR } from './constants.ts';
 import { defaultHouse } from './archetypes.ts';
 import { readInputs, type EngineInputs } from './inputs.ts';
 import { simulate } from './simulate.ts';
+import { totalGainsW } from './demand.ts';
+import { heatLoss } from './geometry.ts';
+import { runThermalNode } from './thermal.ts';
 import { sunPath } from './solar.ts';
 import { fixtureAccessor, type FixtureValues } from './testing/fixtureRegister.ts';
 import { prepareWeather, weatherFromSnapshot, type PreparedWeather } from './weather.ts';
@@ -22,8 +25,10 @@ const run = (values: FixtureValues, setup: 'gas' | 'heatPump' = 'gas') => {
   return simulate(inputs, prepareWeather(weather, inputs), setup);
 };
 
-/** The engine's result on the HEM check, pinned so a change to the solar or heat loss method shows up here. */
+/** The engine's results on the HEM checks, pinned so a change to the solar, heat loss or thermal method shows up here. */
 const HEM_CHECK_ENGINE_KWH = 12_999;
+const HEM_SCHEDULED_CHECK_ENGINE_KWH = 14_165;
+const HEM_CONTINUOUS_WITH_MASS_ENGINE_KWH = 15_851;
 
 /** The fixture house's hot water: 100 litres a day heated by 40 K. */
 const hotWaterPerDay = (100 * 4.18 * 40) / 3600;
@@ -272,7 +277,7 @@ describe('roof solar on the PVGIS year', () => {
   });
 });
 
-describe('the HEM check (benchmark archetype at 17.8 °C air on the PVGIS year)', () => {
+describe('the HEM checks (benchmark archetype on the PVGIS year)', () => {
   // HEM's own inputs, copied from scripts/benchmark/draftValues.ts rather than imported, so the check stays
   // independent. The engine is given HEM's element areas directly, not derived geometry, so both sides describe
   // the same house. HEM's input has no party wall loss, no thermal bridging and no curtains, so those are 0 here.
@@ -294,7 +299,7 @@ describe('the HEM check (benchmark archetype at 17.8 °C air on the PVGIS year)'
     'gains.nonNormalIncidenceFactor': 0.9,
     'gains.windowFrameFactor': 0.7,
     'gains.solarAccessFactor': 1,
-    'heating.meanInternalTemperature': 17.8,
+    'heating.setpoint': 17.8,
   });
   const inputs: EngineInputs = {
     ...readInputs(access, { house: { ...defaultHouse(access, 'semi1930s'), floorAreaM2: 90 } }),
@@ -308,11 +313,47 @@ describe('the HEM check (benchmark archetype at 17.8 °C air on the PVGIS year)'
     groundFloorUValue: 0.75,
   };
 
-  it('gives annual space heat within 10% of HEM’s thermostat-17 run (13,660 kWh)', () => {
-    const result = simulate(inputs, prepareWeather(weather, inputs), 'gas');
+  const prepared = prepareWeather(weather, inputs);
+
+  it('continuous: gives annual space heat within 10% of HEM’s thermostat-17 run (13,660 kWh) at 17.8 °C air', () => {
+    // The steady-state guard on heat loss and gains, so it runs without thermal mass, as in phase 1. The fixture's
+    // schedules heat in every hour. The scheduled check below guards the thermal node.
+    const result = simulate({ ...inputs, heatCapacityWhPerK: 0 }, prepared, 'gas');
     expect(inputs.internalGainsW).toBe(450);
     expect(result.heatLoss.totalWPerK).toBeCloseTo(302, 0);
     expect(Math.round(result.annual.spaceHeatKwh)).toBe(HEM_CHECK_ENGINE_KWH);
     expect(Math.abs(result.annual.spaceHeatKwh / 13_660 - 1)).toBeLessThan(0.1);
+  });
+
+  // The decision run's rules (scripts/benchmark/hem/README.md, committed before HEM ran): SAP's periods on GMT all
+  // year, weekdays from 2026 (1 January a Thursday), 19.8 °C air, C = 250 kJ/m²K × 90 m², and no output cap.
+  const SAP_WEEKDAY_HOURS = [7, 8, 16, 17, 18, 19, 20, 21, 22];
+  const SAP_WEEKEND_HOURS = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22];
+  const THURSDAY = 3;
+  const node = { heatLossWPerK: heatLoss(inputs).totalWPerK, heatCapacityWhPerK: inputs.heatCapacityWhPerK, outputCapW: Infinity };
+  const gains = totalGainsW(inputs, prepared.meanVerticalIrradiance);
+  const runAt = (setpointC: number, scheduled: boolean): number => {
+    const setpoints = new Float64Array(HOURS_PER_YEAR).fill(Number.NaN);
+    for (let hour = 0; hour < HOURS_PER_YEAR; hour += 1) {
+      const weekday = (Math.floor(hour / 24) + THURSDAY) % 7;
+      const hours = weekday < 5 ? SAP_WEEKDAY_HOURS : SAP_WEEKEND_HOURS;
+      if (!scheduled || hours.includes(hour % 24)) setpoints[hour] = setpointC;
+    }
+    return sum(runThermalNode(node, prepared.outdoorTemperatureC, gains, setpoints, setpointC).spaceHeatKwh);
+  };
+
+  it('scheduled: gives annual space heat within 10% of HEM’s schedule-sap run (13,580 kWh), the pre-registered check', () => {
+    expect(inputs.heatCapacityWhPerK).toBeCloseTo((250 * 90) / 3.6, 9);
+    const annual = runAt(19.8, true);
+    expect(Math.round(annual)).toBe(HEM_SCHEDULED_CHECK_ENGINE_KWH);
+    expect(Math.abs(annual / 13_580 - 1)).toBeLessThan(0.1);
+  });
+
+  it('continuous with the same mass: 8.4% below HEM’s continuous-sap-mass diagnostic (17,311 kWh)', () => {
+    // A diagnostic, not a guard: one node, with all the mass at the air temperature, stores daytime surplus more
+    // readily than HEM's elements, so it under-predicts heating in every hour and over-predicts heating in periods.
+    const annual = runAt(19.8, false);
+    expect(Math.round(annual)).toBe(HEM_CONTINUOUS_WITH_MASS_ENGINE_KWH);
+    expect(annual / 17_311 - 1).toBeCloseTo(-0.084, 3);
   });
 });

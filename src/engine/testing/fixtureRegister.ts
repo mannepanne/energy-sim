@@ -20,6 +20,8 @@ const CORRELATIONS: Readonly<Partial<Record<RowId, readonly [UncertainRowId, Unc
 const PROFILE_RESOLUTIONS: Readonly<Partial<Record<RowId, 'hour-of-day' | 'hour-of-week' | 'month'>>> = {
   'hotWater.drawOffProfile': 'hour-of-day',
   'electricity.baseProfileWeekly': 'hour-of-week',
+  'heating.scheduleGas': 'hour-of-week',
+  'heating.scheduleHeatPump': 'hour-of-week',
   'electricity.baseProfileMonthly': 'month',
 };
 
@@ -28,6 +30,9 @@ export const EVEN_DAILY_PROFILE: readonly number[] = Array.from({ length: 24 }, 
 
 /** An even hour-of-week profile: 1 in every hour. */
 export const EVEN_WEEKLY_PROFILE: readonly number[] = Array.from({ length: 168 }, () => 1);
+
+/** A heating schedule that heats in every hour of the week. */
+export const CONTINUOUS_SCHEDULE: readonly number[] = EVEN_WEEKLY_PROFILE;
 
 /** An even month profile: 1 in every month. */
 export const EVEN_MONTHLY_PROFILE: readonly number[] = Array.from({ length: 12 }, () => 1);
@@ -66,6 +71,7 @@ const TABLE_KEYS: Readonly<Partial<Record<RowId, { keyedBy: TableKeyKind; keys: 
   'archetypes.occupancy': { keyedBy: 'coefficient', keys: ['base', 'saturation', 'curvature', 'slope', 'minimumFloorArea'] },
   'fabric.wallUValue': { keyedBy: 'age band/construction/answer', keys: wallKeys },
   'fabric.partyWallUValue': { keyedBy: 'construction', keys: [...WALL_CONSTRUCTIONS] },
+  'fabric.thermalMassParameter': { keyedBy: 'construction', keys: [...WALL_CONSTRUCTIONS] },
   'fabric.windowUValue': { keyedBy: 'glazing answer', keys: [...GLAZING_ANSWERS] },
   'fabric.doorUValue': { keyedBy: 'age band', keys: bandKeyed },
   'fabric.roofUValue': { keyedBy: 'loft answer', keys: [...LOFT_ANSWERS] },
@@ -149,7 +155,16 @@ export const FIXTURE_HOUSE: Readonly<Record<Exclude<RowId, typeof SERIES_ID>, Fi
   'gains.windowFrameFactor': 0.8,
   'gains.solarAccessFactor': 1,
   'gains.groundReflectance': 0.2,
-  'heating.meanInternalTemperature': 20,
+  // Heated in every hour at 20 °C, so under steady weather the thermal mass never matters and every hour is the same.
+  'heating.setpoint': 20,
+  'heating.scheduleGas': CONTINUOUS_SCHEDULE,
+  'heating.scheduleHeatPump': CONTINUOUS_SCHEDULE,
+  // 250 × 100 m² = 25,000 kJ/K = 6,944 Wh/K: a time constant of 28 hours at H = 245 W/K.
+  'fabric.thermalMassParameter': 250,
+  // Caps well above the fixture's 3,275 W, so they bind only where a test sets them: 24 kW, and 245 × 24 × 1 = 5,880 W.
+  'heating.boilerRatedOutput': 24,
+  'heating.designTemperatureDifference': 24,
+  'heating.heatPumpOutputMargin': 1,
   'heating.boilerSeasonalEfficiency': 0.8,
   'heating.heatPumpSpf': 2.5,
   'heating.heatPumpSpfWellInstalled': 3.5,

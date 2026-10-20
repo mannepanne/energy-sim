@@ -37,6 +37,20 @@ Phase 2 adds thermal mass and heating periods to the engine, and checks them aga
   Afterwards, an engine test pins the engine's figure and guards it within 10% of HEM.
 - **Time box:** two working days, starting 20 October 2026, 21:05.
 
+## Scheduled results (20 October 2026)
+
+HEM was rebuilt at the pinned commit and run on the committed input files with the same weather file (SHA-256 checked). Rerunning `main.input.json` reproduced 15,455 kWh, so the build matches phase 1.
+
+| Run | HEM space heat | HEM delivered | HEM air temperature when heating | The engine | Engine ÷ HEM − 1 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `schedule-sap` (decision) | **13,580 kWh** | 13,580 kWh | 20.45 °C | **14,165 kWh** (19.8 °C air) | **+4.3%** |
+| `continuous-sap-mass` (diagnostic) | 17,311 kWh | 17,311 kWh | 19.81 °C | 15,851 kWh (19.8 °C air) | −8.4% |
+
+- **The decision:** the gap is +4.3%, inside 15%, so the one-node engine proceeds, as the rule says. The engine test pins 14,165 kWh and guards it within 10% of HEM.
+- **The post-run check:** HEM delivered exactly its demand in both runs, so its heater never ran out of capacity.
+- **The diagnostic** puts the one node 8.4% below HEM under continuous heating with the same mass. At 19.8 °C with no mass, the engine gives 16,997 kWh, 1.8% below. So the one node's error depends on the heating pattern: it stores daytime surplus heat more readily than HEM's elements, which lowers continuous heating, and it charges its mass at the air temperature, which raises heating after a cold spell. Under SAP's periods the two partly cancel. A heat pump schedule that heats for longer moves the engine towards the continuous error, and so would understate its heat; see the [schedules ADR](../../../REFERENCE/decisions/2026-10-20-heating-schedules-one-thermal-mass-node.md).
+- **A sensitivity, run after the result:** HEM heated the air to 20.45 °C on average when heating, not the 19.8 °C fixed beforehand, because under intermittent heating the walls are colder and the air must run warmer for the same operative temperature. At 20.45 °C the engine gives 15,445 kWh, +13.7%, still inside 15%. The decision does not depend on the 19.8 °C choice.
+
 ## How to reproduce the run
 
 1. Install Rust with [rustup](https://rustup.rs), then clone and build HEM at the commit above:
@@ -56,6 +70,7 @@ Phase 2 adds thermal mass and heating periods to the engine, and checks them aga
    target/release/hem path/to/main.input.json -e path/to/london_tmy.epw --heat-balance
    ```
 4. Read "Space heat demand" (kWh/m²) in the `__core__results_summary.csv` output, and multiply by 90 m². Record it in `HEM_RESULTS` in `comparison.ts`, then run `npm run benchmark:tables` and update the benchmark README.
+   For the scheduled runs, record the figures in the engine's HEM checks in `src/engine/simulate.test.ts` and in the table above. The hourly `__core__results.csv` gives the air temperature (`house: internal air temp`), the demand (`house: space heat demand`) and the heater's output (`main: energy output`).
 
 ## Results (17 October 2026)
 
