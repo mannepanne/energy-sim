@@ -566,18 +566,18 @@ Run `/review-pr` on each.
 
 ## Technical debt
 
-Closed by this phase: [#7](https://github.com/mannepanne/energy-sim/issues/7), [#8](https://github.com/mannepanne/energy-sim/issues/8) (the gas carbon factor, checked in the tariffs PR), [#9](https://github.com/mannepanne/energy-sim/issues/9) (its MCS cross-check moves to [#24](https://github.com/mannepanne/energy-sim/issues/24)), [#13](https://github.com/mannepanne/energy-sim/issues/13), [#18](https://github.com/mannepanne/energy-sim/issues/18) and [#20](https://github.com/mannepanne/energy-sim/issues/20). [#15](https://github.com/mannepanne/energy-sim/issues/15) also closes, if the heat pump schedule is sourced.
+Closed by this phase: [#7](https://github.com/mannepanne/energy-sim/issues/7), [#8](https://github.com/mannepanne/energy-sim/issues/8) (the gas carbon factor, checked in the tariffs PR), [#9](https://github.com/mannepanne/energy-sim/issues/9) (its MCS cross-check moves to [#24](https://github.com/mannepanne/energy-sim/issues/24)), [#13](https://github.com/mannepanne/energy-sim/issues/13), [#18](https://github.com/mannepanne/energy-sim/issues/18) and [#20](https://github.com/mannepanne/energy-sim/issues/20). [#15](https://github.com/mannepanne/energy-sim/issues/15) carries forward: the heat pump's day is SAP's, not a field source, and the report states the 6.7-point bias.
 
 Carried forward:
 - [#14](https://github.com/mannepanne/energy-sim/issues/14): fabric error versus behaviour. Phase 2 adds the archetype gaps as evidence. Settling it needs homes with known fabric.
-- [#15](https://github.com/mannepanne/energy-sim/issues/15): if the heat pump schedule can't be sourced.
+- [#15](https://github.com/mannepanne/energy-sim/issues/15): the heat pump's schedule has no field source (see above).
 - [#16](https://github.com/mannepanne/energy-sim/issues/16): one fixed weather year. Phase 2 adds a price scenario.
 - [#17](https://github.com/mannepanne/energy-sim/issues/17): the annual grid carbon factor.
 - [#24](https://github.com/mannepanne/energy-sim/issues/24): cross-check the derived geometry against an MCS heat loss calculator (split from #9).
 - [#26](https://github.com/mannepanne/energy-sim/issues/26): window areas use the RdSAP 2012 formula, because RdSAP 10 has none.
 - [#27](https://github.com/mannepanne/energy-sim/issues/27): the air change rate is an estimate by age band, not RdSAP's ventilation worksheet.
 
-New, tracked when their code lands:
+New in phase 2:
 - a simple output cap rather than heat pump sizing, and no backup heat ([#43](https://github.com/mannepanne/energy-sim/issues/43));
 - one location (a scope item for later phases, not an issue);
 - undiscounted payback, assuming the boiler needs replacing now ([#37](https://github.com/mannepanne/energy-sim/issues/37));
