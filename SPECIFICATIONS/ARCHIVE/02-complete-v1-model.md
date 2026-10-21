@@ -2,6 +2,8 @@
 
 ## Phase overview
 
+**Status: complete.** Magnus closed phase 2 on 21 October 2026, after the [phase 2 report](../../reports/phase-2-v1-model.md) merged. Every acceptance criterion is met; the technical debt left open is listed by issue under "Technical debt".
+
 **Phase number:** 2
 **Phase name:** Complete v1 model (headless)
 **Estimated timeframe:** 10–14 weeks of side-project time. Sourcing register values and building the data snapshots are the long poles.
@@ -17,15 +19,15 @@ Phase 2 turns the one-house engine into the model v1 needs:
 For time-of-use tariffs to mean anything, the engine has to know *when* the house is heated. So phase 2 adds thermal mass and heating schedules, and checks them against HEM before relying on them. There is still no user interface (phase 3), and London is still the only location.
 
 **Decisions Magnus made on 18 October 2026:**
-- trim phase 2 to the v1 feature list in the [project outline](./ORIGINAL_IDEA/project-outline.md);
+- trim phase 2 to the v1 feature list in the [project outline](../ORIGINAL_IDEA/project-outline.md);
 - add heating schedules with thermal mass, made lower-risk by putting the flat-tariff work first and agreeing a fallback in advance;
 - use a heat pump efficiency curve tied to the field-measured SPF;
 - use a curated set of house types;
 - keep Octopus Agile, and state its limitations.
 
-Background: [project-outline.md](./ORIGINAL_IDEA/project-outline.md) and [home-energy-simulator-spec.md](./ORIGINAL_IDEA/home-energy-simulator-spec.md).
-Phase 1: the [archived spec](./ARCHIVE/01-engine-core.md), [engine.md](../REFERENCE/engine.md) and [register.md](../REFERENCE/register.md).
-Decisions: the [client-side snapshots](../REFERENCE/decisions/2026-10-17-client-side-build-time-snapshots.md), [typed register](../REFERENCE/decisions/2026-10-17-typed-parameter-register.md) and [calibration](../REFERENCE/decisions/2026-10-17-air-temperature-calibrated-to-need.md) ADRs.
+Background: [project-outline.md](../ORIGINAL_IDEA/project-outline.md) and [home-energy-simulator-spec.md](../ORIGINAL_IDEA/home-energy-simulator-spec.md).
+Phase 1: the [archived spec](./01-engine-core.md), [engine.md](../../REFERENCE/engine.md) and [register.md](../../REFERENCE/register.md).
+Decisions: the [client-side snapshots](../../REFERENCE/decisions/2026-10-17-client-side-build-time-snapshots.md), [typed register](../../REFERENCE/decisions/2026-10-17-typed-parameter-register.md) and [calibration](../../REFERENCE/decisions/2026-10-17-air-temperature-calibrated-to-need.md) ADRs.
 
 ---
 
@@ -70,7 +72,7 @@ Decisions: the [client-side snapshots](../REFERENCE/decisions/2026-10-17-client-
 - [x] **Tests**, plus updates to `REFERENCE/engine.md`, `REFERENCE/register.md` and the troubleshooting guide.
 
 ### Out of scope (later phases or deferred)
-- Any user interface, and user overrides through it (phase 3). The phase 3 notes in [SPECIFICATIONS/CLAUDE.md](./CLAUDE.md) still apply.
+- Any user interface, and user overrides through it (phase 3). The phase 3 notes in [SPECIFICATIONS/CLAUDE.md](../CLAUDE.md) still apply.
 - Weather variation between years. One PVGIS typical year stays.
 - An hourly grid-carbon profile. The annual factor stays ([#17](https://github.com/mannepanne/energy-sim/issues/17) carries forward).
 - Heat pump sizing studies and backup heating. The output cap below is a simple limit, not a sizing method.
@@ -108,7 +110,7 @@ Validation against real homes and expert review stay after the beta launch, and 
 
 These need ADRs, which Magnus confirms, before the PR that relies on them is merged.
 
-1. **Archetype tables, categorical values and derived geometry.** This amends the [typed register ADR](../REFERENCE/decisions/2026-10-17-typed-parameter-register.md).
+1. **Archetype tables, categorical values and derived geometry.** This amends the [typed register ADR](../../REFERENCE/decisions/2026-10-17-typed-parameter-register.md).
    - **A new row kind, `table`,** holds values keyed by archetype, RdSAP age band, construction or a quick-facts answer.
    - **Keys are strings, and a cell may be fixed or uncertain.** An uncertain cell is sampled with the hash key `rowId|key`, so adding cells never moves other draws.
    - **Categorical facts** (house type, construction) are allowed as string values in table cells.
@@ -118,7 +120,7 @@ These need ADRs, which Magnus confirms, before the PR that relies on them is mer
      - a weekly profile resolution (`hour-of-week`, 168 values);
      - snapshot schemas for each new data file;
      - the parity test and throwing accessor extended to table keys.
-2. **Heating schedules with one thermal-mass node and an output cap.** This supersedes part of the [calibration ADR](../REFERENCE/decisions/2026-10-17-air-temperature-calibrated-to-need.md).
+2. **Heating schedules with one thermal-mass node and an output cap.** This supersedes part of the [calibration ADR](../../REFERENCE/decisions/2026-10-17-air-temperature-calibrated-to-need.md).
    - The engine heats to a setpoint during heating periods, up to a capped output, and lets the house cool against its thermal mass outside them.
    - The calibrated behaviour moves from a continuous mean temperature to the setpoint.
    - The fallback if HEM disagrees by 15–30% is agreed now: a two-node model (air and mass, as in ISO 13790's 5R1C).
@@ -302,7 +304,7 @@ C \frac{dT_{in}}{dt} = Q_{heat}(t) + G_{solar}(t) + G_{internal}(t) - H\,\big(T_
 - **Heat pump setups:** a separate row for longer, lower heating, the usual way heat pumps are run.
   - **Sourcing it is a phase 2 deliverable:** the Electrification of Heat trial's reports or data (heating hours, internal temperatures) or HeatpumpMonitor.org.
   - If no source is found by the report PR, the row equals the gas schedule, and the report states the issue 15 bias in its headline.
-  - **Decided in PR 5 (Magnus, 20 October 2026):** no source gives heat pump heating hours, and on the gas schedule the capped heat pump leaves the house about 2 K colder on cold days, which the Electrification of Heat homes don't show. The row is 07:00–23:00 every day, SAP's longer heat pump day (SAP 10.2 Appendix N), checked against HEM under pre-registered rules (−2.4%). On the two schedules the engine understates the heat pump's space heat against the boiler's by about 6.7 points, which the report states. See the [schedules ADR](../REFERENCE/decisions/2026-10-20-heating-schedules-one-thermal-mass-node.md).
+  - **Decided in PR 5 (Magnus, 20 October 2026):** no source gives heat pump heating hours, and on the gas schedule the capped heat pump leaves the house about 2 K colder on cold days, which the Electrification of Heat homes don't show. The row is 07:00–23:00 every day, SAP's longer heat pump day (SAP 10.2 Appendix N), checked against HEM under pre-registered rules (−2.4%). On the two schedules the engine understates the heat pump's space heat against the boiler's by about 6.7 points, which the report states. See the [schedules ADR](../../REFERENCE/decisions/2026-10-20-heating-schedules-one-thermal-mass-node.md).
   - Either way, the sensitivity table shows the effect.
   - Neutrality: the row is never tuned to favour either setup.
 
@@ -354,7 +356,7 @@ C \frac{dT_{in}}{dt} = Q_{heat}(t) + G_{solar}(t) + G_{internal}(t) - H\,\big(T_
 That gives 10 combinations: 2 gas setups × 2 tariffs, plus 2 heat pump setups × 3 tariffs. Gas fuel is always on the price cap; a gas home's electricity may be on the cap or Agile.
 
 **Price rows for each tariff:**
-- unit rates and standing charges, including VAT (the Octopus API's inc-VAT values). *Decided in PR 6 (Magnus, 21 October 2026): every electricity price row is stored before VAT and one VAT row, today 0% until 31 March 2027, applies to all of them, Agile's past rates included, so the tariffs stay consistent when VAT returns; see the [tariff control ADR](../REFERENCE/decisions/2026-10-21-rule-based-tariff-control.md);*
+- unit rates and standing charges, including VAT (the Octopus API's inc-VAT values). *Decided in PR 6 (Magnus, 21 October 2026): every electricity price row is stored before VAT and one VAT row, today 0% until 31 March 2027, applies to all of them, Agile's past rates included, so the tariffs stay consistent when VAT returns; see the [tariff control ADR](../../REFERENCE/decisions/2026-10-21-rule-based-tariff-control.md);*
 - negative Agile prices are passed through, so the house is paid to import;
 - one flat export rate applies to every solar setup. It is an uncertain row from 4.1p (Octopus's fixed Smart Export Guarantee) to 15p, with a mode of 12p for Outgoing Octopus, the flat tariff once called Outgoing Fixed (Magnus, 20 October 2026). The rates are checked when the snapshot is built;
 - each tariff has its `lastChecked`, cadence and `validUntil`.
@@ -407,7 +409,7 @@ The phase 1 report stays as a historical file. It is no longer regenerated, and 
 
 ### Data downloads
 
-Magnus approves these in one go when implementation starts. Packages follow the [14-day rule](../REFERENCE/decisions/2026-10-18-fourteen-day-dependency-wait.md).
+Magnus approves these in one go when implementation starts. Packages follow the [14-day rule](../../REFERENCE/decisions/2026-10-18-fourteen-day-dependency-wait.md).
 - **RdSAP 10 specification tables** (BRE PDF, already cited).
 - **NEED 2026 tables** by type, age and bedrooms (refetched for the extra archetypes).
 - **Ofgem price cap** regional rates (London) for the current quarter.
@@ -490,7 +492,7 @@ Rows that become derived are removed: element areas, volume and `heating.meanInt
 `geometry.test.ts`, `simulate.test.ts`, `compare.test.ts`, `sensitivity.test.ts`, the fixture register, the HEM check fixture, the calibration test and `scripts/report/build.test.ts`.
 
 ### Manual checklist
-- [ ] Magnus reads the phase 2 report.
+- [x] Magnus reads the phase 2 report. *(Magnus closed the phase on 21 October 2026.)*
 
 ---
 
@@ -576,21 +578,21 @@ Carried forward:
 - [#27](https://github.com/mannepanne/energy-sim/issues/27): the air change rate is an estimate by age band, not RdSAP's ventilation worksheet.
 
 New, tracked when their code lands:
-- a simple output cap rather than heat pump sizing, and no backup heat;
-- one location;
+- a simple output cap rather than heat pump sizing, and no backup heat ([#43](https://github.com/mannepanne/energy-sim/issues/43));
+- one location (a scope item for later phases, not an issue);
 - undiscounted payback, assuming the boiler needs replacing now ([#37](https://github.com/mannepanne/energy-sim/issues/37));
 - the PV inverter is never replaced within PV's lifetime ([#39](https://github.com/mannepanne/energy-sim/issues/39));
-- Agile represented by a past year on typical weather;
+- Agile represented by a past year on typical weather ([#44](https://github.com/mannepanne/energy-sim/issues/44));
 - weekdays taken from the 2026 reference year ([#25](https://github.com/mannepanne/energy-sim/issues/25));
 - no carbon credit for export ([#34](https://github.com/mannepanne/energy-sim/issues/34));
-- the heat pump's standby is a share of its electricity, not kWh a day, so small houses get less of it and their mild hours stay a little optimistic against the Electrification of Heat daily data (see `REFERENCE/engine.md`).
+- the heat pump's standby is a share of its electricity, not kWh a day, so small houses get less of it and their mild hours stay a little optimistic against the Electrification of Heat daily data (see `REFERENCE/engine.md`; [#45](https://github.com/mannepanne/energy-sim/issues/45)).
 
 ---
 
 ## Related documentation
 
-- [Project outline](./ORIGINAL_IDEA/project-outline.md) and [model and register spec](./ORIGINAL_IDEA/home-energy-simulator-spec.md)
-- [Phase 1 spec (archived)](./ARCHIVE/01-engine-core.md), [engine.md](../REFERENCE/engine.md) and [register.md](../REFERENCE/register.md)
-- [ADR: client-side, build-time snapshots](../REFERENCE/decisions/2026-10-17-client-side-build-time-snapshots.md)
-- [ADR: typed parameter register](../REFERENCE/decisions/2026-10-17-typed-parameter-register.md)
-- [ADR: calibration to NEED](../REFERENCE/decisions/2026-10-17-air-temperature-calibrated-to-need.md)
+- [Project outline](../ORIGINAL_IDEA/project-outline.md) and [model and register spec](../ORIGINAL_IDEA/home-energy-simulator-spec.md)
+- [Phase 1 spec (archived)](./01-engine-core.md), [engine.md](../../REFERENCE/engine.md) and [register.md](../../REFERENCE/register.md)
+- [ADR: client-side, build-time snapshots](../../REFERENCE/decisions/2026-10-17-client-side-build-time-snapshots.md)
+- [ADR: typed parameter register](../../REFERENCE/decisions/2026-10-17-typed-parameter-register.md)
+- [ADR: calibration to NEED](../../REFERENCE/decisions/2026-10-17-air-temperature-calibrated-to-need.md)

@@ -65,7 +65,7 @@
       "label": "House type of each archetype",
       "unit": "category",
       "status": "approximate",
-      "rationale": "The archetype set agreed in the phase 2 spec (SPECIFICATIONS/02-complete-v1-model.md, \"House types and geometry\"). A bungalow is taken as detached, with no party wall.",
+      "rationale": "The archetype set agreed in the phase 2 spec (SPECIFICATIONS/ARCHIVE/02-complete-v1-model.md, \"House types and geometry\"). A bungalow is taken as detached, with no party wall.",
       "lastChecked": "2026-10-18",
       "refreshCadence": "static",
       "overridable": false,

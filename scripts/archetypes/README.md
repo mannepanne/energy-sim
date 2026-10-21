@@ -1,6 +1,6 @@
 # Archetype checks against NEED
 
-This folder checks each house type (archetype) against measured gas use from NEED, the government's National Energy Efficiency Data-Framework. The plan is in [SPECIFICATIONS/02-complete-v1-model.md](../../SPECIFICATIONS/02-complete-v1-model.md), section "House types and geometry".
+This folder checks each house type (archetype) against measured gas use from NEED, the government's National Energy Efficiency Data-Framework. The plan is in [SPECIFICATIONS/ARCHIVE/02-complete-v1-model.md](../../SPECIFICATIONS/ARCHIVE/02-complete-v1-model.md), section "House types and geometry".
 
 ## Agreed before the run (18 October 2026)
 

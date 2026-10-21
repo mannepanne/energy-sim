@@ -17,7 +17,7 @@ This section was written and committed before HEM was run on the archetype. It f
 
 ## Agreed before the scheduled run (20 October 2026)
 
-Phase 2 adds thermal mass and heating periods to the engine, and checks them against HEM under the same schedule ([phase 2 spec](../../../SPECIFICATIONS/02-complete-v1-model.md), "Heating over time"). This section was written and committed before HEM was run on the scheduled inputs. It fixes what counts as the answer, so the answer can't be chosen afterwards.
+Phase 2 adds thermal mass and heating periods to the engine, and checks them against HEM under the same schedule ([phase 2 spec](../../../SPECIFICATIONS/ARCHIVE/02-complete-v1-model.md), "Heating over time"). This section was written and committed before HEM was run on the scheduled inputs. It fixes what counts as the answer, so the answer can't be chosen afterwards.
 
 - **The house:** the phase 1 benchmark house, as above: the draft values in `draftValues.ts`, with HEM's own element areas (heat loss coefficient 302 W/K). The engine side uses the same fixture as the continuous HEM check, in `src/engine/testing/hemCheck.ts`, not the register's semi with derived geometry.
 - **The quantity compared:** annual space heat in kWh: HEM's "Space heat demand" in the results summary × 90 m², against the engine's annual space heat. HEM's heater stays the 50 kW instant electric heater and the engine's output cap is off for the check, so on both sides the heat delivered equals the demand. After the run, HEM's delivered space heat is checked to equal its demand to within 1%.

@@ -115,12 +115,12 @@ Replace this template guidance with your actual phase list when you:
 
 Development runs in four phases. v1 leads with the numbers, and the 3D street follows once the numbers are trusted. Only the current phase has a full spec file; later phases get theirs when they start.
 
-**Current phase:** Phase 2, complete v1 model (PRs 1–6, archetypes, heat pump curve, solar, costs and payback, heating schedules and tariffs, merged; PR 7, the phase 2 report, in review; Magnus reading the report closes the phase). Phase 1 is complete and its spec is archived.
+**Current phase:** Phase 3, v1 website and beta launch (spec to be written). Phases 1 and 2 are complete and their specs are archived.
 
 1. **[01-engine-core.md](./ARCHIVE/01-engine-core.md)** (complete, archived 18 October 2026)
    Proves the heat-demand physics and the trust plumbing. A benchmark against HEM or measured data comes first. Then repo tooling and CI, the typed parameter register, and a headless hourly engine for one archetype (a 1930s semi in London), comparing gas with a heat pump on the price cap. Results come with paired uncertainty ranges and a sensitivity table, and the phase ends with a report Magnus can check without running code. Sending it to an outside expert is optional.
 
-2. **[02-complete-v1-model.md](./02-complete-v1-model.md)** (10–14 weeks; spec reviewed and revised)
+2. **[02-complete-v1-model.md](./ARCHIVE/02-complete-v1-model.md)** (complete, archived 21 October 2026)
    About ten house types with quick facts; gas boiler or heat pump, each with or without solar; a heat pump COP curve anchored on the field SPF; thermal mass and heating schedules, checked against HEM; the London price cap, Octopus Cosy and Agile; costs, the grant and payback under a shared price scenario. Weather variation between years, an hourly grid-carbon profile and heat pump sizing are deferred.
 
 3. **Phase 3: v1 website and beta launch** (spec to be written)

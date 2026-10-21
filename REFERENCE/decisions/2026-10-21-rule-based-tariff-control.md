@@ -108,6 +108,6 @@ For comparison, the gas boiler on the price cap costs £2,036 and emits 2,790 kg
 
 ## References
 
-- [Phase 2 spec](../../SPECIFICATIONS/02-complete-v1-model.md): "Tariffs and control", "Time base" and architecture decision 4.
+- [Phase 2 spec](../../SPECIFICATIONS/ARCHIVE/02-complete-v1-model.md): "Tariffs and control", "Time base" and architecture decision 4.
 - [Octopus Energy public API](https://api.octopus.energy/v1/products/): Cosy (COSY-22-12-08) and Agile (AGILE-24-10-01) for region C, fetched on 21 October 2026.
 - [Ofgem: energy price cap unit rates and standing charges](https://www.ofgem.gov.uk/your-energy-supply/your-energy-bill/energy-price-cap-unit-rates-and-standing-charges): no VAT on electricity from 1 October 2026 to 31 March 2027.
