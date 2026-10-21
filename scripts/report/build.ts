@@ -1,7 +1,7 @@
 // ABOUT: Builds the phase 1 report (reports/phase-1-london-semi.md) from the register and the PVGIS snapshot
 // ABOUT: Pure and clock-free: the same inputs always give byte-identical Markdown
 
-import { compare, centralOutsideBand, runSetups, type Band, type Comparison, type Metric, type SetupRun } from '../../src/engine/compare.ts';
+import { compare, centralOutsideBand, runSamples, type Band, type Comparison, type Metric, type SampleRun } from '../../src/engine/compare.ts';
 import { PENCE_PER_POUND } from '../../src/engine/constants.ts';
 import { heatLoss } from '../../src/engine/geometry.ts';
 import {
@@ -147,7 +147,7 @@ function sensitivitySection(access: RegisterAccessor, rows: readonly Sensitivity
   const lines = rows.map((row) => {
     const unit = row.unit === 'ratio' ? '' : ` ${row.unit}`;
     const values = `${plainValue(row.low.value)} to ${plainValue(row.high.value)}${unit}`;
-    return `| ${row.label} | ${values} | ${range(pounds(row.low.costPounds.against), pounds(row.high.costPounds.against))} | ${range(pounds(row.low.costPounds.setup), pounds(row.high.costPounds.setup))} | ${range(pounds(row.low.costDifferencePounds), pounds(row.high.costDifferencePounds))} |`;
+    return `| ${row.label} | ${values} | ${range(pounds(row.low.costPounds.against), pounds(row.high.costPounds.against))} | ${range(pounds(row.low.costPounds.option), pounds(row.high.costPounds.option))} | ${range(pounds(row.low.costDifferencePounds), pounds(row.high.costDifferencePounds))} |`;
   });
   return [
     '## Sensitivity',
@@ -198,7 +198,7 @@ function houseSection(access: RegisterAccessor): string {
   ].join('\n');
 }
 
-function methodSection(register: Register, access: RegisterAccessor, run: SetupRun): string {
+function methodSection(register: Register, access: RegisterAccessor, run: SampleRun): string {
   const uncertain = uncertainDraws(access, run.house).map((draw) => draw.label);
   // Each correlation row's label names its pair, such as "Correlation of the gas and electricity real price changes".
   const correlations = access.correlations().map((row) => `${row.label.replace(/^Correlation of /, '')} (${plainValue(row.value)})`);
@@ -288,7 +288,7 @@ export function buildReport(register: Register, snapshot: PvgisSnapshot, plan: S
   const access = createAccessor(register);
   const house = defaultHouse(access, REFERENCE_ARCHETYPE);
   const weather = prepareWeather(weatherFromSnapshot(snapshot), readInputs(access, { house }));
-  const run = runSetups(access, weather, plan, { combinations: REPORT_SETUPS });
+  const run = runSamples(access, weather, plan, { combinations: REPORT_SETUPS });
   const comparison = compare(run);
   const sections = [
     [
@@ -303,8 +303,8 @@ export function buildReport(register: Register, snapshot: PvgisSnapshot, plan: S
     houseSection(access),
     resultsSection(comparison),
     comparisonSection(comparison, plan.count),
-    sensitivitySection(access, sensitivity(access, weather, [{ setup: 'heatPump/cap', against: 'gas/cap' }])[0]!.rows),
-    variantSection(compare(runSetups(access, weather, plan, { house: noLoftInsulation(house), combinations: REPORT_SETUPS }))),
+    sensitivitySection(access, sensitivity(access, weather, [{ option: 'heatPump/cap', against: 'gas/cap' }])[0]!.rows),
+    variantSection(compare(runSamples(access, weather, plan, { house: noLoftInsulation(house), combinations: REPORT_SETUPS }))),
     methodSection(register, access, run),
     benchmarkSection(forCombination(run.central, 'gas/cap').gasKwh),
     dataDatesSection(register, snapshot),

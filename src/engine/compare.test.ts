@@ -4,10 +4,10 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { loadPvgisSnapshot } from '../snapshots/pvgisSchema.ts';
-import { band, centralOutsideBand, compare, METRICS, pairedDifference, quantile, runSetups, shareCheapest } from './compare.ts';
+import { band, centralOutsideBand, compare, METRICS, pairedDifference, quantile, runSamples, shareCheapest } from './compare.ts';
 import { components, DOES_NOT_PAY_BACK, paybackQuantile, samplePayback, solarHorizon, upfrontPounds } from './payback.ts';
 import { COMBINATIONS, forCombination, onCap, partsOf, type Combination } from './combinations.ts';
-import { readTimeOfUseTariffs } from './tariffs.ts';
+import { agileFromSnapshot } from './tariffs.ts';
 import { loadOctopusSnapshot } from '../snapshots/octopusSchema.ts';
 import { SETUP_KIT, SETUPS } from './setups.ts';
 import { defaultHouse } from './archetypes.ts';
@@ -92,9 +92,9 @@ describe('the paired difference and the share cheapest', () => {
   });
 });
 
-describe('runSetups', () => {
+describe('runSamples', () => {
   const access = fixtureAccessor({}, RANGES);
-  const run = runSetups(access, weather, plan);
+  const run = runSamples(access, weather, plan);
   const samples = (setup: Combination) => forCombination(run.samples, setup);
 
   it('runs the four setups on the price cap by default, and the central case with every uncertain row at its default', () => {
@@ -121,12 +121,12 @@ describe('runSetups', () => {
   it('gives identical results for the same seed and different results for another seed', () => {
     // Only the heat pump setup is rerun: runs of some setups pair with runs of all four (the next test).
     const heatPumpOnly = { combinations: ['heatPump/cap'] } as const;
-    expect(forCombination(runSetups(access, weather, plan, heatPumpOnly).samples, 'heatPump/cap').costPounds).toEqual(samples('heatPump/cap').costPounds);
-    expect(forCombination(runSetups(access, weather, { ...plan, seed: 12 }, heatPumpOnly).samples, 'heatPump/cap').costPounds).not.toEqual(samples('heatPump/cap').costPounds);
+    expect(forCombination(runSamples(access, weather, plan, heatPumpOnly).samples, 'heatPump/cap').costPounds).toEqual(samples('heatPump/cap').costPounds);
+    expect(forCombination(runSamples(access, weather, { ...plan, seed: 12 }, heatPumpOnly).samples, 'heatPump/cap').costPounds).not.toEqual(samples('heatPump/cap').costPounds);
   });
 
   it('pairs a run of some setups with a run of all four, sample by sample', () => {
-    const two = runSetups(access, weather, plan, { combinations: ['gas/cap', 'heatPump/cap'] });
+    const two = runSamples(access, weather, plan, { combinations: ['gas/cap', 'heatPump/cap'] });
     expect(two.central['gasSolar/cap']).toBeUndefined();
     expect(forCombination(two.samples, 'heatPump/cap').costPounds).toEqual(samples('heatPump/cap').costPounds);
     expect(two.economics).toEqual(run.economics);
@@ -134,8 +134,8 @@ describe('runSetups', () => {
   });
 
   it('rejects an empty or repeated list of setups', () => {
-    expect(() => runSetups(access, weather, plan, { combinations: [] })).toThrow(/distinct and at least one/);
-    expect(() => runSetups(access, weather, plan, { combinations: ['gas/cap', 'gas/cap'] })).toThrow(/distinct and at least one/);
+    expect(() => runSamples(access, weather, plan, { combinations: [] })).toThrow(/distinct and at least one/);
+    expect(() => runSamples(access, weather, plan, { combinations: ['gas/cap', 'gas/cap'] })).toThrow(/distinct and at least one/);
   });
 
   it('gives the solar setups one roof, and lowers imports and cost in every sample', () => {
@@ -162,14 +162,14 @@ describe('runSetups', () => {
 
   it('applies the house to the central run and every sample', () => {
     const house = { ...defaultHouse(access, 'semi1930s'), loft: 'none' as const };
-    const variant = runSetups(access, weather, plan, { house, combinations: ['gas/cap'] });
+    const variant = runSamples(access, weather, plan, { house, combinations: ['gas/cap'] });
     expect(variant.house).toEqual(house);
     expect(forCombination(variant.central, 'gas/cap').spaceHeatKwh).toBeGreaterThan(forCombination(run.central, 'gas/cap').spaceHeatKwh);
     forCombination(variant.samples, 'gas/cap').spaceHeatKwh.forEach((kwh, sample) => expect(kwh).toBeGreaterThan(samples('gas/cap').spaceHeatKwh[sample]!));
   });
 
   it('lowers heat pump electricity in every sample when the SPF is higher', () => {
-    const higher = runSetups(fixtureAccessor({ 'heating.heatPumpSpf': 2.8 }, { ...RANGES, 'heating.heatPumpSpf': { low: 2.3, high: 3.8, sigma: 0.15 } }), weather, plan, {
+    const higher = runSamples(fixtureAccessor({ 'heating.heatPumpSpf': 2.8 }, { ...RANGES, 'heating.heatPumpSpf': { low: 2.3, high: 3.8, sigma: 0.15 } }), weather, plan, {
       combinations: ['heatPump/cap'],
     });
     samples('heatPump/cap').electricityKwh.forEach((kwh, sample) => expect(forCombination(higher.samples, 'heatPump/cap').electricityKwh[sample]).toBeLessThan(kwh));
@@ -178,11 +178,11 @@ describe('runSetups', () => {
 
 describe('compare', () => {
   const access = fixtureAccessor({}, RANGES);
-  const run = runSetups(access, weather, plan);
+  const run = runSamples(access, weather, plan);
   const comparison = compare(run);
 
   it('collapses every band to the central value when every range is collapsed', () => {
-    const collapsed = compare(runSetups(fixtureAccessor(), weather, plan));
+    const collapsed = compare(runSamples(fixtureAccessor(), weather, plan));
     for (const setup of CAP) {
       for (const metric of METRICS) {
         const { central, p10, median, p90 } = forCombination(collapsed.bands, setup)[metric];
@@ -208,8 +208,8 @@ describe('compare', () => {
 
   it('raises the heat pump’s share cheapest when it is made strictly better', () => {
     const setups = ['gas/cap', 'heatPump/cap'] as const;
-    const better = runSetups(fixtureAccessor({ 'heating.heatPumpSpf': 3.2 }, { ...RANGES, 'heating.heatPumpSpf': { low: 2.4, high: 4, sigma: 0.15 } }), weather, plan, { combinations: setups });
-    expect(forCombination(compare(better).shareCheapest, 'heatPump/cap')).toBeGreaterThan(forCombination(compare(runSetups(access, weather, plan, { combinations: setups })).shareCheapest, 'heatPump/cap'));
+    const better = runSamples(fixtureAccessor({ 'heating.heatPumpSpf': 3.2 }, { ...RANGES, 'heating.heatPumpSpf': { low: 2.4, high: 4, sigma: 0.15 } }), weather, plan, { combinations: setups });
+    expect(forCombination(compare(better).shareCheapest, 'heatPump/cap')).toBeGreaterThan(forCombination(compare(runSamples(access, weather, plan, { combinations: setups })).shareCheapest, 'heatPump/cap'));
   });
 
   it('works out each sample’s payback from that sample’s own economics and running costs', () => {
@@ -237,7 +237,7 @@ describe('compare', () => {
 
   it('marks a setup that can never pay back, and leaves out solar’s own payback when a run lacks one side', () => {
     // A heat pump far dearer to run than gas never recovers its extra cost.
-    const dear = runSetups(fixtureAccessor({ 'heating.heatPumpSpf': 1, 'costs.heatPumpInstalled': 20_000 }), weather, plan, { combinations: ['gas/cap', 'heatPump/cap'] });
+    const dear = runSamples(fixtureAccessor({ 'heating.heatPumpSpf': 1, 'costs.heatPumpInstalled': 20_000 }), weather, plan, { combinations: ['gas/cap', 'heatPump/cap'] });
     const payback = forCombination(compare(dear).payback, 'heatPump/cap');
     expect(payback.sharePaysBack).toBe(0);
     expect([payback.central, payback.median, payback.p90]).toEqual([DOES_NOT_PAY_BACK, DOES_NOT_PAY_BACK, DOES_NOT_PAY_BACK]);
@@ -245,7 +245,7 @@ describe('compare', () => {
   });
 
   it('rejects a reference the run left out', () => {
-    expect(() => compare(runSetups(access, weather, plan, { combinations: ['heatPump/cap'] }))).toThrow(/reference combination "gas\/cap" is not in this run/);
+    expect(() => compare(runSamples(access, weather, plan, { combinations: ['heatPump/cap'] }))).toThrow(/reference combination "gas\/cap" is not in this run/);
   });
 });
 
@@ -253,8 +253,8 @@ describe('the well-installed SPF scenario', () => {
   const ranges: FixtureRanges = { ...RANGES, 'heating.heatPumpSpfWellInstalled': { low: 3, high: 4.5, sigma: 0.1 } };
   const access = fixtureAccessor({}, ranges);
   const setups = ['gas/cap', 'heatPump/cap'] as const;
-  const fieldTrial = runSetups(access, weather, plan, { combinations: setups });
-  const wellInstalled = runSetups(access, weather, plan, { combinations: setups, spfScenario: 'wellInstalled' });
+  const fieldTrial = runSamples(access, weather, plan, { combinations: setups });
+  const wellInstalled = runSamples(access, weather, plan, { combinations: setups, spfScenario: 'wellInstalled' });
 
   it('shares every draw but the SPF, so the gas setup is identical in both scenarios', () => {
     expect(fieldTrial.spfScenario).toBe('fieldTrial');
@@ -276,12 +276,12 @@ const sumShares = (shares: Partial<Record<Combination, number>>): number => Obje
 describe('the tariff grid', () => {
   const access = fixtureAccessor({}, { ...RANGES, 'heating.controlBoost': { low: 1, high: 2 } });
   const octopus = loadOctopusSnapshot(JSON.parse(readFileSync(new URL('../../data/snapshots/octopus-london.json', import.meta.url), 'utf8')) as unknown);
-  const timeOfUse = readTimeOfUseTariffs(access, octopus);
-  const run = runSetups(access, weather, plan, { combinations: COMBINATIONS, timeOfUse });
+  const agile = agileFromSnapshot(octopus);
+  const run = runSamples(access, weather, plan, { combinations: COMBINATIONS, agile });
   const comparison = compare(run);
 
   it('pairs every combination on one set of draws, so the cap runs match a run of the cap alone', () => {
-    const capOnly = runSetups(access, weather, plan, { combinations: CAP });
+    const capOnly = runSamples(access, weather, plan, { combinations: CAP });
     for (const combination of CAP) expect(forCombination(run.samples, combination).costPounds).toEqual(forCombination(capOnly.samples, combination).costPounds);
     expect(run.economics).toEqual(capOnly.economics);
   });
@@ -302,7 +302,7 @@ describe('the tariff grid', () => {
     expect(Object.keys(comparison.solarPayback).toSorted()).toEqual(COMBINATIONS.filter((combination) => SETUP_KIT[partsOf(combination).setup].solar).toSorted());
   });
 
-  it('refuses a time-of-use combination without the tariffs', () => {
-    expect(() => runSetups(access, weather, plan, { combinations: ['heatPump/cosy'] })).toThrow(/needs the time-of-use tariffs/);
+  it('refuses an Agile combination without Agile’s rates, before running anything', () => {
+    expect(() => runSamples(access, weather, plan, { combinations: ['heatPump/agile'] })).toThrow(/needs Agile's rates/);
   });
 });

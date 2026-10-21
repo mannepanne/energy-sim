@@ -3,32 +3,36 @@
 
 import type { RegisterAccessor } from '../register/access.ts';
 import { defaultHouse, REFERENCE_ARCHETYPE, type House } from './archetypes.ts';
-import { combinationReads, forCombination, runCombinations, type ByCombination, type Combination } from './combinations.ts';
+import { combinationReads, forCombination, type ByCombination, type Combination } from './combinations.ts';
 import { readInputs, uncertainDraws, type DrawKey, type UncertainDraw } from './inputs.ts';
-import type { TimeOfUseTariffs } from './tariffs.ts';
+import { checkAgileGiven, runCombinations } from './runCombinations.ts';
+import type { AgileRates } from './tariffs.ts';
 import type { PreparedWeather } from './weather.ts';
 
 /** A combination compared with a baseline: the reference, or the same heating and tariff without solar. */
-export interface SetupPair {
-  setup: Combination;
+export interface CombinationPair {
+  option: Combination;
   against: Combination;
 }
 
 /**
  * On the price cap: each setup against the reference, and solar against no solar on the heat pump (gas with solar
- * is already against gas).
+ * is already against gas). Then the heat pump on Cosy and on Agile against the reference, where the control boost
+ * shows.
  */
-export const SENSITIVITY_PAIRS: readonly SetupPair[] = [
-  { setup: 'heatPump/cap', against: 'gas/cap' },
-  { setup: 'gasSolar/cap', against: 'gas/cap' },
-  { setup: 'heatPumpSolar/cap', against: 'gas/cap' },
-  { setup: 'heatPumpSolar/cap', against: 'heatPump/cap' },
+export const SENSITIVITY_PAIRS: readonly CombinationPair[] = [
+  { option: 'heatPump/cap', against: 'gas/cap' },
+  { option: 'gasSolar/cap', against: 'gas/cap' },
+  { option: 'heatPumpSolar/cap', against: 'gas/cap' },
+  { option: 'heatPumpSolar/cap', against: 'heatPump/cap' },
+  { option: 'heatPump/cosy', against: 'gas/cap' },
+  { option: 'heatPump/agile', against: 'gas/cap' },
 ];
 
 export interface SensitivityEnd {
   value: number;
-  costPounds: Record<'setup' | 'against', number>;
-  /** The baseline's cost minus the setup's: positive means the setup is cheaper to run. */
+  costPounds: Record<'option' | 'against', number>;
+  /** The baseline's cost minus the option's: positive means the option is cheaper to run. */
   costDifferencePounds: number;
 }
 
@@ -43,7 +47,7 @@ export interface SensitivityRow {
 }
 
 export interface SensitivityTable {
-  pair: SetupPair;
+  pair: CombinationPair;
   rows: SensitivityRow[];
 }
 
@@ -62,8 +66,8 @@ const rank = (a: SensitivityRow, b: SensitivityRow): number => {
 /** What the sensitivity tables need besides the register and the weather. */
 export interface SensitivityOptions {
   house?: House;
-  /** Cosy and Agile, needed when a pair uses either. */
-  timeOfUse?: TimeOfUseTariffs;
+  /** Agile's rates from the Octopus snapshot, needed when a pair uses Agile. */
+  agile?: AgileRates;
 }
 
 /** The running cost of each named combination with one value moved. */
@@ -71,19 +75,19 @@ function costsAt(
   access: RegisterAccessor,
   weather: PreparedWeather,
   house: House,
-  timeOfUse: TimeOfUseTariffs | undefined,
+  agile: AgileRates | undefined,
   id: DrawKey,
   value: number,
   combinations: readonly Combination[],
 ): ByCombination<number> {
-  const annual = runCombinations(readInputs(access, { house, overrides: { [id]: value } }), weather, combinations, timeOfUse);
+  const annual = runCombinations(readInputs(access, { house, overrides: { [id]: value } }), weather, combinations, agile);
   return Object.fromEntries(combinations.map((combination) => [combination, forCombination(annual, combination).cost.totalPounds]));
 }
 
-function rowFor(draw: UncertainDraw, pair: SetupPair, low: ByCombination<number>, high: ByCombination<number>): SensitivityRow {
+function rowFor(draw: UncertainDraw, pair: CombinationPair, low: ByCombination<number>, high: ByCombination<number>): SensitivityRow {
   const end = (value: number, costs: ByCombination<number>): SensitivityEnd => {
-    const costPounds = { setup: forCombination(costs, pair.setup), against: forCombination(costs, pair.against) };
-    return { value, costPounds, costDifferencePounds: costPounds.against - costPounds.setup };
+    const costPounds = { option: forCombination(costs, pair.option), against: forCombination(costs, pair.against) };
+    return { value, costPounds, costDifferencePounds: costPounds.against - costPounds.option };
   };
   const [lowEnd, highEnd] = [end(draw.low, low), end(draw.high, high)];
   return { id: draw.id, label: draw.label, unit: draw.unit, low: lowEnd, high: highEnd, swingPounds: highEnd.costDifferencePounds - lowEnd.costDifferencePounds };
@@ -98,17 +102,18 @@ function rowFor(draw: UncertainDraw, pair: SetupPair, low: ByCombination<number>
 export function sensitivity(
   access: RegisterAccessor,
   weather: PreparedWeather,
-  pairs: readonly SetupPair[] = SENSITIVITY_PAIRS,
+  pairs: readonly CombinationPair[] = SENSITIVITY_PAIRS,
   options: SensitivityOptions = {},
 ): SensitivityTable[] {
   const house = options.house ?? defaultHouse(access, REFERENCE_ARCHETYPE);
+  checkAgileGiven(pairs.flatMap((pair) => [pair.option, pair.against]), options.agile);
   const tables: SensitivityTable[] = pairs.map((pair) => ({ pair, rows: [] }));
   for (const draw of uncertainDraws(access, house)) {
-    const listing = tables.filter(({ pair }) => combinationReads(pair.setup, draw.id) || combinationReads(pair.against, draw.id));
+    const listing = tables.filter(({ pair }) => combinationReads(pair.option, draw.id) || combinationReads(pair.against, draw.id));
     if (listing.length === 0) continue;
-    const combinations = [...new Set(listing.flatMap(({ pair }) => [pair.setup, pair.against]))];
-    const low = costsAt(access, weather, house, options.timeOfUse, draw.id, draw.low, combinations);
-    const high = costsAt(access, weather, house, options.timeOfUse, draw.id, draw.high, combinations);
+    const combinations = [...new Set(listing.flatMap(({ pair }) => [pair.option, pair.against]))];
+    const low = costsAt(access, weather, house, options.agile, draw.id, draw.low, combinations);
+    const high = costsAt(access, weather, house, options.agile, draw.id, draw.high, combinations);
     for (const table of listing) table.rows.push(rowFor(draw, table.pair, low, high));
   }
   return tables.map(({ pair, rows }) => ({ pair, rows: rows.toSorted(rank) }));

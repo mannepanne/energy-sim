@@ -100,6 +100,9 @@ export function buildCalendar(year: number = REFERENCE_YEAR): Calendar {
   return calendar;
 }
 
+/** The calendar of the reference year, which every local-time profile, schedule and tariff uses. Built once. */
+export const REFERENCE_CALENDAR: Calendar = buildCalendar();
+
 /** Throws unless a profile has the number of values its resolution needs. */
 export function checkProfileLength(values: ArrayLike<number>, expected: number, what: string): void {
   if (values.length !== expected) throw new Error(`A ${what} profile needs ${expected} values, got ${values.length}`);

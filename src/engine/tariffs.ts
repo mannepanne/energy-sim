@@ -1,10 +1,10 @@
 // ABOUT: Electricity tariffs as hourly unit rates on engine hours: the price cap (flat), Octopus Cosy and Octopus Agile
 // ABOUT: Marks each tariff's cheap and peak hours, which the control rules act on; the price cap has neither
 
-import type { RegisterAccessor } from '../register/access.ts';
 import type { OctopusSnapshot } from '../snapshots/octopusSchema.ts';
-import { buildCalendar, expandDaily, hourlyFromHalfHourly, type Calendar } from './calendar.ts';
+import { expandDaily, hourlyFromHalfHourly, REFERENCE_CALENDAR, type Calendar } from './calendar.ts';
 import { HOURS_PER_DAY, HOURS_PER_YEAR } from './constants.ts';
+import type { EngineInputs } from './inputs.ts';
 
 export const TARIFFS = ['cap', 'cosy', 'agile'] as const;
 export type Tariff = (typeof TARIFFS)[number];
@@ -15,44 +15,48 @@ export const CHEAP = 1;
 export const PEAK = -1;
 
 export interface ElectricityTariff {
-  tariff: Tariff;
-  /** The unit rate in each engine hour, p/kWh. Agile's may be negative. */
-  unitRatePence: Float64Array;
-  standingChargePencePerDay: number;
+  readonly tariff: Tariff;
+  /** The unit rate in each engine hour, with VAT, p/kWh. Agile's may be negative. */
+  readonly unitRatePence: Float64Array;
+  readonly standingChargePencePerDay: number;
   /** CHEAP, PEAK or 0 in each engine hour. */
-  band: Int8Array;
+  readonly band: Int8Array;
   /** False when no hour is cheap or peak, so control can change nothing. */
-  hasBands: boolean;
+  readonly hasBands: boolean;
 }
 
-/** Cosy and Agile, read once: they hold no uncertain values. */
-export interface TimeOfUseTariffs {
-  cosy: ElectricityTariff;
-  agile: ElectricityTariff;
-  /** The past 12 months Agile's rates come from: start inclusive, end exclusive, UTC. */
-  agileWindow: { start: string; end: string };
+/**
+ * Agile's past 12 months from the Octopus snapshot, before VAT, as hourly means on engine hours. Loaded once: the
+ * rates hold no uncertain values. Each run applies its inputs' VAT and standing charge.
+ */
+export interface AgileRates {
+  readonly hourlyExcVatPence: Float64Array;
+  /** The past 12 months the rates come from: start inclusive, end exclusive, UTC. */
+  readonly window: { readonly start: string; readonly end: string };
+  /** The daily cheap and peak bands for each share, computed once. VAT never changes their order. */
+  readonly bandsByShare: Map<number, Int8Array>;
 }
 
-/** The calendar of the reference year, which every local-time profile and tariff uses. */
-export const REFERENCE_CALENDAR: Calendar = buildCalendar();
+/** Each UTC hour's Agile rate is the mean of its two half-hours, before VAT. */
+export function agileFromSnapshot(snapshot: OctopusSnapshot): AgileRates {
+  return {
+    hourlyExcVatPence: hourlyFromHalfHourly(snapshot.agile.halfHourlyExcVatPence),
+    window: { start: snapshot.agile.windowStart, end: snapshot.agile.windowEnd },
+    bandsByShare: new Map(),
+  };
+}
 
-const flatTariffs = new Map<string, ElectricityTariff>();
+const hasAnyBand = (band: Int8Array): boolean => band.some((value) => value !== 0);
 
-/** The price cap: one unit rate in every hour, and no cheap or peak hours. Kept per rate, since every run uses it. */
-export function capTariff(unitRatePence: number, standingChargePencePerDay: number): ElectricityTariff {
-  const key = `${unitRatePence}|${standingChargePencePerDay}`;
-  let tariff = flatTariffs.get(key);
-  if (!tariff) {
-    tariff = {
-      tariff: 'cap',
-      unitRatePence: new Float64Array(HOURS_PER_YEAR).fill(unitRatePence),
-      standingChargePencePerDay,
-      band: new Int8Array(HOURS_PER_YEAR),
-      hasBands: false,
-    };
-    flatTariffs.set(key, tariff);
-  }
-  return tariff;
+/** The price cap for the inputs: one rate in every hour, and no cheap or peak hours. */
+export function capTariff(inputs: Pick<EngineInputs, 'electricityUnitRatePence' | 'electricityStandingChargePencePerDay'>): ElectricityTariff {
+  return {
+    tariff: 'cap',
+    unitRatePence: new Float64Array(HOURS_PER_YEAR).fill(inputs.electricityUnitRatePence),
+    standingChargePencePerDay: inputs.electricityStandingChargePencePerDay,
+    band: new Int8Array(HOURS_PER_YEAR),
+    hasBands: false,
+  };
 }
 
 /**
@@ -91,38 +95,36 @@ export function dailyShareBands(hourlyRates: Float64Array, calendar: Calendar, s
   return band;
 }
 
-/** Hours of a profile per local day: 24 values, local midnight first. */
-const checkDayProfile = (values: readonly number[], what: string): readonly number[] => {
-  if (values.length !== HOURS_PER_DAY) throw new Error(`The ${what} needs ${HOURS_PER_DAY} values, got ${values.length}`);
-  return values;
-};
+/** Cosy for the inputs: its rates by local hour (with VAT), cheap at the lowest and peak at the highest. */
+export function cosyTariff(
+  inputs: Pick<EngineInputs, 'cosyUnitRatePence' | 'cosyStandingChargePencePerDay'>,
+  calendar: Calendar = REFERENCE_CALENDAR,
+): ElectricityTariff {
+  const rates = inputs.cosyUnitRatePence;
+  if (rates.length !== HOURS_PER_DAY) throw new Error(`The Cosy unit rate profile needs ${HOURS_PER_DAY} values, got ${rates.length}`);
+  const band = profileBands(rates, calendar);
+  return { tariff: 'cosy', unitRatePence: expandDaily(rates, calendar), standingChargePencePerDay: inputs.cosyStandingChargePencePerDay, band, hasBands: hasAnyBand(band) };
+}
 
-/**
- * Reads Cosy from the register and Agile from the Octopus snapshot. Agile's rates are its rates before VAT with
- * today's VAT applied, so every tariff carries the same VAT. Each UTC hour's Agile rate is the mean of its two
- * half-hours.
- */
-export function readTimeOfUseTariffs(access: RegisterAccessor, snapshot: OctopusSnapshot, calendar: Calendar = REFERENCE_CALENDAR): TimeOfUseTariffs {
-  const cosyRates = checkDayProfile(access.profile('tariffs.cosyUnitRate').values, 'Cosy unit rate profile');
-  const vat = access.fixed('prices.electricityVatRate').value;
-  if (!(vat >= 0)) throw new Error(`The electricity VAT rate must not be negative, got ${vat}`);
-  const agileRates = hourlyFromHalfHourly(snapshot.agile.halfHourlyExcVatPence.map((rate) => rate * (1 + vat)));
-  const cosy: ElectricityTariff = {
-    tariff: 'cosy',
-    unitRatePence: expandDaily(cosyRates, calendar),
-    standingChargePencePerDay: access.fixed('tariffs.cosyStandingCharge').value,
-    band: profileBands(cosyRates, calendar),
-    hasBands: true,
-  };
-  const agile: ElectricityTariff = {
+/** Agile for the inputs: the past year's hourly rates with today's VAT, and each local day's cheapest and dearest share. */
+export function agileTariff(
+  inputs: Pick<EngineInputs, 'electricityVatRate' | 'agileStandingChargePencePerDay' | 'agileCheapPeakShare'>,
+  agile: AgileRates,
+  calendar: Calendar = REFERENCE_CALENDAR,
+): ElectricityTariff {
+  let band = agile.bandsByShare.get(inputs.agileCheapPeakShare);
+  if (!band) {
+    band = dailyShareBands(agile.hourlyExcVatPence, calendar, inputs.agileCheapPeakShare);
+    agile.bandsByShare.set(inputs.agileCheapPeakShare, band);
+  }
+  const vatFactor = 1 + inputs.electricityVatRate;
+  return {
     tariff: 'agile',
-    unitRatePence: agileRates,
-    standingChargePencePerDay: access.fixed('tariffs.agileStandingCharge').value,
-    band: dailyShareBands(agileRates, calendar, access.fixed('tariffs.agileCheapPeakShare').value),
-    hasBands: true,
+    unitRatePence: agile.hourlyExcVatPence.map((rate) => rate * vatFactor),
+    standingChargePencePerDay: inputs.agileStandingChargePencePerDay,
+    band,
+    hasBands: hasAnyBand(band),
   };
-  cosy.hasBands = cosy.band.some((value) => value !== 0);
-  return { cosy, agile, agileWindow: { start: snapshot.agile.windowStart, end: snapshot.agile.windowEnd } };
 }
 
 /** The unit cost of a year's imports in pence: each hour's import at that hour's rate. */

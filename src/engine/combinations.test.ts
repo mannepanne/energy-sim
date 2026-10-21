@@ -13,14 +13,13 @@ import {
   onCap,
   partsOf,
   REFERENCE_COMBINATION,
-  runCombinations,
-  tariffFor,
   TARIFFS_FOR,
 } from './combinations.ts';
 import { readInputs, uncertainDraws, UNCERTAIN_ROW_IDS, type UncertainRowId } from './inputs.ts';
 import { SETUP_KIT, SETUPS } from './setups.ts';
 import { simulate } from './simulate.ts';
-import { readTimeOfUseTariffs } from './tariffs.ts';
+import { checkAgileGiven, runCombinations, tariffFor } from './runCombinations.ts';
+import { agileFromSnapshot } from './tariffs.ts';
 import { fixtureAccessor, type FixtureRanges } from './testing/fixtureRegister.ts';
 import { prepareWeather, weatherFromSnapshot } from './weather.ts';
 
@@ -50,25 +49,28 @@ describe('the combinations', () => {
     expect(() => forCombination({ 'gas/cap': 1 }, 'heatPump/cosy')).toThrow(/"heatPump\/cosy" is not in this run/);
   });
 
-  it('need the time-of-use tariffs for Cosy and Agile, but not for the cap', () => {
+  it('need Agile’s rates from the snapshot for Agile only, and say so before any run', () => {
     const inputs = readInputs(fixtureAccessor());
     expect(tariffFor('cap', inputs, undefined).tariff).toBe('cap');
-    expect(() => tariffFor('agile', inputs, undefined)).toThrow(/needs the time-of-use tariffs/);
+    expect(tariffFor('cosy', inputs, undefined).tariff).toBe('cosy');
+    expect(() => tariffFor('agile', inputs, undefined)).toThrow(/needs Agile’s rates|needs Agile's rates/);
+    expect(() => checkAgileGiven(['gas/cap', 'heatPump/cosy'], undefined)).not.toThrow();
+    expect(() => checkAgileGiven(['gas/agile'], undefined)).toThrow(/needs Agile's rates/);
   });
 });
 
 describe('runCombinations', () => {
   const access = fixtureAccessor();
-  const timeOfUse = readTimeOfUseTariffs(access, octopus);
+  const agile = agileFromSnapshot(octopus);
   const inputs = readInputs(access);
-  const results = runCombinations(inputs, weather, COMBINATIONS, timeOfUse);
+  const results = runCombinations(inputs, weather, COMBINATIONS, agile);
 
   it('gives each combination what a run of it alone gives', () => {
     const alone = Object.fromEntries(
       COMBINATIONS.map((combination) => {
         const { setup, tariff } = partsOf(combination);
         const { heating, solar } = SETUP_KIT[setup];
-        return [combination, simulate(inputs, weather, heating, { solar, tariff: tariffFor(tariff, inputs, timeOfUse) }).annual];
+        return [combination, simulate(inputs, weather, heating, { solar, tariff: tariffFor(tariff, inputs, agile) }).annual];
       }),
     );
     expect(results).toEqual(alone);
@@ -92,14 +94,14 @@ const EVERY_RANGE: FixtureRanges = Object.fromEntries(
 
 describe('combinationReads', () => {
   const access = fixtureAccessor({}, EVERY_RANGE);
-  const timeOfUse = readTimeOfUseTariffs(access, octopus);
+  const agile = agileFromSnapshot(octopus);
   it('is false only for rows that leave the combination’s running cost unchanged between their low and high', () => {
     let excludedCount = 0;
     for (const draw of uncertainDraws(access)) {
       // Only the combinations said not to read the row run, since its range may not suit the others (a negative standby share).
       const excluded = COMBINATIONS.filter((combination) => !combinationReads(combination, draw.id));
       if (excluded.length === 0) continue;
-      const costsAt = (value: number) => runCombinations(readInputs(access, { overrides: { [draw.id]: value } }), weather, excluded, timeOfUse);
+      const costsAt = (value: number) => runCombinations(readInputs(access, { overrides: { [draw.id]: value } }), weather, excluded, agile);
       const [low, high] = [costsAt(draw.low), costsAt(draw.high)];
       for (const combination of excluded) {
         excludedCount += 1;

@@ -4,7 +4,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { readInputs } from '../../src/engine/inputs.ts';
-import { readTimeOfUseTariffs } from '../../src/engine/tariffs.ts';
+import { agileFromSnapshot } from '../../src/engine/tariffs.ts';
 import { fixtureAccessor } from '../../src/engine/testing/fixtureRegister.ts';
 import { prepareWeather, weatherFromSnapshot } from '../../src/engine/weather.ts';
 import { loadOctopusSnapshot } from '../../src/snapshots/octopusSchema.ts';
@@ -15,10 +15,10 @@ const readJson = (path: string): unknown => JSON.parse(readFileSync(new URL(path
 const access = fixtureAccessor();
 const inputs = readInputs(access);
 const weather = prepareWeather(weatherFromSnapshot(loadPvgisSnapshot(readJson('../../data/snapshots/pvgis-tmy-london.json'))), inputs);
-const timeOfUse = readTimeOfUseTariffs(access, loadOctopusSnapshot(readJson('../../data/snapshots/octopus-london.json')));
+const agile = agileFromSnapshot(loadOctopusSnapshot(readJson('../../data/snapshots/octopus-london.json')));
 
 describe('tariffTable', () => {
-  const table = tariffTable(access, inputs, weather, timeOfUse, { seed: 1, count: 4 });
+  const table = tariffTable(access, inputs, weather, agile, { seed: 1, count: 4 });
 
   it('has a line for each of the 10 combinations, the reference marked, and ends in one newline', () => {
     for (const name of Object.values(COMBINATION_NAMES)) expect(table).toContain(`| ${name} |`);
@@ -29,13 +29,13 @@ describe('tariffTable', () => {
 
   it('shows control off and on for Cosy and Agile, and states Agile’s limitations', () => {
     for (const line of ['Cosy, control off', 'Cosy, control on', 'Agile, control off', 'Agile, control on']) expect(table).toContain(`| ${line} |`);
-    for (const limitation of agileLimitations(timeOfUse.agileWindow)) expect(table).toContain(limitation);
+    for (const limitation of agileLimitations(agile.window)) expect(table).toContain(limitation);
   });
 });
 
 describe('controlEffects', () => {
   it('moves the heat pump’s electricity into cheap hours on both tariffs', () => {
-    const effects = controlEffects(inputs, weather, timeOfUse);
+    const effects = controlEffects(inputs, weather, agile);
     expect(effects.map((effect) => effect.tariff)).toEqual(['cosy', 'agile']);
     expect(effects.every((effect) => effect.on.cheapShare > effect.off.cheapShare && effect.on.peakShare < effect.off.peakShare)).toBe(true);
   });

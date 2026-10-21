@@ -3,7 +3,7 @@
 
 import { readFileSync } from 'node:fs';
 import { readInputs } from '../src/engine/inputs.ts';
-import { readTimeOfUseTariffs } from '../src/engine/tariffs.ts';
+import { agileFromSnapshot } from '../src/engine/tariffs.ts';
 import { prepareWeather, weatherFromSnapshot } from '../src/engine/weather.ts';
 import { createAccessor } from '../src/register/access.ts';
 import { loadRegister } from '../src/register/load.ts';
@@ -16,7 +16,7 @@ const readJson = (path: string): unknown => JSON.parse(readFileSync(new URL(path
 
 const access = createAccessor(loadRegister(readJson('data/register.json')));
 const snapshot = loadPvgisSnapshot(readJson(access.series('weather.pvgisTypicalYearLondon').file));
-const timeOfUse = readTimeOfUseTariffs(access, loadOctopusSnapshot(readJson(access.series('tariffs.octopusLondon').file)));
+const agile = agileFromSnapshot(loadOctopusSnapshot(readJson(access.series('tariffs.octopusLondon').file)));
 const inputs = readInputs(access);
 const weather = prepareWeather(weatherFromSnapshot(snapshot), inputs);
-process.stdout.write(tariffTable(access, inputs, weather, timeOfUse));
+process.stdout.write(tariffTable(access, inputs, weather, agile));

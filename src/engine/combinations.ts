@@ -1,11 +1,10 @@
 // ABOUT: The tariff grid: each setup on each electricity tariff it can use, 10 combinations, with gas always on the price cap
-// ABOUT: Runs any of them on one set of inputs, sharing the heat side between combinations that only differ in solar or tariff
+// ABOUT: Names them, splits them into setup and tariff, and says which uncertain values each one's running cost reads
 
-import type { DrawKey, EngineInputs } from './inputs.ts';
+import type { DrawKey } from './inputs.ts';
 import { runningCostReads, SETUP_KIT, SETUPS, type Setup } from './setups.ts';
-import { completeRun, heatSide, runBasis, capTariffOf, type AnnualResult, type Heating, type HeatSide } from './simulate.ts';
-import { TARIFFS, type ElectricityTariff, type Tariff, type TimeOfUseTariffs } from './tariffs.ts';
-import type { PreparedWeather } from './weather.ts';
+import type { Heating } from './simulate.ts';
+import { TARIFFS, type Tariff } from './tariffs.ts';
 
 /** Cosy is sold only to homes with a heat pump or electric heating, so the gas setups use the cap or Agile. */
 export const TARIFFS_FOR: Readonly<Record<Heating, readonly Tariff[]>> = {
@@ -78,40 +77,4 @@ export function combinationReads(combination: Combination, id: DrawKey): boolean
   const { setup, tariff } = partsOf(combination);
   if (CONTROL_ROWS.has(id)) return SETUP_KIT[setup].heating === 'heatPump' && tariff !== 'cap';
   return runningCostReads(setup, id);
-}
-
-/** The electricity tariff object for a tariff name: the cap from the inputs, or Cosy or Agile as read. */
-export function tariffFor(tariff: Tariff, inputs: EngineInputs, timeOfUse: TimeOfUseTariffs | undefined): ElectricityTariff {
-  if (tariff === 'cap') return capTariffOf(inputs);
-  if (!timeOfUse) throw new Error(`The ${tariff} tariff needs the time-of-use tariffs (readTimeOfUseTariffs)`);
-  return timeOfUse[tariff];
-}
-
-/**
- * Runs the combinations on one set of inputs and keeps their annual totals. The heat side is computed once per
- * heating system and control choice, the roof's generation and k once for all, so 10 combinations take about
- * four thermal passes. Control applies to every heat pump combination; on the price cap it changes nothing.
- */
-export function runCombinations(
-  inputs: EngineInputs,
-  weather: PreparedWeather,
-  combinations: readonly Combination[],
-  timeOfUse?: TimeOfUseTariffs,
-): ByCombination<AnnualResult> {
-  const basis = runBasis(inputs, weather);
-  const sides = new Map<string, HeatSide>();
-  const results: ByCombination<AnnualResult> = {};
-  for (const combination of combinations) {
-    const { setup, tariff: tariffName } = partsOf(combination);
-    const { heating, solar } = SETUP_KIT[setup];
-    const tariff = tariffFor(tariffName, inputs, timeOfUse);
-    const key = heating === 'gas' || !tariff.hasBands ? heating : `${heating}|${tariffName}`;
-    let side = sides.get(key);
-    if (!side) {
-      side = heatSide(basis, heating, tariff);
-      sides.set(key, side);
-    }
-    results[combination] = completeRun(basis, side, tariff, solar).annual;
-  }
-  return results;
 }

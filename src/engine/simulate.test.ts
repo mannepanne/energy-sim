@@ -17,7 +17,7 @@ import { CONTINUOUS_SCHEDULE, fixtureAccessor, type FixtureValues } from './test
 import { prepareWeather, weatherFromSnapshot, type PreparedWeather } from './weather.ts';
 import { heatingTargets } from './control.ts';
 import { loadOctopusSnapshot } from '../snapshots/octopusSchema.ts';
-import { CHEAP, importUnitPence, PEAK, readTimeOfUseTariffs, type ElectricityTariff } from './tariffs.ts';
+import { agileFromSnapshot, agileTariff, CHEAP, cosyTariff, importUnitPence, PEAK, type ElectricityTariff } from './tariffs.ts';
 
 /** The node on a heating schedule at one setpoint, starting the pre-roll at the setpoint. */
 const runNode = (node: Parameters<typeof runThermalNode>[0], outdoorC: Float64Array, gainsW: Float64Array, heatingOn: ArrayLike<number>, setpointC: number) =>
@@ -438,7 +438,7 @@ describe('the heat pump on a time-of-use tariff', () => {
   const setup = (values: FixtureValues = {}) => {
     const access = fixtureAccessor({ 'heating.scheduleHeatPump': DAYTIME, 'heating.scheduleGas': DAYTIME, ...values });
     const inputs = readInputs(access);
-    return { inputs, prepared: prepareWeather(weather, inputs), tariffs: readTimeOfUseTariffs(access, octopus) };
+    return { inputs, prepared: prepareWeather(weather, inputs), tariffs: { cosy: cosyTariff(inputs), agile: agileTariff(inputs, agileFromSnapshot(octopus)) } };
   };
   const { inputs, prepared, tariffs } = setup();
   const onTariff = (tariff: ElectricityTariff | undefined, control = true) =>

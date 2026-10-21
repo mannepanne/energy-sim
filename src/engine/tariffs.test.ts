@@ -6,9 +6,10 @@ import { describe, expect, it } from 'vitest';
 import { createAccessor } from '../register/access.ts';
 import { loadRegister } from '../register/load.ts';
 import { loadOctopusSnapshot } from '../snapshots/octopusSchema.ts';
-import { buildCalendar } from './calendar.ts';
+import { buildCalendar, REFERENCE_CALENDAR } from './calendar.ts';
 import { HOURS_PER_YEAR } from './constants.ts';
-import { capTariff, CHEAP, dailyShareBands, importUnitPence, PEAK, profileBands, readTimeOfUseTariffs, REFERENCE_CALENDAR } from './tariffs.ts';
+import { readInputs } from './inputs.ts';
+import { agileFromSnapshot, agileTariff, capTariff, CHEAP, cosyTariff, dailyShareBands, importUnitPence, PEAK, profileBands } from './tariffs.ts';
 import { FIXTURE_COSY_RATES, fixtureAccessor } from './testing/fixtureRegister.ts';
 
 const readJson = (path: string): unknown => JSON.parse(readFileSync(new URL(path, import.meta.url), 'utf8')) as unknown;
@@ -22,13 +23,11 @@ function firstCheapHour(bands: Int8Array, day: number): number {
 }
 
 describe('the price cap', () => {
-  it('has one rate in every hour and no cheap or peak hours, and is built once per rate', () => {
-    const cap = capTariff(25, 50);
+  it('has one rate in every hour and no cheap or peak hours', () => {
+    const cap = capTariff({ electricityUnitRatePence: 25, electricityStandingChargePencePerDay: 50 });
     expect(cap.unitRatePence.every((rate) => rate === 25)).toBe(true);
     expect(cap.band.every((value) => value === 0)).toBe(true);
-    expect(cap.hasBands).toBe(false);
-    expect(capTariff(25, 50)).toBe(cap);
-    expect(capTariff(26, 50)).not.toBe(cap);
+    expect([cap.hasBands, cap.standingChargePencePerDay]).toEqual([false, 50]);
   });
 });
 
@@ -95,33 +94,44 @@ describe('dailyShareBands', () => {
   });
 });
 
-describe('readTimeOfUseTariffs', () => {
-  const access = fixtureAccessor();
-  const tariffs = readTimeOfUseTariffs(access, snapshot);
+describe('Cosy and Agile for a set of inputs', () => {
+  const inputs = readInputs(fixtureAccessor());
+  const agileRates = agileFromSnapshot(snapshot);
+  const cosy = cosyTariff(inputs);
+  const agile = agileTariff(inputs, agileRates);
 
-  it('reads Cosy from the register: rates and bands by local hour, and its standing charge', () => {
-    expect(tariffs.cosy.unitRatePence[2 * 24 + 5]).toBe(10);
-    expect(tariffs.cosy.unitRatePence[2 * 24 + 17]).toBe(40);
-    expect(tariffs.cosy.standingChargePencePerDay).toBe(40);
-    expect(tariffs.cosy.hasBands).toBe(true);
+  it('reads Cosy through the inputs: rates and bands by local hour, and its standing charge', () => {
+    expect(cosy.unitRatePence[2 * 24 + 5]).toBe(10);
+    expect(cosy.unitRatePence[2 * 24 + 17]).toBe(40);
+    expect(cosy.standingChargePencePerDay).toBe(40);
+    expect(cosy.hasBands).toBe(true);
   });
 
-  it('averages each UTC hour’s two Agile half-hours, before VAT with today’s VAT applied', () => {
+  it('averages each UTC hour’s two Agile half-hours, before VAT', () => {
     const half = snapshot.agile.halfHourlyExcVatPence;
-    for (const hour of [0, 1_000, 5_000, HOURS_PER_YEAR - 1]) expect(tariffs.agile.unitRatePence[hour]).toBeCloseTo((half[2 * hour]! + half[2 * hour + 1]!) / 2, 12);
-    const withVat = readTimeOfUseTariffs(fixtureAccessor({ 'prices.electricityVatRate': 0.05 }), snapshot);
-    expect(withVat.agile.unitRatePence[1_000]).toBeCloseTo(tariffs.agile.unitRatePence[1_000]! * 1.05, 12);
-    expect(() => readTimeOfUseTariffs(fixtureAccessor({ 'prices.electricityVatRate': -0.1 }), snapshot)).toThrow(/must not be negative/);
+    for (const hour of [0, 1_000, 5_000, HOURS_PER_YEAR - 1]) expect(agile.unitRatePence[hour]).toBeCloseTo((half[2 * hour]! + half[2 * hour + 1]!) / 2, 12);
+  });
+
+  it('applies the VAT row to every electricity price: the cap, Cosy and Agile', () => {
+    const withVat = readInputs(fixtureAccessor({ 'prices.electricityVatRate': 0.05 }));
+    expect(withVat.electricityUnitRatePence).toBeCloseTo(inputs.electricityUnitRatePence * 1.05, 12);
+    expect(withVat.electricityStandingChargePencePerDay).toBeCloseTo(inputs.electricityStandingChargePencePerDay * 1.05, 12);
+    expect(cosyTariff(withVat).unitRatePence[2 * 24 + 5]).toBeCloseTo(10.5, 12);
+    expect(cosyTariff(withVat).standingChargePencePerDay).toBeCloseTo(42, 12);
+    expect(agileTariff(withVat, agileRates).unitRatePence[1_000]).toBeCloseTo(agile.unitRatePence[1_000]! * 1.05, 12);
+    expect(agileTariff(withVat, agileRates).standingChargePencePerDay).toBeCloseTo(35 * 1.05, 12);
+    expect(() => readInputs(fixtureAccessor({ 'prices.electricityVatRate': -0.1 }))).toThrow(/must not be negative/);
   });
 
   it('passes negative Agile prices through', () => {
-    expect(Math.min(...tariffs.agile.unitRatePence)).toBeLessThan(0);
+    expect(Math.min(...agile.unitRatePence)).toBeLessThan(0);
   });
 
-  it('marks Agile’s cheapest and dearest quarter of each day, and records the window', () => {
-    expect(tariffs.agile.band.filter((value) => value === CHEAP)).toHaveLength(365 * 6);
-    expect(tariffs.agile.standingChargePencePerDay).toBe(35);
-    expect(tariffs.agileWindow).toEqual({ start: snapshot.agile.windowStart, end: snapshot.agile.windowEnd });
+  it('marks Agile’s cheapest and dearest quarter of each day, computes the bands once, and records the window', () => {
+    expect(agile.band.filter((value) => value === CHEAP)).toHaveLength(365 * 6);
+    expect(agileTariff(inputs, agileRates).band).toBe(agile.band);
+    expect(agile.standingChargePencePerDay).toBe(35);
+    expect(agileRates.window).toEqual({ start: snapshot.agile.windowStart, end: snapshot.agile.windowEnd });
   });
 
   it('uses the reference calendar by default', () => {
@@ -129,15 +139,13 @@ describe('readTimeOfUseTariffs', () => {
   });
 
   it('rejects a Cosy profile that is not 24 hours', () => {
-    const register = loadRegister(readJson('../../data/register.json'));
-    const broken = createAccessor({ rows: register.rows.map((row) => (row.id === 'tariffs.cosyUnitRate' && row.kind === 'profile' ? { ...row, values: row.values.slice(0, 12), resolution: 'month' as const } : row)) });
-    expect(() => readTimeOfUseTariffs(broken, snapshot)).toThrow(/Cosy unit rate profile needs 24 values/);
+    expect(() => cosyTariff({ ...inputs, cosyUnitRatePence: inputs.cosyUnitRatePence.slice(0, 12) })).toThrow(/Cosy unit rate profile needs 24 values/);
   });
 });
 
 describe('importUnitPence', () => {
   it('prices each hour’s import at that hour’s rate, so a negative rate pays the house', () => {
-    const tariff = { ...capTariff(10, 0), unitRatePence: Float64Array.from({ length: HOURS_PER_YEAR }, (_, hour) => (hour === 0 ? -5 : 10)) };
+    const tariff = { ...capTariff({ electricityUnitRatePence: 10, electricityStandingChargePencePerDay: 0 }), unitRatePence: Float64Array.from({ length: HOURS_PER_YEAR }, (_, hour) => (hour === 0 ? -5 : 10)) };
     const importKwh = Float64Array.from({ length: HOURS_PER_YEAR }, (_, hour) => (hour < 2 ? 2 : 0));
     expect(importUnitPence(importKwh, tariff)).toBe(-10 + 20);
   });
@@ -146,10 +154,10 @@ describe('importUnitPence', () => {
 describe('the register and the Octopus snapshot', () => {
   const access = createAccessor(loadRegister(readJson('../../data/register.json')));
 
-  it('holds Cosy’s rates and both standing charges as the snapshot gives them', () => {
-    expect(access.profile('tariffs.cosyUnitRate').values).toEqual(snapshot.cosy.unitRatesIncVatPence);
-    expect(access.fixed('tariffs.cosyStandingCharge').value).toBe(snapshot.cosy.standingChargeIncVatPencePerDay);
-    expect(access.fixed('tariffs.agileStandingCharge').value).toBe(snapshot.agile.standingChargeIncVatPencePerDay);
+  it('holds Cosy’s rates and both standing charges before VAT, as the snapshot gives them', () => {
+    expect(access.profile('tariffs.cosyUnitRate').values).toEqual(snapshot.cosy.unitRatesExcVatPence);
+    expect(access.fixed('tariffs.cosyStandingCharge').value).toBe(snapshot.cosy.standingChargeExcVatPencePerDay);
+    expect(access.fixed('tariffs.agileStandingCharge').value).toBe(snapshot.agile.standingChargeExcVatPencePerDay);
   });
 
   it('takes the export row’s mode from Outgoing Octopus’s rate in the snapshot; its low and high stay Magnus’s 4.1p and 15p', () => {
@@ -158,7 +166,7 @@ describe('the register and the Octopus snapshot', () => {
     expect([exportRate.low, exportRate.high]).toEqual([4.1, 15]);
   });
 
-  it('carries no VAT on today’s Cosy rates, matching the VAT row', () => {
+  it('has today’s VAT at 0, as Octopus’s rates with and without VAT agree', () => {
     expect(access.fixed('prices.electricityVatRate').value).toBe(0);
     expect(snapshot.cosy.unitRatesIncVatPence).toEqual(snapshot.cosy.unitRatesExcVatPence);
   });

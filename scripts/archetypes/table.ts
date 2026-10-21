@@ -2,7 +2,7 @@
 // ABOUT: pre-registered NEED readings, its gap from them and the flag. Pure and clock-free, so output is byte-identical
 
 import { ARCHETYPE_KEYS, defaultHouse, type ArchetypeKey } from '../../src/engine/archetypes.ts';
-import { band, compare, runSetups, type Band } from '../../src/engine/compare.ts';
+import { band, compare, runSamples, type Band } from '../../src/engine/compare.ts';
 import { forCombination } from '../../src/engine/combinations.ts';
 import { heatLoss } from '../../src/engine/geometry.ts';
 import { readInputs } from '../../src/engine/inputs.ts';
@@ -43,7 +43,7 @@ export interface ArchetypeRow {
 export function archetypeRows(access: RegisterAccessor, weather: PreparedWeather, plan: SamplingPlan = ARCHETYPE_PLAN): ArchetypeRow[] {
   return ARCHETYPE_KEYS.map((archetype) => {
     const house = defaultHouse(access, archetype);
-    const run = runSetups(access, weather, plan, { house, combinations: ['gas/cap', 'heatPump/cap'] });
+    const run = runSamples(access, weather, plan, { house, combinations: ['gas/cap', 'heatPump/cap'] });
     const gas = forCombination(run.samples, 'gas/cap');
     const gasCentral = forCombination(run.central, 'gas/cap');
     const comparison = compare(run);

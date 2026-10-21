@@ -3,11 +3,12 @@
 
 import { readFileSync } from 'node:fs';
 import { performance } from 'node:perf_hooks';
-import { COMBINATIONS, onCap, runCombinations, type Combination } from '../src/engine/combinations.ts';
-import { runSetups } from '../src/engine/compare.ts';
+import { COMBINATIONS, onCap, type Combination } from '../src/engine/combinations.ts';
+import { runCombinations } from '../src/engine/runCombinations.ts';
+import { runSamples } from '../src/engine/compare.ts';
 import { readInputs } from '../src/engine/inputs.ts';
 import { SETUPS } from '../src/engine/setups.ts';
-import { readTimeOfUseTariffs } from '../src/engine/tariffs.ts';
+import { agileFromSnapshot } from '../src/engine/tariffs.ts';
 import { prepareWeather, weatherFromSnapshot } from '../src/engine/weather.ts';
 import { createAccessor } from '../src/register/access.ts';
 import { loadRegister } from '../src/register/load.ts';
@@ -34,7 +35,7 @@ const readJson = (path: string): unknown => JSON.parse(readFileSync(new URL(path
 
 const access = createAccessor(loadRegister(readJson('data/register.json')));
 const snapshot = loadPvgisSnapshot(readJson(access.series('weather.pvgisTypicalYearLondon').file));
-const timeOfUse = readTimeOfUseTariffs(access, loadOctopusSnapshot(readJson(access.series('tariffs.octopusLondon').file)));
+const agile = agileFromSnapshot(loadOctopusSnapshot(readJson(access.series('tariffs.octopusLondon').file)));
 const inputs = readInputs(access);
 const weather = prepareWeather(weatherFromSnapshot(snapshot), inputs);
 
@@ -47,14 +48,14 @@ const check = (label: string, elapsedMs: number, limitMs: number): void => {
 let centralMs = Number.POSITIVE_INFINITY;
 for (let repeat = 0; repeat < CENTRAL_REPEATS; repeat += 1) {
   const start = performance.now();
-  runCombinations(inputs, weather, COMBINATIONS, timeOfUse);
+  runCombinations(inputs, weather, COMBINATIONS, agile);
   centralMs = Math.min(centralMs, performance.now() - start);
 }
 check('One central run of all 10 combinations', centralMs, CENTRAL_LIMIT_MS);
 
 for (const { name, combinations, limitMs } of WORKLOADS) {
   const start = performance.now();
-  runSetups(access, weather, REPORT_PLAN, { combinations, timeOfUse });
+  runSamples(access, weather, REPORT_PLAN, { combinations, agile });
   check(`${REPORT_PLAN.count} samples × ${name}`, performance.now() - start, limitMs);
 }
 if (failed) {

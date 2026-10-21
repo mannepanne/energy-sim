@@ -1,7 +1,7 @@
 // ABOUT: Runs one house with one heating setup, with or without roof solar, on one electricity tariff, over the 8,760 hours of the typical year
 // ABOUT: Runs of one set of inputs share a basis, so the heat side is computed once for every solar and tariff choice that leaves it unchanged
 
-import { expandDaily } from './calendar.ts';
+import { expandDaily, REFERENCE_CALENDAR } from './calendar.ts';
 import { HOURS_PER_YEAR } from './constants.ts';
 import { heatingTargets } from './control.ts';
 import { annualCarbonKg, annualCost, type AnnualCost } from './costCarbon.ts';
@@ -13,7 +13,7 @@ import type { EngineInputs } from './inputs.ts';
 import { pvGenerationKwh, useSolar } from './pv.ts';
 import { planeIrradiance } from './solar.ts';
 import { auxiliaryElectricity, baseElectricityKwh, fuelForHeat } from './supply.ts';
-import { capTariff, importUnitPence, REFERENCE_CALENDAR, type ElectricityTariff, type Tariff } from './tariffs.ts';
+import { capTariff, importUnitPence, type ElectricityTariff, type Tariff } from './tariffs.ts';
 import { heatingHours, runThermalNode, type ThermalYear } from './thermal.ts';
 import type { PreparedWeather } from './weather.ts';
 
@@ -203,7 +203,8 @@ const sameSchedule = (a: readonly number[], b: readonly number[]): boolean =>
 
 /**
  * The thermal year for a heating system on a schedule, under control on a tariff or not. A heat pump on the gas
- * schedule is the reference run for k.
+ * schedule is the reference run for k. Kept by tariff name: every tariff a basis meets is built from its inputs,
+ * so there is one of each name.
  */
 function thermalYear(basis: RunBasis, heating: Heating, schedule: 'gas' | 'heatPump', controlTariff: ElectricityTariff | undefined): ThermalYear {
   const { inputs } = basis;
@@ -418,12 +419,9 @@ export function completeRun(basis: RunBasis, heat: HeatSide, tariff: Electricity
   };
 }
 
-/** The price cap for these inputs. */
-export const capTariffOf = (inputs: EngineInputs): ElectricityTariff => capTariff(inputs.electricityUnitRatePence, inputs.electricityStandingChargePencePerDay);
-
 export function simulate(inputs: EngineInputs, weather: PreparedWeather, heating: Heating, options: SimulateOptions = {}): SimulationResult {
   const basis = runBasis(inputs, weather);
-  const tariff = options.tariff ?? capTariffOf(inputs);
+  const tariff = options.tariff ?? capTariff(inputs);
   const heat = heatSide(basis, heating, tariff, options.control ?? true, options.copScale);
   return completeRun(basis, heat, tariff, options.solar ?? false, options.generationKwh);
 }

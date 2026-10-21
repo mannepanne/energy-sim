@@ -149,8 +149,18 @@ export interface EngineInputs {
   /** The share of each day's hot water drawn in each local hour, 0–23. Sums to 1. */
   hotWaterDrawProfile: readonly number[];
 
+  /** Today's VAT on electricity. Every electricity price row is stored before VAT; the values here include it. */
+  electricityVatRate: number;
+  /** The price cap, with VAT. */
   electricityUnitRatePence: number;
   electricityStandingChargePencePerDay: number;
+  /** Octopus Cosy's unit rate by UK local hour (24 values, local midnight first) and standing charge, with VAT. */
+  cosyUnitRatePence: readonly number[];
+  cosyStandingChargePencePerDay: number;
+  /** Agile's standing charge, with VAT; its hourly rates come from the Octopus snapshot (`agileFromSnapshot`). */
+  agileStandingChargePencePerDay: number;
+  /** The share of each local day's hours control treats as cheap, and as peak, on Agile. */
+  agileCheapPeakShare: number;
   gasUnitRatePence: number;
   gasStandingChargePencePerDay: number;
   /** Paid for every exported kWh, on every import tariff. */
@@ -436,8 +446,13 @@ function readHotWater(reader: Reader, house: House): HotWaterInputs {
 
 type PriceInputs = Pick<
   EngineInputs,
+  | 'electricityVatRate'
   | 'electricityUnitRatePence'
   | 'electricityStandingChargePencePerDay'
+  | 'cosyUnitRatePence'
+  | 'cosyStandingChargePencePerDay'
+  | 'agileStandingChargePencePerDay'
+  | 'agileCheapPeakShare'
   | 'gasUnitRatePence'
   | 'gasStandingChargePencePerDay'
   | 'exportRatePence'
@@ -455,11 +470,19 @@ function checkLevelProfile(id: RowId, values: readonly number[]): readonly numbe
   return values;
 }
 
-/** Prices, carbon factors and base electricity use. */
+/** Prices, with today's VAT applied to every electricity price, carbon factors and base electricity use. */
 function readPrices(reader: Reader): PriceInputs {
+  const electricityVatRate = reader.fixed('prices.electricityVatRate');
+  if (!(electricityVatRate >= 0)) throw new Error(`The electricity VAT rate must not be negative, got ${electricityVatRate}`);
+  const withVat = (pence: number): number => pence * (1 + electricityVatRate);
   return {
-    electricityUnitRatePence: reader.fixed('prices.electricityUnitRate'),
-    electricityStandingChargePencePerDay: reader.fixed('prices.electricityStandingCharge'),
+    electricityVatRate,
+    electricityUnitRatePence: withVat(reader.fixed('prices.electricityUnitRate')),
+    electricityStandingChargePencePerDay: withVat(reader.fixed('prices.electricityStandingCharge')),
+    cosyUnitRatePence: reader.profile('tariffs.cosyUnitRate').map(withVat),
+    cosyStandingChargePencePerDay: withVat(reader.fixed('tariffs.cosyStandingCharge')),
+    agileStandingChargePencePerDay: withVat(reader.fixed('tariffs.agileStandingCharge')),
+    agileCheapPeakShare: reader.fixed('tariffs.agileCheapPeakShare'),
     gasUnitRatePence: reader.fixed('prices.gasUnitRate'),
     gasStandingChargePencePerDay: reader.fixed('prices.gasStandingCharge'),
     exportRatePence: reader.uncertain('prices.exportRate'),

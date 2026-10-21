@@ -21,14 +21,14 @@ import {
   onCap,
   partsOf,
   REFERENCE_COMBINATION,
-  runCombinations,
   type ByCombination,
   type Combination,
 } from './combinations.ts';
 import { sampleOverrides, type SamplingPlan } from './sampling.ts';
 import { SETUP_KIT, SETUPS, setupOf } from './setups.ts';
 import type { AnnualResult } from './simulate.ts';
-import { TARIFFS, type Tariff, type TimeOfUseTariffs } from './tariffs.ts';
+import { checkAgileGiven, runCombinations } from './runCombinations.ts';
+import { TARIFFS, type AgileRates, type Tariff } from './tariffs.ts';
 import type { PreparedWeather } from './weather.ts';
 
 /** The annual totals kept for each setup in each sample. */
@@ -53,7 +53,7 @@ export type Totals = Record<Metric, number>;
 /** One value per sample for each metric. */
 export type SampleTotals = Record<Metric, Float64Array>;
 
-export interface SetupRun {
+export interface SampleRun {
   plan: SamplingPlan;
   house: House;
   spfScenario: SpfScenario;
@@ -110,9 +110,9 @@ export const byMetric = <T>(make: (metric: Metric) => T): Record<Metric, T> => (
 const emptySampleTotals = (count: number): SampleTotals => byMetric(() => new Float64Array(count));
 
 /** Runs the combinations on one set of inputs, sharing the roof, k and each heat side between them. */
-function runOnce(inputs: EngineInputs, weather: PreparedWeather, combinations: readonly Combination[], timeOfUse: TimeOfUseTariffs | undefined): ByCombination<Totals> {
+function runOnce(inputs: EngineInputs, weather: PreparedWeather, combinations: readonly Combination[], agile: AgileRates | undefined): ByCombination<Totals> {
   const economics = economicsOf(inputs);
-  const annual = runCombinations(inputs, weather, combinations, timeOfUse);
+  const annual = runCombinations(inputs, weather, combinations, agile);
   const totals: ByCombination<Totals> = {};
   for (const combination of combinations) {
     totals[combination] = totalsOf(forCombination(annual, combination), upfrontPounds(components(partsOf(combination).setup, economics)));
@@ -127,8 +127,8 @@ export interface RunOptions {
   spfScenario?: SpfScenario;
   /** Defaults to the four setups on the price cap. */
   combinations?: readonly Combination[];
-  /** Cosy and Agile, from `readTimeOfUseTariffs`; needed when a combination uses either. */
-  timeOfUse?: TimeOfUseTariffs;
+  /** Agile's rates from the Octopus snapshot (`agileFromSnapshot`), needed when a combination uses Agile. */
+  agile?: AgileRates;
 }
 
 /**
@@ -138,21 +138,22 @@ export interface RunOptions {
  * the same in both scenarios, so they pair. Every row is drawn whichever combinations run, so runs of different
  * combinations pair too.
  */
-export function runSetups(access: RegisterAccessor, weather: PreparedWeather, plan: SamplingPlan, options: RunOptions = {}): SetupRun {
-  const { spfScenario = 'fieldTrial', combinations = onCap(SETUPS), timeOfUse } = options;
+export function runSamples(access: RegisterAccessor, weather: PreparedWeather, plan: SamplingPlan, options: RunOptions = {}): SampleRun {
+  const { spfScenario = 'fieldTrial', combinations = onCap(SETUPS), agile } = options;
   const house = options.house ?? defaultHouse(access, REFERENCE_ARCHETYPE);
   if (combinations.length === 0 || new Set(combinations).size !== combinations.length) {
     throw new Error(`Combinations must be distinct and at least one, got [${combinations.join(', ')}]`);
   }
   combinations.forEach(partsOf);
+  checkAgileGiven(combinations, agile);
   const centralInputs = readInputs(access, { house, spfScenario });
-  const central = runOnce(centralInputs, weather, combinations, timeOfUse);
+  const central = runOnce(centralInputs, weather, combinations, agile);
   const samples: ByCombination<SampleTotals> = Object.fromEntries(combinations.map((combination) => [combination, emptySampleTotals(plan.count)]));
   const economics: SampleEconomics[] = [];
   sampleOverrides(access, plan, house, spfScenario).forEach((overrides, sample) => {
     const inputs = readInputs(access, { house, overrides, spfScenario });
     economics.push(economicsOf(inputs));
-    const totals = runOnce(inputs, weather, combinations, timeOfUse);
+    const totals = runOnce(inputs, weather, combinations, agile);
     for (const combination of combinations) {
       const into = forCombination(samples, combination);
       const from = forCombination(totals, combination);
@@ -236,13 +237,13 @@ export interface Comparison {
   solarPayback: ByCombination<PaybackSummary>;
 }
 
-const runningCostsOf = (run: SetupRun, totalsFor: (combination: Combination) => Totals): RunningCosts =>
+const runningCostsOf = (run: SampleRun, totalsFor: (combination: Combination) => Totals): RunningCosts =>
   Object.fromEntries(
     run.combinations.map((combination) => [combination, { gasPounds: totalsFor(combination).gasCostPounds, electricityPounds: totalsFor(combination).electricityCostPounds }]),
   );
 
 /** Payback summary of `option` against `baseline`, with the horizon each sample's economics give. */
-function paybackSummary(run: SetupRun, option: Combination, baseline: Combination, horizon: (economics: SampleEconomics) => number): PaybackSummary {
+function paybackSummary(run: SampleRun, option: Combination, baseline: Combination, horizon: (economics: SampleEconomics) => number): PaybackSummary {
   const centralRunning = runningCostsOf(run, (combination) => forCombination(run.central, combination));
   const central = samplePayback(option, baseline, horizon(run.centralEconomics), run.centralEconomics, centralRunning);
   const years = run.economics.map((economics, sample) => {
@@ -256,12 +257,12 @@ function paybackSummary(run: SetupRun, option: Combination, baseline: Combinatio
 }
 
 /** Shares cheapest among some of the run's combinations, keyed by combination. */
-function sharesAmong(run: SetupRun, combinations: readonly Combination[]): ByCombination<number> {
+function sharesAmong(run: SampleRun, combinations: readonly Combination[]): ByCombination<number> {
   const shares = shareCheapest(combinations.map((combination) => forCombination(run.samples, combination).costPounds));
   return Object.fromEntries(combinations.map((combination, index) => [combination, shares[index]!]));
 }
 
-export function compare(run: SetupRun, reference: Combination = REFERENCE_COMBINATION): Comparison {
+export function compare(run: SampleRun, reference: Combination = REFERENCE_COMBINATION): Comparison {
   if (!run.combinations.includes(reference)) throw new Error(`The reference combination "${reference}" is not in this run`);
   const others = run.combinations.filter((combination) => combination !== reference);
   const referenceSamples = forCombination(run.samples, reference);

@@ -1,12 +1,12 @@
 // ABOUT: Builds the tariff table: the 10 setup and tariff combinations' running costs and shares cheapest, what control does
 // ABOUT: on Cosy and Agile, and Agile's stated limitations. Pure and clock-free, so output is byte-identical
 
-import { compare, runSetups, type Band, type Comparison } from '../../src/engine/compare.ts';
+import { compare, runSamples, type Band, type Comparison } from '../../src/engine/compare.ts';
 import { COMBINATIONS, forCombination, partsOf, REFERENCE_COMBINATION, type Combination } from '../../src/engine/combinations.ts';
 import type { EngineInputs } from '../../src/engine/inputs.ts';
 import type { SamplingPlan } from '../../src/engine/sampling.ts';
 import { simulate } from '../../src/engine/simulate.ts';
-import { CHEAP, PEAK, type TimeOfUseTariff, type TimeOfUseTariffs } from '../../src/engine/tariffs.ts';
+import { agileTariff, CHEAP, cosyTariff, PEAK, type AgileRates, type ElectricityTariff, type TimeOfUseTariff } from '../../src/engine/tariffs.ts';
 import type { PreparedWeather } from '../../src/engine/weather.ts';
 import type { RegisterAccessor } from '../../src/register/access.ts';
 import { kgCo2e, kwh, pounds, share, wholeNumber } from '../report/format.ts';
@@ -29,7 +29,7 @@ export const COMBINATION_NAMES: Record<Combination, string> = {
 
 const TARIFF_NAMES: Record<TimeOfUseTariff, string> = { cosy: 'Cosy', agile: 'Agile' };
 
-/** The heat pump's electricity on a time-of-use tariff, central, with control off and on. */
+/** The heat pump's running on a time-of-use tariff, central, with control off and on. */
 export interface ControlEffect {
   tariff: TimeOfUseTariff;
   off: ControlledRun;
@@ -42,12 +42,16 @@ export interface ControlledRun {
   peakShare: number;
   heatPumpElectricityKwh: number;
   spaceHeatKwh: number;
+  /** The year's mean indoor temperature: control keeps the house warmer than the schedule alone. */
+  meanIndoorC: number;
   costPounds: number;
 }
 
-function controlledRun(inputs: EngineInputs, weather: PreparedWeather, timeOfUse: TimeOfUseTariffs, tariff: TimeOfUseTariff, control: boolean): ControlledRun {
-  const result = simulate(inputs, weather, 'heatPump', { tariff: timeOfUse[tariff], control });
-  const { band } = timeOfUse[tariff];
+const mean = (values: Float64Array): number => values.reduce((total, value) => total + value, 0) / values.length;
+
+function controlledRun(inputs: EngineInputs, weather: PreparedWeather, tariff: ElectricityTariff, control: boolean): ControlledRun {
+  const result = simulate(inputs, weather, 'heatPump', { tariff, control });
+  const { band } = tariff;
   const electricity = result.hourly.heatingElectricityKwh;
   let cheap = 0;
   let peak = 0;
@@ -61,16 +65,29 @@ function controlledRun(inputs: EngineInputs, weather: PreparedWeather, timeOfUse
     peakShare: peak / total,
     heatPumpElectricityKwh: total,
     spaceHeatKwh: result.annual.spaceHeatKwh,
+    meanIndoorC: mean(result.hourly.internalTemperatureC),
     costPounds: result.annual.cost.totalPounds,
   };
 }
 
-export function controlEffects(inputs: EngineInputs, weather: PreparedWeather, timeOfUse: TimeOfUseTariffs): ControlEffect[] {
-  return (['cosy', 'agile'] as const).map((tariff) => ({
+export function controlEffects(inputs: EngineInputs, weather: PreparedWeather, agile: AgileRates): ControlEffect[] {
+  const tariffs: { tariff: TimeOfUseTariff; electricity: ElectricityTariff }[] = [
+    { tariff: 'cosy', electricity: cosyTariff(inputs) },
+    { tariff: 'agile', electricity: agileTariff(inputs, agile) },
+  ];
+  return tariffs.map(({ tariff, electricity }) => ({
     tariff,
-    off: controlledRun(inputs, weather, timeOfUse, tariff, false),
-    on: controlledRun(inputs, weather, timeOfUse, tariff, true),
+    off: controlledRun(inputs, weather, electricity, false),
+    on: controlledRun(inputs, weather, electricity, true),
   }));
+}
+
+/** The mean indoor temperature with no control: the heat pump on the cap, and the gas boiler. */
+export function scheduleTemperatures(inputs: EngineInputs, weather: PreparedWeather): { gasC: number; heatPumpC: number } {
+  return {
+    gasC: mean(simulate(inputs, weather, 'gas').hourly.internalTemperatureC),
+    heatPumpC: mean(simulate(inputs, weather, 'heatPump').hourly.internalTemperatureC),
+  };
 }
 
 /** The month and year of a UTC instant, such as "October 2025". */
@@ -87,6 +104,15 @@ export function agileLimitations(window: { start: string; end: string }): string
     '- **Weekdays don’t match** between the past year and the reference year the schedules use.',
   ];
 }
+
+/** What every Cosy and Agile result assumes, stated next to them as the Agile limitations are. */
+export const TIME_OF_USE_ASSUMPTIONS: readonly string[] = [
+  '- **Cosy and Agile results assume a smart controller** that follows the control rules. A heat pump left on its schedule costs what the “control off” rows show.',
+  '- **Control keeps the house warmer.** Preheating holds it above the setpoint in cheap hours, so Cosy and Agile buy extra warmth the comparison doesn’t value; the mean indoor temperatures show how much.',
+  '- **Carbon counts the extra electricity but not when it is used.** The annual grid factor can’t credit cheap hours that are often cleaner ([issue 17](https://github.com/mannepanne/energy-sim/issues/17)).',
+  '- **Electricity carries no VAT from October 2026 to March 2027,** and every year of payback assumes it stays at 0% while gas carries 5%: a small tilt towards the heat pump.',
+  '- **“Cheapest on its tariff”** ranks 2 combinations on Cosy and 4 on the price cap and on Agile, so the shares don’t compare between tariffs.',
+];
 
 const banded = (value: Band, format: (value: number) => string): string => `${format(value.central)} (${format(value.p10)} to ${format(value.p90)})`;
 
@@ -105,10 +131,13 @@ function combinationLine(comparison: Comparison, combination: Combination): stri
   ].join(' | ');
 }
 
+const celsius = (value: number): string => `${value.toFixed(1)} °C`;
+
 function controlLine(effect: ControlEffect): string {
   const run = (label: string, values: ControlledRun): string =>
     [
       `${TARIFF_NAMES[effect.tariff]}, control ${label}`,
+      celsius(values.meanIndoorC),
       share(values.cheapShare),
       share(values.peakShare),
       kwh(values.spaceHeatKwh),
@@ -123,11 +152,12 @@ export function tariffTable(
   access: RegisterAccessor,
   inputs: EngineInputs,
   weather: PreparedWeather,
-  timeOfUse: TimeOfUseTariffs,
+  agile: AgileRates,
   plan: SamplingPlan = TARIFF_PLAN,
 ): string {
-  const comparison = compare(runSetups(access, weather, plan, { combinations: COMBINATIONS, timeOfUse }));
-  const effects = controlEffects(inputs, weather, timeOfUse);
+  const comparison = compare(runSamples(access, weather, plan, { combinations: COMBINATIONS, agile }));
+  const effects = controlEffects(inputs, weather, agile);
+  const schedules = scheduleTemperatures(inputs, weather);
   return [
     `The 1930s semi at its defaults, in London. Central, with the 10th to 90th percentile from ${wholeNumber(plan.count)} samples (seed ${plan.seed}). Gas is always on the price cap; the tariff is the electricity tariff. The difference is the gas boiler on the price cap minus the combination, so a positive difference is a saving. The heat pump follows the control rules on Cosy and Agile (REFERENCE/engine.md).`,
     '',
@@ -135,13 +165,14 @@ export function tariffTable(
     '| --- | ---: | ---: | ---: | ---: | ---: |',
     ...COMBINATIONS.map((combination) => `| ${combinationLine(comparison, combination)} |`),
     '',
-    'What control does to the heat pump without solar, central. The shares are of the heat pump’s own electricity.',
+    `What control does to the heat pump without solar, central. The shares are of the heat pump’s own electricity. With no control, the year’s mean indoor temperature is ${celsius(schedules.heatPumpC)} for the heat pump on its schedule and ${celsius(schedules.gasC)} for the gas boiler on its own.`,
     '',
-    '| Tariff and control | In cheap hours | In peak hours | Space heat | Heat pump electricity | Running cost |',
-    '| --- | ---: | ---: | ---: | ---: | ---: |',
+    '| Tariff and control | Mean indoor temperature | In cheap hours | In peak hours | Space heat | Heat pump electricity | Running cost |',
+    '| --- | ---: | ---: | ---: | ---: | ---: | ---: |',
     ...effects.map(controlLine),
     '',
-    ...agileLimitations(timeOfUse.agileWindow),
+    ...TIME_OF_USE_ASSUMPTIONS,
+    ...agileLimitations(agile.window),
     '',
   ].join('\n');
 }
