@@ -29,7 +29,7 @@ When asked to remember anything, add project memory in this CLAUDE.md (project r
 - **Testing**: Vitest with V8 coverage; Oxlint with type-aware rules; GitHub Actions CI ([ci.yml](./.github/workflows/ci.yml))
 - **Scripts**: TypeScript run with `tsx`, in `scripts/`
 - **Data**: build-time snapshots committed as JSON; no runtime external API calls
-- **Web framework and styling**: TBD in phase 3
+- **Web framework and styling**: planned in phase 3: Next.js static export on a Cloudflare Worker, Tailwind and shadcn/ui, with Vite + React as the fallback (the spike decides; see the [phase 3 spec](./SPECIFICATIONS/03-website-beta-launch.md))
 - **Database**: none planned (fully client-side, nothing personal stored)
 - **Deployment**: Cloudflare (planned for phase 3)
 - **Domain**: TBD

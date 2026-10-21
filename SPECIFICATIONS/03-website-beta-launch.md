@@ -24,7 +24,7 @@ Phase 3 puts the phase 2 model in front of the public as a beta, a proof of conc
 
 Validation against real homes and expert review stay after the beta launch. They don't gate this phase or the launch.
 
-Background: [project-outline.md](./ORIGINAL_IDEA/project-outline.md), the phase 2 [archived spec](./ARCHIVE/02-complete-v1-model.md) and [report](../reports/phase-2-v1-model.md), [engine.md](../REFERENCE/engine.md), [register.md](../REFERENCE/register.md) and the [client-side snapshots ADR](../REFERENCE/decisions/2026-10-17-client-side-build-time-snapshots.md). The five phase 3 "to decide" notes in [SPECIFICATIONS/CLAUDE.md](./CLAUDE.md) are each resolved below, by name.
+Background: [project-outline.md](./ORIGINAL_IDEA/project-outline.md), the phase 2 [archived spec](./ARCHIVE/02-complete-v1-model.md) and [report](../reports/phase-2-v1-model.md), [engine.md](../REFERENCE/engine.md), [register.md](../REFERENCE/register.md) and the [client-side snapshots ADR](../REFERENCE/decisions/2026-10-17-client-side-build-time-snapshots.md). This spec resolves, by name, the five decisions phase 2 left for phase 3: the flag warning, how user overrides reach the engine, display names, a clipped solar size, and errors shown as text.
 
 ---
 
@@ -60,7 +60,7 @@ Background: [project-outline.md](./ORIGINAL_IDEA/project-outline.md), the phase 
 - [ ] **Same numbers as the report:** for the 1930s semi with its default answers (boiler "needs replacing now"), the site's central values equal the phase 2 report's at display rounding. The test runs the site's code path in Node.
 - [ ] **Speed,** on a mid-range phone profile (Playwright with Chrome's CPU throttled 4×):
   - the central result appears within 200 ms of the last input, after a 150 ms debounce;
-  - the ranges for the default choice (six combinations) and for Agile (all ten) appear within 3 seconds;
+  - the ranges for the default choice (six combinations) and for Agile (eight) appear within 3 seconds;
   - Largest Contentful Paint is under 2.5 seconds (Lighthouse mobile profile).
 - [ ] **Payload:** the first load is under 350 KB compressed, scripts and data together. Agile's rates load only when Agile is chosen. Zod is not in the browser bundle.
 - [ ] **Caveats next to their numbers:** every caveat the report places next to a number appears next to the same number on the site. That covers the Agile limitations, the time-of-use assumptions, the issue 15 bias, VAT, a flagged archetype, a clipped solar size and "Modelled for a house in London". A test checks each against the shared text.
@@ -115,13 +115,14 @@ These need ADRs, which Magnus confirms, before the PR that relies on them is mer
   - Playwright, for the origin test, axe and speed;
   - Testing Library with jsdom or happy-dom, for site coverage.
 
-**The spike must prove four things before feature work starts:**
+**The spike must prove five things before feature work starts:**
 1. **TypeScript.** `next build` works with the repository's pinned TypeScript 7. Next.js loads the TypeScript API and may rewrite tsconfig even with its build check off. If that fails, the options are giving the site its own TypeScript version (which amends the TypeScript 7 ADR) or the Vite fallback. The spike records which it took.
 2. **Imports and the worker.** The bundler accepts the engine's `.ts` import extensions, and the engine runs in a module web worker.
-3. **Security policy.** Find a content security policy that reaches grade A. Next.js's App Router injects inline scripts per page, and a static export can't use per-request nonces. The spike tries Pages Router or hashed inline scripts first. If only `'unsafe-inline'` works, the spike checks securityheaders.com's grade with it before deciding between accepting it and the Vite fallback.
+3. **Security policy.** Find a content security policy that reaches grade A. Next.js's App Router injects inline scripts per page, and a static export can't use per-request nonces. The spike tries Pages Router or hashed inline scripts first. If only `'unsafe-inline'` works, the spike checks securityheaders.com's grade with it. Accepting `'unsafe-inline'` for scripts needs Magnus's sign-off, recorded in the framework ADR; otherwise the spike takes the Vite fallback.
    - The policy must allow the module worker (`worker-src 'self'`, plus `blob:` only if the bundler needs it).
    - It must also allow Cloudflare Web Analytics on `static.cloudflareinsights.com` (the script) and `cloudflareinsights.com` (the reports). On `*.workers.dev` the beacon is added by hand as a snippet.
 4. **Deploys.** The Worker serves the export on `*.workers.dev`, with the headers, from a deploy step Magnus can run, plus a staging or preview path for PRs.
+5. **Payload.** The hello-world's first load, with the register, the weather snapshot and the engine, is measured against the 350 KB compressed budget. If it doesn't fit, the fallbacks are trimming the weather snapshot to the columns the engine reads, and shipping hourly arrays in a compact binary form. The worker reuses the data the page has already fetched rather than fetching it again.
 
 ### Engine changes for the site
 
@@ -131,10 +132,10 @@ These need ADRs, which Magnus confirms, before the PR that relies on them is mer
   - **Ages for the other answers:** a `table` row maps them to 2, 7 and 12 years (approximate, with a rationale).
   - **Gas setups keep the boiler** (the reference, gas with solar, and either on Agile). They replace it when its remaining life runs out, in year max(1, sampled lifetime − age), then every lifetime after. A boiler due in year 0 counts as an upfront cost; a later one is a replacement.
   - **Heat pump setups** buy the heat pump now and never pay for the boiler.
-  - **In code:** `replacementPounds` (`src/engine/payback.ts`) gains a first-replacement offset, and the gas setups' upfront becomes £0 when the boiler isn't due now. The site shows that as "£0 now: your boiler keeps going until year N".
+  - **In code:** `replacementPounds` in `src/engine/payback.ts` gains a first-replacement offset, `components` gives the boiler a zero install cost when it isn't due now, and the gas setups' upfront becomes £0 when the boiler isn't due now. The site shows that as "£0 now: your boiler keeps going until year N".
   - This closes the boiler half of [#37](https://github.com/mannepanne/energy-sim/issues/37). `REFERENCE/engine.md` gains a hand-worked example for each answer.
 - **Visitor figures** (see "Quotes" and "Architecture decisions" item 2).
-  - **The heat pump quote** asks "Has the £7,500 grant already been taken off this quote?" If yes, the engine adds the grant back before applying it, so the grant is never taken off twice. The grant's cap at the heat pump's cost still applies.
+  - **The heat pump quote** asks "Has the £7,500 grant already been taken off this quote?" If yes, the engine adds the grant back before applying it, so the grant is never taken off twice. The grant's cap at the heat pump's cost still applies. For any quote above £7,500 the net result is simply the visitor's figure; the add-back matters only for the cap and for showing the cost before the grant.
   - **The solar quote:** a visitor's solar size takes its own path past the roof clip (`src/engine/inputs.ts`), so it is used as entered. A total solar cost requires the size, so £ per kWp is fixed in every sample.
   - **The boiler quote** applies to today's boiler and to every later boiler replacement, at today's real cost.
 - **Display names in the register,** for archetypes, setups and tariffs. They are `table` rows of strings, read by the site and the report, which resolves the "display names" note.
@@ -148,7 +149,7 @@ These need ADRs, which Magnus confirms, before the PR that relies on them is mer
   - Chunked, with a request id, so a newer request makes an older one stop between chunks.
   - Central values come from the same code path as the report.
 - **Recording reads.** A wrapper around the register accessor records every row a run reads (fixed, uncertain, table and series), for provenance and staleness.
-- **Staleness:** a function returns every recorded row that is past its due date or `validUntil` on a given date. The site passes the visitor's local date; the report keeps not reading the clock.
+- **Staleness:** a function returns every recorded row that is past its due date or `validUntil` on a given date. The site passes the visitor's device date; the report keeps not reading the clock. A wrong device clock, or a visit within a day of a due date, can make the banner differ from the CI check. That is accepted: the weekly CI check is the maintainer's signal, and the banner is the visitor's.
 - **The VAT caveat's dates** come from a register row, not from text.
 - **Build-time validation.** The register is validated with Zod at build time. The browser gets pre-validated JSON, and the site imports only the types, so Zod stays out of the bundle.
 - **The Octopus snapshot is split** into Cosy and export (loaded up front) and Agile (loaded on demand). `loadOctopusSnapshot`, `agileFromSnapshot`, `scripts/fetch-octopus.ts` and the series rows change to match.
@@ -167,10 +168,10 @@ CI regenerates it and fails on a diff, as for the report. The site never imports
 ### The form
 
 - **House type:** the ten archetypes, by display name.
-- **Floor area:** in m², from 30 to 400, defaulting to the archetype's. Changing the house type resets it to the new default, unless the visitor has edited it.
-- **Occupants:** 1 to "5 or more" (used as 5). Defaults from the floor area, as SAP's occupancy formula gives.
+- **Floor area:** in m², within the bounds of a register row (30 to 400), defaulting to the archetype's. Changing the house type resets it to the new default, unless the visitor has edited it.
+- **Occupants:** 1 to "5 or more" (used as 5, the register's upper bound). Defaults from the floor area, as SAP's occupancy formula gives.
 - **Loft, walls and glazing:** walls offer only the answers that fit the archetype. A wall answer that stops fitting after a house type change falls back to the default, and a short note says so.
-- **Boiler age:** defaults to "needs replacing now".
+- **Boiler age:** defaults to "needs replacing now", which matches the report and is the least favourable case for keeping gas. The form says it is an assumption the visitor can change, and the results list it among the caveats when it is left at the default.
 - **Setups:** all four chosen by default.
 - **Tariff:** the visitor picks a time-of-use tariff to show next to the cap: Cosy or Agile. The default is Cosy, the tariff most heat pump households would look at. Cosy is sold only to homes with a heat pump or electric heating, so with Cosy chosen the gas setups show the cap only, and their second column says "Cosy isn't available with a gas boiler". With Agile, every setup shows both.
 - **Reset to defaults** is one control.
@@ -241,7 +242,7 @@ Rules:
 
 - **The central result** runs on the main thread, after a 150 ms debounce. It takes about 3 ms for all combinations on a recent Mac.
 - **The ranges** run in the web worker, in chunks, with a request id; a newer request stops an older one between chunks. The worker parses and prepares the data once and keeps it.
-- **The bench on a recent Mac:** 500 samples of four setups take about 0.7 seconds, and all ten combinations about 1.4. At N=200 on a 4–6× slower phone, the default choice (six combinations: both heat pump setups on the cap and Cosy, both gas setups on the cap) is expected to take about 1–2 seconds, and all ten (Agile chosen) about 2–3.5 seconds. If either misses 3 seconds, N drops for that choice, and the stated noise rises with it.
+- **The bench on a recent Mac:** 500 samples of four setups take about 0.7 seconds, and all ten combinations about 1.4. At N=200 on a 4–6× slower phone, the default choice (six combinations: both heat pump setups on the cap and Cosy, both gas setups on the cap) is expected to take about 1–2 seconds, and Agile (eight combinations: all four setups on the cap and on Agile) about 1.5–3 seconds. If either misses 3 seconds, N drops for that choice, and the stated noise rises with it.
 
 ### Content pages
 
@@ -316,7 +317,7 @@ If a source's terms forbid republishing its data, that data is reduced to the va
 
 **Manual checks before launch:** securityheaders.com on the live address, Lighthouse's mobile profile, and a VoiceOver pass on iOS and macOS.
 
-**Coverage:** 95% for lines, functions and statements and 90% for branches, on the engine and on the site's logic. Pages that only lay out components are covered by the Playwright checks instead, which `REFERENCE/testing-strategy.md` records.
+**Coverage:** 95% for lines, functions and statements and 90% for branches, on the engine and on the site's logic. **Approved exception (Magnus, 21 October 2026):** pages that only lay out components, with no logic of their own, are covered by the Playwright checks instead and are excluded from the Vitest thresholds. All site logic (state, validation, formatting, the worker protocol) stays under the 95% rule. `REFERENCE/testing-strategy.md` records the exception and the list of excluded files.
 
 ---
 
@@ -337,7 +338,10 @@ If a source's terms forbid republishing its data, that data is reduced to the va
    - the `site/` workspace and a deployed hello-world on `*.workers.dev`, running the central engine in a module worker;
    - the staging or preview path;
    - the headers graded;
+   - the payload measured against the 350 KB budget (the fifth check below);
    - the framework ADR, recording Next.js or the Vite fallback.
+
+   **Exit:** the go or no-go on Vite is recorded in the ADR before PR 2 starts.
 2. `feature/phase-3-engine-for-site`:
    - boiler age;
    - visitor figures and their ADR;
@@ -366,7 +370,7 @@ Run `/review-pr` on each.
 
 ### Known risks
 - **Next.js with TypeScript 7, and a content security policy on a static export.** The spike tests both first, and the Vite fallback is agreed.
-- **Phone speed.** The default choice runs six combinations; all ten run when Agile is chosen. If the ranges miss 3 seconds, N drops and the stated noise rises.
+- **Phone speed.** The default choice runs six combinations; eight run when Agile is chosen. If the ranges miss 3 seconds, N drops and the stated noise rises.
 - **Stale data at launch.** The cap rows expire on 31 December 2026, so PR 6 refreshes them to the January–March 2027 cap.
 - **Data licences.** The licence PR checks each source first.
 - **Neutrality.** Every setup is shown the same way, on the cap and on the chosen tariff. The cheapest is highlighted by the numbers alone, never by design emphasis.

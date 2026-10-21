@@ -125,7 +125,7 @@ Development runs in four phases. v1 leads with the numbers, and the 3D street fo
 
 3. **[03-website-beta-launch.md](./03-website-beta-launch.md)** (10–12 weeks; spec reviewed and revised)
    The input form, the 2D comparison view, "where does this number come from?", the not-advice notice, Cloudflare hosting, cookie-free analytics and an A grade on securityheaders.com. It launches as a public beta, a proof of concept. Validation against real homes and expert review come after launch and do not gate it.
-   The five "to decide in the phase 3 spec" notes from phase 2 (the flag warning, user overrides, display names, a clipped solar size, and errors shown as text) are each resolved, by name, in the phase 3 spec.
+   The phase 3 spec resolves the flag warning, how user overrides reach the engine, display names, a clipped solar size, and errors shown as text.
 
 4. **Phase 4: 3D floating-island street** (spec to be written)
    This is the committed next step after v1, and the project's main marketing asset. It is a low-poly Three.js diorama, drawn only from engine results.

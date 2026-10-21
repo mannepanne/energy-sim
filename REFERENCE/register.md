@@ -155,7 +155,7 @@ The row still `to-verify` is the fabric quality factor; the gas carbon factor wa
 
 ## Overrides
 
-Rows marked `overridable` are the ones a visitor will be able to replace with their own figure in phase 3. Floor area is an input to the engine, which derives every area and the volume from it, so a visitor's floor area flows through. User overrides of other fixed rows and cells still need their own path into the engine; that is a phase 3 decision (see [SPECIFICATIONS/CLAUDE.md](../SPECIFICATIONS/CLAUDE.md)).
+Rows marked `overridable` are the ones a visitor will be able to replace with their own figure in phase 3. Floor area is an input to the engine, which derives every area and the volume from it, so a visitor's floor area flows through. User overrides of other fixed rows and cells still need their own path into the engine; that is specified in the [phase 3 spec](../SPECIFICATIONS/03-website-beta-launch.md) ("Architecture decisions", item 2).
 
 ## The setpoint calibration
 
