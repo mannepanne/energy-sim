@@ -3,8 +3,14 @@
 
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { HEM_RESULTS, comparisonMarkdown, hemComparisonMarkdown, hemResult, needComparisonMarkdown } from './comparison.ts';
-import { HEM_RUNS } from './hemInput.ts';
+import { HEM_RESULTS, SCHEDULED_HEM_RESULTS, comparisonMarkdown, hemComparisonMarkdown, hemResult, needComparisonMarkdown } from './comparison.ts';
+import { HEM_RUNS, SCHEDULED_HEM_RUNS } from './hemInput.ts';
+
+describe('SCHEDULED_HEM_RESULTS', () => {
+  it('has a recorded result for every scheduled HEM run, and none for runs that no longer exist', () => {
+    expect(Object.keys(SCHEDULED_HEM_RESULTS).toSorted()).toEqual(SCHEDULED_HEM_RUNS.map((run) => run.name).toSorted());
+  });
+});
 
 describe('HEM_RESULTS', () => {
   it('has a recorded result for every HEM run, and none for runs that no longer exist', () => {

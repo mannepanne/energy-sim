@@ -41,8 +41,8 @@ jobs:
       - name: Test with coverage
         run: npm run test:coverage
 
-      # Regenerates the report offline and fails if it differs from the committed copy,
-      # including a report that was never committed.
+      # Regenerates the phase 2 report offline and fails if it differs from the committed copy,
+      # including a report that was never committed. The phase 1 report is historical and no longer regenerated.
       - name: Report drift
         run: |
           npm run report
@@ -53,6 +53,7 @@ jobs:
             exit 1
           fi
 
-      # 500 samples × 2 setups, outside the coverage run; fails only above 5 seconds.
+      # Outside the coverage run: one central run of the 10 combinations (100 ms), 500 samples of 2 setups (5 s),
+      # 4 setups and all 10 (10 s each), and the full phase 2 report (60 s). Fails above any limit.
       - name: Bench
         run: npm run bench

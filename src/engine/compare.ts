@@ -67,7 +67,8 @@ export interface SampleRun {
   economics: SampleEconomics[];
 }
 
-const economicsOf = (inputs: EngineInputs): SampleEconomics => ({
+/** The economics a set of inputs gives: capital costs, the price scenario and the PV size. */
+export const economicsOf = (inputs: EngineInputs): SampleEconomics => ({
   capital: inputs.capital,
   priceScenario: inputs.priceScenario,
   pvPeakPowerKw: inputs.pv.peakPowerKw,
@@ -242,10 +243,12 @@ const runningCostsOf = (run: SampleRun, totalsFor: (combination: Combination) =>
     run.combinations.map((combination) => [combination, { gasPounds: totalsFor(combination).gasCostPounds, electricityPounds: totalsFor(combination).electricityCostPounds }]),
   );
 
+/** The central run's first-year running costs, split by fuel, for every combination run. */
+export const centralRunningCosts = (run: SampleRun): RunningCosts => runningCostsOf(run, (combination) => forCombination(run.central, combination));
+
 /** Payback summary of `option` against `baseline`, with the horizon each sample's economics give. */
 function paybackSummary(run: SampleRun, option: Combination, baseline: Combination, horizon: (economics: SampleEconomics) => number): PaybackSummary {
-  const centralRunning = runningCostsOf(run, (combination) => forCombination(run.central, combination));
-  const central = samplePayback(option, baseline, horizon(run.centralEconomics), run.centralEconomics, centralRunning);
+  const central = samplePayback(option, baseline, horizon(run.centralEconomics), run.centralEconomics, centralRunningCosts(run));
   const years = run.economics.map((economics, sample) => {
     const running = runningCostsOf(run, (combination) => {
       const samples = forCombination(run.samples, combination);

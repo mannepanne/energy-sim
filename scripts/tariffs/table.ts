@@ -147,6 +147,30 @@ function controlLine(effect: ControlEffect): string {
   return [`| ${run('off', effect.off)} |`, `| ${run('on', effect.on)} |`].join('\n');
 }
 
+/** The 10 combinations' line table from a comparison of all 10, with its lead-in sentence. */
+export function combinationsTable(comparison: Comparison, plan: SamplingPlan): string {
+  return [
+    `The 1930s semi at its defaults, in London. Central, with the 10th to 90th percentile from ${wholeNumber(plan.count)} samples (seed ${plan.seed}). Gas is always on the price cap; the tariff is the electricity tariff. The difference is the gas boiler on the price cap minus the combination, so a positive difference is a saving. The heat pump follows the control rules on Cosy and Agile (REFERENCE/engine.md).`,
+    '',
+    '| Combination | Running cost a year | Difference | Carbon | Cheapest of all | Cheapest on its tariff |',
+    '| --- | ---: | ---: | ---: | ---: | ---: |',
+    ...COMBINATIONS.map((combination) => `| ${combinationLine(comparison, combination)} |`),
+  ].join('\n');
+}
+
+/** What control does to the heat pump without solar, central, with the mean indoor temperatures with no control. */
+export function controlTable(inputs: EngineInputs, weather: PreparedWeather, agile: AgileRates): string {
+  const effects = controlEffects(inputs, weather, agile);
+  const schedules = scheduleTemperatures(inputs, weather);
+  return [
+    `What control does to the heat pump without solar, central. The shares are of the heat pump’s own electricity. With no control, the year’s mean indoor temperature is ${celsius(schedules.heatPumpC)} for the heat pump on its schedule and ${celsius(schedules.gasC)} for the gas boiler on its own.`,
+    '',
+    '| Tariff and control | Mean indoor temperature | In cheap hours | In peak hours | Space heat | Heat pump electricity | Running cost |',
+    '| --- | ---: | ---: | ---: | ---: | ---: | ---: |',
+    ...effects.map(controlLine),
+  ].join('\n');
+}
+
 /** Runs the 10 combinations and the control comparison. */
 export function tariffTable(
   access: RegisterAccessor,
@@ -156,20 +180,10 @@ export function tariffTable(
   plan: SamplingPlan = TARIFF_PLAN,
 ): string {
   const comparison = compare(runSamples(access, weather, plan, { combinations: COMBINATIONS, agile }));
-  const effects = controlEffects(inputs, weather, agile);
-  const schedules = scheduleTemperatures(inputs, weather);
   return [
-    `The 1930s semi at its defaults, in London. Central, with the 10th to 90th percentile from ${wholeNumber(plan.count)} samples (seed ${plan.seed}). Gas is always on the price cap; the tariff is the electricity tariff. The difference is the gas boiler on the price cap minus the combination, so a positive difference is a saving. The heat pump follows the control rules on Cosy and Agile (REFERENCE/engine.md).`,
+    combinationsTable(comparison, plan),
     '',
-    '| Combination | Running cost a year | Difference | Carbon | Cheapest of all | Cheapest on its tariff |',
-    '| --- | ---: | ---: | ---: | ---: | ---: |',
-    ...COMBINATIONS.map((combination) => `| ${combinationLine(comparison, combination)} |`),
-    '',
-    `What control does to the heat pump without solar, central. The shares are of the heat pump’s own electricity. With no control, the year’s mean indoor temperature is ${celsius(schedules.heatPumpC)} for the heat pump on its schedule and ${celsius(schedules.gasC)} for the gas boiler on its own.`,
-    '',
-    '| Tariff and control | Mean indoor temperature | In cheap hours | In peak hours | Space heat | Heat pump electricity | Running cost |',
-    '| --- | ---: | ---: | ---: | ---: | ---: | ---: |',
-    ...effects.map(controlLine),
+    controlTable(inputs, weather, agile),
     '',
     ...TIME_OF_USE_ASSUMPTIONS,
     ...agileLimitations(agile.window),

@@ -2,7 +2,8 @@
 // ABOUT: Formatting never depends on the machine's locale, so the committed report stays byte-identical
 
 import { describe, expect, it } from 'vitest';
-import { exactNumber, kgCo2e, kwh, plainValue, pounds, roundTo, share, signedPercent, wholeNumber } from './format.ts';
+import { CHEAPER_UP_FRONT_COSTS_MORE_TO_RUN, DOES_NOT_PAY_BACK } from '../../src/engine/payback.ts';
+import { celsius, exactNumber, kgCo2e, kwh, paybackYears, pence, plainValue, pounds, range, roundTo, share, signedPercent, wholeNumber } from './format.ts';
 
 describe('roundTo', () => {
   it('rounds half away from zero, symmetrically for negatives', () => {
@@ -52,5 +53,30 @@ describe('formatters', () => {
     expect(plainValue(-0.128)).toBe('−0.128');
     expect(exactNumber(-0.128)).toBe('−0.128');
     expect(exactNumber(51.507)).toBe('51.507');
+  });
+});
+
+describe('paybackYears', () => {
+  it('rounds to whole years and names year 0, "beyond lifetime" and cheaper up front', () => {
+    expect(paybackYears(0)).toBe('at once');
+    expect(paybackYears(0.4)).toBe('at once');
+    expect(paybackYears(1)).toBe('1 year');
+    expect(paybackYears(12.5)).toBe('13 years');
+    expect(paybackYears(DOES_NOT_PAY_BACK)).toBe('beyond lifetime');
+    expect(paybackYears(CHEAPER_UP_FRONT_COSTS_MORE_TO_RUN)).toBe('cheaper up front, costs more to run');
+  });
+
+  it('throws on any other negative year or NaN', () => {
+    expect(() => paybackYears(-2)).toThrow('Cannot format');
+    expect(() => paybackYears(Number.NaN)).toThrow('Cannot format');
+  });
+});
+
+describe('pence, celsius and range', () => {
+  it('formats pence and temperatures to fixed places, and collapses a range whose ends match', () => {
+    expect(pence(26.6)).toBe('26.60p');
+    expect(celsius(17.64)).toBe('17.6 °C');
+    expect(range('£10', '£10')).toBe('£10');
+    expect(range('£10', '£20')).toBe('£10 to £20');
   });
 });

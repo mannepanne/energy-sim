@@ -1,0 +1,45 @@
+// ABOUT: Checks the report's table helpers on small hand-made comparisons: skew notes, the time-of-use pointer
+// ABOUT: and how a row's low and high are written for pounds, per-unit pounds and other units
+
+import { describe, expect, it } from 'vitest';
+import { band, byMetric, type Comparison } from '../../src/engine/compare.ts';
+import { metricTable, TIME_OF_USE_NOTE, valueRange } from './comparisons.ts';
+
+const inside = band([1, 2, 3, 4, 5], 3);
+const outside = band([1, 2, 3, 4, 5], 0);
+
+const comparisonOf = (heatPumpCost: typeof inside, tariff: 'cap' | 'cosy'): Comparison => {
+  const option = tariff === 'cap' ? 'heatPump/cap' : 'heatPump/cosy';
+  return {
+    reference: 'gas/cap',
+    bands: { 'gas/cap': byMetric(() => inside), [option]: { ...byMetric(() => inside), costPounds: heatPumpCost } },
+    differences: {},
+    shareCheapest: {},
+    shareCheapestByTariff: {},
+    payback: {},
+    solarPayback: {},
+  };
+};
+
+describe('metricTable', () => {
+  it('says nothing about skew when every central value lies inside its band, and no pointer on the cap alone', () => {
+    const table = metricTable(comparisonOf(inside, 'cap'), 'costPounds', 'A year', String);
+    expect(table).not.toContain('outside');
+    expect(table).not.toContain(TIME_OF_USE_NOTE);
+  });
+
+  it('names each combination whose central value lies outside its band, and points to the caveats for Cosy', () => {
+    const table = metricTable(comparisonOf(outside, 'cosy'), 'costPounds', 'A year', String);
+    expect(table).toContain('outside the 10th to 90th percentile for Heat pump, Cosy, because');
+    expect(table).toContain(TIME_OF_USE_NOTE);
+  });
+});
+
+describe('valueRange', () => {
+  it('writes pounds with the sign, per-unit pounds with "per", and other units after the numbers', () => {
+    expect(valueRange(8_000, 22_000, '£')).toBe('£8,000 to £22,000');
+    expect(valueRange(1_250, 2_500, '£/kWp')).toBe('£1,250 to £2,500 per kWp');
+    expect(valueRange(16.2, 18.8, '°C')).toBe('16.2 to 18.8 °C');
+    expect(valueRange(0.75, 1.15, 'ratio')).toBe('0.75 to 1.15');
+  });
+});

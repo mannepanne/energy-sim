@@ -24,6 +24,16 @@ export const HEM_RESULTS: Record<string, HemResult> = {
   'thermostat-16': { spaceHeatKwh: 11_971, meanAirTemperatureWhenHeatingC: 16.78 },
 };
 
+/**
+ * HEM outputs for the scheduled runs (phase 2), recorded on 20 October 2026 from the committed input files, each
+ * run after its rules were committed in hem/README.md. The air temperature is the mean over the hours when heating runs.
+ */
+export const SCHEDULED_HEM_RESULTS: Record<'schedule-sap' | 'schedule-unimodal' | 'continuous-sap-mass', HemResult> = {
+  'schedule-sap': { spaceHeatKwh: 13_580, meanAirTemperatureWhenHeatingC: 20.45 },
+  'schedule-unimodal': { spaceHeatKwh: 14_842, meanAirTemperatureWhenHeatingC: 20.13 },
+  'continuous-sap-mass': { spaceHeatKwh: 17_311, meanAirTemperatureWhenHeatingC: 19.81 },
+};
+
 export function hemResult(run: HemRun): HemResult {
   const result = HEM_RESULTS[run.name];
   if (!result) throw new Error(`No recorded HEM result for run "${run.name}"`);
