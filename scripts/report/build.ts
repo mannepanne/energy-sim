@@ -18,7 +18,7 @@ import { ARCHETYPE_NAMES } from '../archetypes/table.ts';
 import { readInputs, uncertainDraws } from '../../src/engine/inputs.ts';
 import type { SamplingPlan } from '../../src/engine/sampling.ts';
 import { sensitivity, type SensitivityRow } from '../../src/engine/sensitivity.ts';
-import { forSetup, type Setup } from '../../src/engine/setups.ts';
+import { forCombination, type Combination } from '../../src/engine/combinations.ts';
 import { prepareWeather, weatherFromSnapshot } from '../../src/engine/weather.ts';
 import { createAccessor, type RegisterAccessor } from '../../src/register/access.ts';
 import { dueDate } from '../../src/register/load.ts';
@@ -40,10 +40,10 @@ export const REPORT_PLAN: SamplingPlan = { seed: 1, count: 500 };
 export const REPORT_PATH = 'reports/phase-1-london-semi.md';
 
 /** The phase 1 report compares these two setups, both without solar. */
-const REPORT_SETUPS = ['gas', 'heatPump'] as const satisfies readonly Setup[];
+const REPORT_SETUPS = ['gas/cap', 'heatPump/cap'] as const satisfies readonly Combination[];
 type ReportSetup = (typeof REPORT_SETUPS)[number];
 
-const SETUP_NAMES: Record<ReportSetup, string> = { gas: 'Gas boiler', heatPump: 'Heat pump' };
+const SETUP_NAMES: Record<ReportSetup, string> = { 'gas/cap': 'Gas boiler', 'heatPump/cap': 'Heat pump' };
 
 const METRIC_ROWS: readonly { metric: Metric; label: string; format: (value: number) => string }[] = [
   { metric: 'spaceHeatKwh', label: 'Space heat', format: kwh },
@@ -68,11 +68,11 @@ function resultsSection(comparison: Comparison): string {
     '',
     '### Gas boiler',
     '',
-    resultsTable(comparison, 'gas'),
+    resultsTable(comparison, 'gas/cap'),
     '',
     '### Heat pump',
     '',
-    resultsTable(comparison, 'heatPump'),
+    resultsTable(comparison, 'heatPump/cap'),
     '',
     '**These heat pump figures carry a stated bias in the heat pump’s favour.** The heat pump heats from 7 am to 11 pm every day and the boiler in SAP’s two periods on weekdays; on those two schedules the engine understates the heat pump’s space heat against the boiler’s by about 6.7 points, against the government’s Home Energy Model ([issue 15](https://github.com/mannepanne/energy-sim/issues/15)).',
     '',
@@ -81,20 +81,20 @@ function resultsSection(comparison: Comparison): string {
 }
 
 /** Gas minus heat pump, per sample. */
-const costDifferenceOf = (comparison: Comparison): Band => forSetup(comparison.differences, 'heatPump').costPounds;
-const shareHeatPumpCheaper = (comparison: Comparison): number => forSetup(comparison.shareCheapest, 'heatPump');
+const costDifferenceOf = (comparison: Comparison): Band => forCombination(comparison.differences, 'heatPump/cap').costPounds;
+const shareHeatPumpCheaper = (comparison: Comparison): number => forCombination(comparison.shareCheapest, 'heatPump/cap');
 
 function variantSection(comparison: Comparison): string {
   const costDifference = costDifferenceOf(comparison);
   return [
     '## The variant with no loft insulation',
     '',
-    `With no loft insulation, the house needs more heat: ${kwh(forSetup(comparison.bands, 'gas').spaceHeatKwh.central)} of space heat a year, central. Gas minus heat pump running cost is ${pounds(costDifference.central)} central (${range(pounds(costDifference.p10), pounds(costDifference.p90))}), and the heat pump is cheaper in ${share(shareHeatPumpCheaper(comparison))} of samples. The same samples and the same caveat (issue 15) apply.`,
+    `With no loft insulation, the house needs more heat: ${kwh(forCombination(comparison.bands, 'gas/cap').spaceHeatKwh.central)} of space heat a year, central. Gas minus heat pump running cost is ${pounds(costDifference.central)} central (${range(pounds(costDifference.p10), pounds(costDifference.p90))}), and the heat pump is cheaper in ${share(shareHeatPumpCheaper(comparison))} of samples. The same samples and the same caveat (issue 15) apply.`,
   ].join('\n');
 }
 
 function resultsTable(comparison: Comparison, setup: ReportSetup): string {
-  const rows = METRIC_ROWS.map(({ metric, label, format }) => `| ${label} | ${bandCells(forSetup(comparison.bands, setup)[metric], format)} |`);
+  const rows = METRIC_ROWS.map(({ metric, label, format }) => `| ${label} | ${bandCells(forCombination(comparison.bands, setup)[metric], format)} |`);
   return ['| A year | Central | Median | 10th to 90th percentile |', '| --- | ---: | ---: | ---: |', ...rows].join('\n');
 }
 
@@ -103,12 +103,12 @@ export function outsideBandNotes(comparison: Comparison): string[] {
   const notes: string[] = [];
   for (const setup of REPORT_SETUPS) {
     for (const { metric, label } of METRIC_ROWS) {
-      if (centralOutsideBand(forSetup(comparison.bands, setup)[metric])) {
+      if (centralOutsideBand(forCombination(comparison.bands, setup)[metric])) {
         notes.push(`- ${SETUP_NAMES[setup]}, ${label.toLowerCase()}: the central value lies outside the 10th to 90th percentile band, because the ranges are skewed.`);
       }
     }
   }
-  const { costPounds: costDifference, carbonKg: carbonDifference } = forSetup(comparison.differences, 'heatPump');
+  const { costPounds: costDifference, carbonKg: carbonDifference } = forCombination(comparison.differences, 'heatPump/cap');
   if (centralOutsideBand(costDifference)) notes.push('- The cost difference: the central value lies outside the 10th to 90th percentile band, because the ranges are skewed.');
   if (centralOutsideBand(carbonDifference)) notes.push('- The carbon difference: the central value lies outside the 10th to 90th percentile band, because the ranges are skewed.');
   return notes;
@@ -120,7 +120,7 @@ export function marginPoints(fraction: number, count: number): number {
 }
 
 function comparisonSection(comparison: Comparison, count: number): string {
-  const { costPounds: costDifference, carbonKg: carbonDifference } = forSetup(comparison.differences, 'heatPump');
+  const { costPounds: costDifference, carbonKg: carbonDifference } = forCombination(comparison.differences, 'heatPump/cap');
   const notes = outsideBandNotes(comparison);
   return [
     '## Gas boiler versus heat pump',
@@ -278,7 +278,6 @@ const LIMITATIONS = [
   '- **Fixed prices and one typical weather year** ([issue 16](https://github.com/mannepanne/energy-sim/issues/16)), and an **annual average grid carbon factor** ([issue 17](https://github.com/mannepanne/energy-sim/issues/17)).',
   '- **Only the per-occupant gains and hot water terms are correlated.** Their correlation (0.5) is an estimate with no source. Every other uncertain row is drawn independently.',
   '- **Constant internal gains**, and windows split equally over four orientations.',
-  '- The gas carbon factor still needs a line-by-line check against its source ([issue 8](https://github.com/mannepanne/energy-sim/issues/8)).',
 ].join('\n');
 
 /** The house with no loft insulation, the report's variant. */
@@ -289,7 +288,7 @@ export function buildReport(register: Register, snapshot: PvgisSnapshot, plan: S
   const access = createAccessor(register);
   const house = defaultHouse(access, REFERENCE_ARCHETYPE);
   const weather = prepareWeather(weatherFromSnapshot(snapshot), readInputs(access, { house }));
-  const run = runSetups(access, weather, plan, { setups: REPORT_SETUPS });
+  const run = runSetups(access, weather, plan, { combinations: REPORT_SETUPS });
   const comparison = compare(run);
   const sections = [
     [
@@ -304,10 +303,10 @@ export function buildReport(register: Register, snapshot: PvgisSnapshot, plan: S
     houseSection(access),
     resultsSection(comparison),
     comparisonSection(comparison, plan.count),
-    sensitivitySection(access, sensitivity(access, weather, [{ setup: 'heatPump', against: 'gas' }])[0]!.rows),
-    variantSection(compare(runSetups(access, weather, plan, { house: noLoftInsulation(house), setups: REPORT_SETUPS }))),
+    sensitivitySection(access, sensitivity(access, weather, [{ setup: 'heatPump/cap', against: 'gas/cap' }])[0]!.rows),
+    variantSection(compare(runSetups(access, weather, plan, { house: noLoftInsulation(house), combinations: REPORT_SETUPS }))),
     methodSection(register, access, run),
-    benchmarkSection(forSetup(run.central, 'gas').gasKwh),
+    benchmarkSection(forCombination(run.central, 'gas/cap').gasKwh),
     dataDatesSection(register, snapshot),
     LIMITATIONS,
   ];

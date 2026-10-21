@@ -154,20 +154,22 @@ describe('each setup’s kit and the grant', () => {
 });
 
 describe('horizons', () => {
-  it('uses the heat pump’s lifetime for heat pump setups, with or without solar, and PV’s for gas with solar', () => {
-    expect(horizonAgainstReference('heatPump', CAPITAL)).toBe(17);
-    expect(horizonAgainstReference('heatPumpSolar', CAPITAL)).toBe(17);
-    expect(horizonAgainstReference('gasSolar', CAPITAL)).toBe(26);
+  it('uses the heat pump’s lifetime for heat pump setups, with or without solar, PV’s for gas with solar, and the boiler’s for gas on another tariff', () => {
+    expect(horizonAgainstReference('heatPump/cap', CAPITAL)).toBe(17);
+    expect(horizonAgainstReference('heatPumpSolar/cosy', CAPITAL)).toBe(17);
+    expect(horizonAgainstReference('gasSolar/cap', CAPITAL)).toBe(26);
+    expect(horizonAgainstReference('gasSolar/agile', CAPITAL)).toBe(26);
+    expect(horizonAgainstReference('gas/agile', CAPITAL)).toBe(13);
     expect(solarHorizon(CAPITAL)).toBe(26);
-    expect(() => horizonAgainstReference('gas', CAPITAL)).toThrow(/is the reference/);
+    expect(() => horizonAgainstReference('gas/cap', CAPITAL)).toThrow(/is the reference/);
   });
 
-  it('works out a sample’s payback from its economics and the running costs by setup', () => {
+  it('works out a sample’s payback from its economics and the running costs by combination', () => {
     const economics = { capital: CAPITAL, priceScenario: NO_CHANGE, pvPeakPowerKw: 4 };
     // Solar on gas: £6,000 extra, saving £400 of electricity a year, over 26 years: year 15.
-    const running = { gas: { gasPounds: 800, electricityPounds: 400 }, gasSolar: { gasPounds: 800, electricityPounds: 0 } };
-    expect(samplePayback('gasSolar', 'gas', 26, economics, running)).toBe(15);
-    expect(() => samplePayback('heatPump', 'gas', 17, economics, running)).toThrow(/"heatPump" is not in this run/);
+    const running = { 'gas/cap': { gasPounds: 800, electricityPounds: 400 }, 'gasSolar/cap': { gasPounds: 800, electricityPounds: 0 } };
+    expect(samplePayback('gasSolar/cap', 'gas/cap', 26, economics, running)).toBe(15);
+    expect(() => samplePayback('heatPump/cap', 'gas/cap', 17, economics, running)).toThrow(/"heatPump\/cap" is not in this run/);
   });
 });
 

@@ -22,7 +22,8 @@
     "report": "tsx scripts/report.ts",
     "bench": "tsx scripts/bench.ts",
     "derive:base-profile": "tsx scripts/derive-base-profile.ts",
-    "fetch:pvcalc": "tsx scripts/fetch-pvcalc.ts"
+    "fetch:pvcalc": "tsx scripts/fetch-pvcalc.ts",
+    "fetch:octopus": "tsx scripts/fetch-octopus.ts"
   },
   "devDependencies": {
     "@types/node": "^24.19.2",

@@ -14,6 +14,11 @@ import { runThermalNode } from './thermal.ts';
 import { sunPath } from './solar.ts';
 import { CONTINUOUS_SCHEDULE, fixtureAccessor, type FixtureValues } from './testing/fixtureRegister.ts';
 import { prepareWeather, weatherFromSnapshot, type PreparedWeather } from './weather.ts';
+import { heatingTargets } from './control.ts';
+
+/** The node on a heating schedule at one setpoint, starting the pre-roll at the setpoint. */
+const runNode = (node: Parameters<typeof runThermalNode>[0], outdoorC: Float64Array, gainsW: Float64Array, heatingOn: ArrayLike<number>, setpointC: number) =>
+  runThermalNode(node, outdoorC, gainsW, heatingTargets(heatingOn, setpointC), setpointC);
 
 const snapshot = loadPvgisSnapshot(
   JSON.parse(readFileSync(new URL('../../data/snapshots/pvgis-tmy-london.json', import.meta.url), 'utf8')) as unknown,
@@ -385,7 +390,7 @@ describe('the HEM checks (benchmark archetype on the PVGIS year)', () => {
       const hours = weekday < 5 && pattern === 'sap' ? SAP_WEEKDAY_HOURS : SAP_WEEKEND_HOURS;
       if (pattern === 'continuous' || hours.includes(hour % 24)) heating[hour] = 1;
     }
-    return sum(runThermalNode(node, prepared.outdoorTemperatureC, gains, heating, setpointC).spaceHeatKwh);
+    return sum(runNode(node, prepared.outdoorTemperatureC, gains, heating, setpointC).spaceHeatKwh);
   };
 
   it('scheduled: gives annual space heat within 10% of HEM’s schedule-sap run (13,580 kWh), the pre-registered check', () => {

@@ -105,10 +105,11 @@ describe('outsideBandNotes', () => {
   const outside = band([1, 2, 3, 4, 5], 0);
   const bands = byMetric(() => inside);
   const comparisonOf = (gasBands: typeof bands, difference: typeof inside): Comparison => ({
-    reference: 'gas',
-    bands: { gas: gasBands, heatPump: bands },
-    differences: { heatPump: { costPounds: difference, carbonKg: difference } },
-    shareCheapest: { gas: 0.5, heatPump: 0.5 },
+    reference: 'gas/cap',
+    bands: { 'gas/cap': gasBands, 'heatPump/cap': bands },
+    differences: { 'heatPump/cap': { costPounds: difference, carbonKg: difference } },
+    shareCheapest: { 'gas/cap': 0.5, 'heatPump/cap': 0.5 },
+    shareCheapestByTariff: { cap: { 'gas/cap': 0.5, 'heatPump/cap': 0.5 } },
     payback: {},
     solarPayback: {},
   });

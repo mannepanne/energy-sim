@@ -1,5 +1,5 @@
-// ABOUT: Paired runs of any of the four setups on the same seeded samples, keeping only annual totals and economics
-// ABOUT: Summarises each metric, the paired differences against the reference, the share cheapest and payback
+// ABOUT: Paired runs of any of the 10 setup and tariff combinations on the same seeded samples, keeping only annual totals and economics
+// ABOUT: Summarises each metric, the paired differences against the reference, the shares cheapest and payback
 
 import type { RegisterAccessor } from '../register/access.ts';
 import { defaultHouse, REFERENCE_ARCHETYPE, type House } from './archetypes.ts';
@@ -15,9 +15,20 @@ import {
   type RunningCosts,
   type SampleEconomics,
 } from './payback.ts';
+import {
+  combinationOf,
+  forCombination,
+  onCap,
+  partsOf,
+  REFERENCE_COMBINATION,
+  runCombinations,
+  type ByCombination,
+  type Combination,
+} from './combinations.ts';
 import { sampleOverrides, type SamplingPlan } from './sampling.ts';
-import { forSetup, REFERENCE_SETUP, SETUP_KIT, SETUPS, setupOf, type BySetup, type Setup } from './setups.ts';
-import { simulate, solarGeneration, type AnnualResult, type Heating } from './simulate.ts';
+import { SETUP_KIT, SETUPS, setupOf } from './setups.ts';
+import type { AnnualResult } from './simulate.ts';
+import { TARIFFS, type Tariff, type TimeOfUseTariffs } from './tariffs.ts';
 import type { PreparedWeather } from './weather.ts';
 
 /** The annual totals kept for each setup in each sample. */
@@ -46,11 +57,11 @@ export interface SetupRun {
   plan: SamplingPlan;
   house: House;
   spfScenario: SpfScenario;
-  /** The setups run, in the order given. */
-  setups: readonly Setup[];
+  /** The combinations run, in the order given. */
+  combinations: readonly Combination[];
   /** Every uncertain row at its default. */
-  central: BySetup<Totals>;
-  samples: BySetup<SampleTotals>;
+  central: ByCombination<Totals>;
+  samples: ByCombination<SampleTotals>;
   centralEconomics: SampleEconomics;
   /** One entry per sample, shared by every setup in it. */
   economics: SampleEconomics[];
@@ -98,15 +109,13 @@ export const byMetric = <T>(make: (metric: Metric) => T): Record<Metric, T> => (
 
 const emptySampleTotals = (count: number): SampleTotals => byMetric(() => new Float64Array(count));
 
-/** Runs the setups on one set of inputs. The setups with solar share one roof, so its generation is computed once. */
-function runOnce(inputs: EngineInputs, weather: PreparedWeather, setups: readonly Setup[]): BySetup<Totals> {
+/** Runs the combinations on one set of inputs, sharing the roof, k and each heat side between them. */
+function runOnce(inputs: EngineInputs, weather: PreparedWeather, combinations: readonly Combination[], timeOfUse: TimeOfUseTariffs | undefined): ByCombination<Totals> {
   const economics = economicsOf(inputs);
-  const generationKwh = setups.some((setup) => SETUP_KIT[setup].solar) ? solarGeneration(inputs, weather) : undefined;
-  const totals: BySetup<Totals> = {};
-  for (const setup of setups) {
-    const { heating, solar } = SETUP_KIT[setup];
-    const annual = simulate(inputs, weather, heating, { solar, ...(solar && generationKwh && { generationKwh }) }).annual;
-    totals[setup] = totalsOf(annual, upfrontPounds(components(setup, economics)));
+  const annual = runCombinations(inputs, weather, combinations, timeOfUse);
+  const totals: ByCombination<Totals> = {};
+  for (const combination of combinations) {
+    totals[combination] = totalsOf(forCombination(annual, combination), upfrontPounds(components(partsOf(combination).setup, economics)));
   }
   return totals;
 }
@@ -116,36 +125,41 @@ export interface RunOptions {
   house?: House;
   /** Defaults to `fieldTrial`. */
   spfScenario?: SpfScenario;
-  /** Defaults to all four. */
-  setups?: readonly Setup[];
+  /** Defaults to the four setups on the price cap. */
+  combinations?: readonly Combination[];
+  /** Cosy and Agile, from `readTimeOfUseTariffs`; needed when a combination uses either. */
+  timeOfUse?: TimeOfUseTariffs;
 }
 
 /**
- * Runs the setups on the central inputs and on each sample. Every setup in a sample shares one set of inputs.
+ * Runs the combinations on the central inputs and on each sample. Every combination in a sample shares one set of inputs.
  * Only the annual totals are kept, because each full result holds about 560 KB of hourly arrays. The weather must be
  * prepared once, from the same register. `spfScenario` picks the heat pump's SPF distribution; every other draw is
- * the same in both scenarios, so they pair. Every row is drawn whichever setups run, so runs of different setups
- * pair too.
+ * the same in both scenarios, so they pair. Every row is drawn whichever combinations run, so runs of different
+ * combinations pair too.
  */
 export function runSetups(access: RegisterAccessor, weather: PreparedWeather, plan: SamplingPlan, options: RunOptions = {}): SetupRun {
-  const { spfScenario = 'fieldTrial', setups = SETUPS } = options;
+  const { spfScenario = 'fieldTrial', combinations = onCap(SETUPS), timeOfUse } = options;
   const house = options.house ?? defaultHouse(access, REFERENCE_ARCHETYPE);
-  if (setups.length === 0 || new Set(setups).size !== setups.length) throw new Error(`Setups must be distinct and at least one, got [${setups.join(', ')}]`);
+  if (combinations.length === 0 || new Set(combinations).size !== combinations.length) {
+    throw new Error(`Combinations must be distinct and at least one, got [${combinations.join(', ')}]`);
+  }
+  combinations.forEach(partsOf);
   const centralInputs = readInputs(access, { house, spfScenario });
-  const central = runOnce(centralInputs, weather, setups);
-  const samples: BySetup<SampleTotals> = Object.fromEntries(setups.map((setup) => [setup, emptySampleTotals(plan.count)]));
+  const central = runOnce(centralInputs, weather, combinations, timeOfUse);
+  const samples: ByCombination<SampleTotals> = Object.fromEntries(combinations.map((combination) => [combination, emptySampleTotals(plan.count)]));
   const economics: SampleEconomics[] = [];
   sampleOverrides(access, plan, house, spfScenario).forEach((overrides, sample) => {
     const inputs = readInputs(access, { house, overrides, spfScenario });
     economics.push(economicsOf(inputs));
-    const totals = runOnce(inputs, weather, setups);
-    for (const setup of setups) {
-      const into = forSetup(samples, setup);
-      const from = forSetup(totals, setup);
+    const totals = runOnce(inputs, weather, combinations, timeOfUse);
+    for (const combination of combinations) {
+      const into = forCombination(samples, combination);
+      const from = forCombination(totals, combination);
       for (const metric of METRICS) into[metric][sample] = from[metric];
     }
   });
-  return { plan, house, spfScenario, setups, central, samples, centralEconomics: economicsOf(centralInputs), economics };
+  return { plan, house, spfScenario, combinations, central, samples, centralEconomics: economicsOf(centralInputs), economics };
 }
 
 /**
@@ -208,28 +222,32 @@ export interface Difference {
 }
 
 export interface Comparison {
-  reference: Setup;
-  bands: BySetup<Record<Metric, Band>>;
-  /** Reference minus setup, per sample, for every setup but the reference. */
-  differences: BySetup<Difference>;
-  /** The share of samples in which each setup has the lowest running cost; ties split equally. */
-  shareCheapest: BySetup<number>;
-  /** Each setup against the reference, over its horizon. */
-  payback: BySetup<PaybackSummary>;
-  /** Solar against no solar on each heating system run both ways, over PV's lifetime. */
-  solarPayback: Partial<Record<Heating, PaybackSummary>>;
+  reference: Combination;
+  bands: ByCombination<Record<Metric, Band>>;
+  /** Reference minus combination, per sample, for every combination but the reference. */
+  differences: ByCombination<Difference>;
+  /** The share of samples in which each combination has the lowest running cost of all run; ties split equally. */
+  shareCheapest: ByCombination<number>;
+  /** The same within each tariff, among the combinations run on it. */
+  shareCheapestByTariff: Partial<Record<Tariff, ByCombination<number>>>;
+  /** Each combination against the reference, over its horizon. */
+  payback: ByCombination<PaybackSummary>;
+  /** Solar against no solar, for each heating system and tariff run both ways, over PV's lifetime; keyed by the combination with solar. */
+  solarPayback: ByCombination<PaybackSummary>;
 }
 
-const runningCostsOf = (run: SetupRun, totalsFor: (setup: Setup) => Totals): RunningCosts =>
-  Object.fromEntries(run.setups.map((setup) => [setup, { gasPounds: totalsFor(setup).gasCostPounds, electricityPounds: totalsFor(setup).electricityCostPounds }]));
+const runningCostsOf = (run: SetupRun, totalsFor: (combination: Combination) => Totals): RunningCosts =>
+  Object.fromEntries(
+    run.combinations.map((combination) => [combination, { gasPounds: totalsFor(combination).gasCostPounds, electricityPounds: totalsFor(combination).electricityCostPounds }]),
+  );
 
 /** Payback summary of `option` against `baseline`, with the horizon each sample's economics give. */
-function paybackSummary(run: SetupRun, option: Setup, baseline: Setup, horizon: (economics: SampleEconomics) => number): PaybackSummary {
-  const centralRunning = runningCostsOf(run, (setup) => forSetup(run.central, setup));
+function paybackSummary(run: SetupRun, option: Combination, baseline: Combination, horizon: (economics: SampleEconomics) => number): PaybackSummary {
+  const centralRunning = runningCostsOf(run, (combination) => forCombination(run.central, combination));
   const central = samplePayback(option, baseline, horizon(run.centralEconomics), run.centralEconomics, centralRunning);
   const years = run.economics.map((economics, sample) => {
-    const running = runningCostsOf(run, (setup) => {
-      const samples = forSetup(run.samples, setup);
+    const running = runningCostsOf(run, (combination) => {
+      const samples = forCombination(run.samples, combination);
       return byMetric((metric) => samples[metric][sample]!);
     });
     return samplePayback(option, baseline, horizon(economics), economics, running);
@@ -237,30 +255,54 @@ function paybackSummary(run: SetupRun, option: Setup, baseline: Setup, horizon: 
   return summarisePayback(years, central);
 }
 
-export function compare(run: SetupRun, reference: Setup = REFERENCE_SETUP): Comparison {
-  if (!run.setups.includes(reference)) throw new Error(`The reference setup "${reference}" is not in this run`);
-  const others = run.setups.filter((setup) => setup !== reference);
-  const referenceSamples = forSetup(run.samples, reference);
-  const referenceCentral = forSetup(run.central, reference);
-  const differenceBand = (setup: Setup, metric: 'costPounds' | 'carbonKg'): Band =>
-    band(pairedDifference(referenceSamples[metric], forSetup(run.samples, setup)[metric]), referenceCentral[metric] - forSetup(run.central, setup)[metric]);
-  const shares = shareCheapest(run.setups.map((setup) => forSetup(run.samples, setup).costPounds));
-  const solarPayback: Partial<Record<Heating, PaybackSummary>> = {};
-  for (const heating of ['gas', 'heatPump'] as const) {
-    const [without, withSolar] = [setupOf(heating, false), setupOf(heating, true)];
-    if (run.setups.includes(without) && run.setups.includes(withSolar)) {
-      solarPayback[heating] = paybackSummary(run, withSolar, without, (economics) => solarHorizon(economics.capital));
+/** Shares cheapest among some of the run's combinations, keyed by combination. */
+function sharesAmong(run: SetupRun, combinations: readonly Combination[]): ByCombination<number> {
+  const shares = shareCheapest(combinations.map((combination) => forCombination(run.samples, combination).costPounds));
+  return Object.fromEntries(combinations.map((combination, index) => [combination, shares[index]!]));
+}
+
+export function compare(run: SetupRun, reference: Combination = REFERENCE_COMBINATION): Comparison {
+  if (!run.combinations.includes(reference)) throw new Error(`The reference combination "${reference}" is not in this run`);
+  const others = run.combinations.filter((combination) => combination !== reference);
+  const referenceSamples = forCombination(run.samples, reference);
+  const referenceCentral = forCombination(run.central, reference);
+  const differenceBand = (combination: Combination, metric: 'costPounds' | 'carbonKg'): Band =>
+    band(
+      pairedDifference(referenceSamples[metric], forCombination(run.samples, combination)[metric]),
+      referenceCentral[metric] - forCombination(run.central, combination)[metric],
+    );
+  const shareCheapestByTariff: Partial<Record<Tariff, ByCombination<number>>> = {};
+  for (const tariff of TARIFFS) {
+    const onTariff = run.combinations.filter((combination) => partsOf(combination).tariff === tariff);
+    if (onTariff.length > 0) shareCheapestByTariff[tariff] = sharesAmong(run, onTariff);
+  }
+  const solarPayback: ByCombination<PaybackSummary> = {};
+  for (const combination of run.combinations) {
+    const { setup, tariff } = partsOf(combination);
+    const { heating, solar } = SETUP_KIT[setup];
+    const without = combinationOf(setupOf(heating, false), tariff);
+    if (solar && run.combinations.includes(without)) {
+      solarPayback[combination] = paybackSummary(run, combination, without, (economics) => solarHorizon(economics.capital));
     }
   }
   return {
     reference,
     bands: Object.fromEntries(
-      run.setups.map((setup) => [setup, byMetric((metric) => band(forSetup(run.samples, setup)[metric], forSetup(run.central, setup)[metric]))]),
+      run.combinations.map((combination) => [
+        combination,
+        byMetric((metric) => band(forCombination(run.samples, combination)[metric], forCombination(run.central, combination)[metric])),
+      ]),
     ),
-    differences: Object.fromEntries(others.map((setup) => [setup, { costPounds: differenceBand(setup, 'costPounds'), carbonKg: differenceBand(setup, 'carbonKg') }])),
-    shareCheapest: Object.fromEntries(run.setups.map((setup, index) => [setup, shares[index]!])),
+    differences: Object.fromEntries(
+      others.map((combination) => [combination, { costPounds: differenceBand(combination, 'costPounds'), carbonKg: differenceBand(combination, 'carbonKg') }]),
+    ),
+    shareCheapest: sharesAmong(run, run.combinations),
+    shareCheapestByTariff,
     payback: Object.fromEntries(
-      others.map((setup) => [setup, paybackSummary(run, setup, reference, (economics) => horizonAgainstReference(setup, economics.capital))]),
+      others.map((combination) => [
+        combination,
+        paybackSummary(run, combination, reference, (economics) => horizonAgainstReference(combination, economics.capital)),
+      ]),
     ),
     solarPayback,
   };

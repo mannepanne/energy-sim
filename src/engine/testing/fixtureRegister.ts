@@ -11,7 +11,12 @@ import { UNCERTAIN_ROW_IDS, type UncertainRowId } from '../inputs.ts';
 const UNCERTAIN_IDS: ReadonlySet<RowId> = new Set<RowId>(UNCERTAIN_ROW_IDS);
 const isUncertain = (id: RowId): id is UncertainRowId => UNCERTAIN_IDS.has(id);
 
-const SERIES_ID = 'weather.pvgisTypicalYearLondon';
+const SERIES_FILES = {
+  'weather.pvgisTypicalYearLondon': { file: 'data/snapshots/pvgis-tmy-london.json', schema: 'pvgis-tmy', columns: ['T2m'] },
+  'tariffs.octopusLondon': { file: 'data/snapshots/octopus-london.json', schema: 'octopus-london', columns: ['agile.halfHourlyExcVatPence'] },
+} as const;
+type SeriesId = keyof typeof SERIES_FILES;
+const isSeries = (id: RowId): id is SeriesId => id in SERIES_FILES;
 /** The fixture's correlation rows and the two rows each is between, anchor first. */
 const CORRELATIONS: Readonly<Partial<Record<RowId, readonly [UncertainRowId, UncertainRowId]>>> = {
   'gains.perOccupantHotWaterCorrelation': ['gains.perOccupant', 'hotWater.litresPerOccupant'],
@@ -23,6 +28,7 @@ const PROFILE_RESOLUTIONS: Readonly<Partial<Record<RowId, 'hour-of-day' | 'hour-
   'heating.scheduleGas': 'hour-of-week',
   'heating.scheduleHeatPump': 'hour-of-week',
   'electricity.baseProfileMonthly': 'month',
+  'tariffs.cosyUnitRate': 'hour-of-day',
 };
 
 /** An even hour-of-day profile: 1/24 in every hour. */
@@ -33,6 +39,9 @@ export const EVEN_WEEKLY_PROFILE: readonly number[] = Array.from({ length: 168 }
 
 /** A heating schedule that heats in every hour of the week. */
 export const CONTINUOUS_SCHEDULE: readonly number[] = EVEN_WEEKLY_PROFILE;
+
+/** A Cosy-like day by local hour: 10p from 04:00 to 07:00, 40p from 16:00 to 19:00 and 20p otherwise. */
+export const FIXTURE_COSY_RATES: readonly number[] = Array.from({ length: 24 }, (_, hour) => (hour >= 4 && hour < 7 ? 10 : hour >= 16 && hour < 19 ? 40 : 20));
 
 /** An even month profile: 1 in every month. */
 export const EVEN_MONTHLY_PROFILE: readonly number[] = Array.from({ length: 12 }, () => 1);
@@ -102,7 +111,7 @@ const TABLE_KEYS: Readonly<Partial<Record<RowId, { keyedBy: TableKeyKind; keys: 
  * Fabric: walls 88 × 1.0 + windows 10 × 3.0 + door 2 × 2.5 + roof 50 × 0.5 + floor 50 × 0.62 = 179 W/K.
  * Ventilation: 0.33 × 0.8 ach × 250 m³ = 66 W/K. H = 245 W/K at a fabric quality factor of 1.
  */
-export const FIXTURE_HOUSE: Readonly<Record<Exclude<RowId, typeof SERIES_ID>, FixtureCells>> = {
+export const FIXTURE_HOUSE: Readonly<Record<Exclude<RowId, SeriesId>, FixtureCells>> = {
   'weather.outdoorTemperatureOffset': 0,
   'weather.irradianceSampleMinute': 10,
   'archetypes.houseType': 'semiDetached',
@@ -165,6 +174,8 @@ export const FIXTURE_HOUSE: Readonly<Record<Exclude<RowId, typeof SERIES_ID>, Fi
   'heating.boilerRatedOutput': 24,
   'heating.designTemperatureDifference': 24,
   'heating.heatPumpOutputMargin': 1,
+  'heating.controlBoost': 1.5,
+  'heating.preheatLeadTime': 3,
   'heating.boilerSeasonalEfficiency': 0.8,
   'heating.heatPumpSpf': 2.5,
   'heating.heatPumpSpfWellInstalled': 3.5,
@@ -196,6 +207,7 @@ export const FIXTURE_HOUSE: Readonly<Record<Exclude<RowId, typeof SERIES_ID>, Fi
   'prices.electricityStandingCharge': 50,
   'prices.gasUnitRate': 8,
   'prices.gasStandingCharge': 30,
+  'prices.electricityVatRate': 0,
   'prices.exportRate': 10,
   // No real price change, so every year costs what the first does unless a test sets one.
   'prices.gasRealChange': 0,
@@ -225,6 +237,10 @@ export const FIXTURE_HOUSE: Readonly<Record<Exclude<RowId, typeof SERIES_ID>, Fi
   'costs.heatPumpLifetime': 18,
   'costs.boilerLifetime': 12,
   'costs.pvLifetime': 25,
+  'tariffs.cosyUnitRate': FIXTURE_COSY_RATES,
+  'tariffs.cosyStandingCharge': 40,
+  'tariffs.agileStandingCharge': 35,
+  'tariffs.agileCheapPeakShare': 0.25,
 };
 
 export type FixtureValues = Partial<typeof FIXTURE_HOUSE>;
@@ -283,9 +299,7 @@ function row(id: RowId, value: FixtureCells | undefined, ranges: FixtureRanges):
     overrideHint: null,
     dependsOn: [],
   };
-  if (id === SERIES_ID) {
-    return { ...base, kind: 'series', file: 'data/snapshots/pvgis-tmy-london.json', schema: 'pvgis-tmy', columns: ['T2m'] };
-  }
+  if (isSeries(id)) return { ...base, kind: 'series', ...SERIES_FILES[id], columns: [...SERIES_FILES[id].columns] };
   const between = CORRELATIONS[id];
   if (between) return { ...base, kind: 'correlation', value: numberValue(id, value), between, dependsOn: [...between] };
   const resolution = PROFILE_RESOLUTIONS[id];

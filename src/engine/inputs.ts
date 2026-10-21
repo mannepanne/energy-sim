@@ -18,6 +18,7 @@ import {
 import { deriveGeometry } from './geometry.ts';
 import { groundFloorParameters, groundFloorUValue } from './groundFloor.ts';
 import { RADIANS_PER_DEGREE, W_PER_KW } from './constants.ts';
+import { checkControl, type ControlSettings } from './control.ts';
 import { checkCompensation, checkCurve, type CompensationLine, type CopCurve } from './heatPump.ts';
 import type { CapitalCosts, PriceScenario } from './payback.ts';
 import { checkPvSystem, roofMaximumKw, type PvSystem } from './pv.ts';
@@ -36,6 +37,7 @@ export const UNCERTAIN_ROW_IDS = [
   'heating.heatPumpStandbyShareWellInstalled',
   'heating.flowTemperatureAtDesign',
   'heating.flowTemperatureAtMild',
+  'heating.controlBoost',
   'hotWater.litresPerOccupant',
   'electricity.baseUse',
   'solar.systemSize',
@@ -132,6 +134,8 @@ export interface EngineInputs {
   heatPumpStandbyShare: number;
   copCurve: CopCurve;
   compensation: CompensationLine;
+  /** The heat pump's control rules on a time-of-use tariff. */
+  control: ControlSettings;
 
   /** Fixed part plus occupants × the per-occupant term. */
   hotWaterLitresPerDay: number;
@@ -149,7 +153,7 @@ export interface EngineInputs {
   electricityStandingChargePencePerDay: number;
   gasUnitRatePence: number;
   gasStandingChargePencePerDay: number;
-  /** Paid for every exported kWh. */
+  /** Paid for every exported kWh, on every import tariff. */
   exportRatePence: number;
 
   gasCarbonKgPerKwh: number;
@@ -355,6 +359,7 @@ type HeatingInputs = Pick<
   | 'heatPumpStandbyShare'
   | 'copCurve'
   | 'compensation'
+  | 'control'
 >;
 
 function readHeating(reader: Reader, spfScenario: SpfScenario): HeatingInputs {
@@ -370,8 +375,13 @@ function readHeating(reader: Reader, spfScenario: SpfScenario): HeatingInputs {
     mildOutdoorC: reader.fixed('heating.compensationMildOutdoorTemperature'),
     mildFlowC: reader.uncertain('heating.flowTemperatureAtMild'),
   };
+  const control: ControlSettings = {
+    boostK: reader.uncertain('heating.controlBoost'),
+    preheatLeadHours: reader.fixed('heating.preheatLeadTime'),
+  };
   checkCurve(copCurve);
   checkCompensation(compensation);
+  checkControl(control);
   return {
     setpointC: reader.uncertain('heating.setpoint'),
     gasSchedule: checkSchedule(reader.profile('heating.scheduleGas'), 'gas heating'),
@@ -385,6 +395,7 @@ function readHeating(reader: Reader, spfScenario: SpfScenario): HeatingInputs {
     heatPumpStandbyShare: reader.uncertain(SCENARIO_ROWS[spfScenario].standbyShare),
     copCurve,
     compensation,
+    control,
   };
 }
 

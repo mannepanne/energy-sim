@@ -1,39 +1,63 @@
-// ABOUT: Timing check: runs the paired sampling (500 samples) of the two setups without solar, then all four, and logs the times
-// ABOUT: Exits with an error above 2.5 seconds per setup (5 for two, 10 for four), several times the expected time
+// ABOUT: Timing check: the paired sampling (500 samples) of the phase 1 setups, the four setups on the cap and all 10 combinations
+// ABOUT: Also times one central run of all 10 combinations against the spec's 100 ms; exits with an error above any limit
 
 import { readFileSync } from 'node:fs';
 import { performance } from 'node:perf_hooks';
+import { COMBINATIONS, onCap, runCombinations, type Combination } from '../src/engine/combinations.ts';
 import { runSetups } from '../src/engine/compare.ts';
-import { SETUPS, type Setup } from '../src/engine/setups.ts';
 import { readInputs } from '../src/engine/inputs.ts';
+import { SETUPS } from '../src/engine/setups.ts';
+import { readTimeOfUseTariffs } from '../src/engine/tariffs.ts';
 import { prepareWeather, weatherFromSnapshot } from '../src/engine/weather.ts';
 import { createAccessor } from '../src/register/access.ts';
 import { loadRegister } from '../src/register/load.ts';
+import { loadOctopusSnapshot } from '../src/snapshots/octopusSchema.ts';
 import { loadPvgisSnapshot } from '../src/snapshots/pvgisSchema.ts';
 import { REPORT_PLAN } from './report/build.ts';
 
-/** The phase 1 workload's limit of 5 seconds for two setups, as a rate per setup, so four setups get 10 seconds. */
-const LIMIT_MS_PER_SETUP = 2_500;
+/**
+ * Limits several times the expected time on the GitHub Actions runner: the phase 1 workload's 5 seconds for two
+ * setups, 10 for the four setups on the cap and for all 10 combinations (which share their heat sides), and the
+ * spec's 100 ms for one central run of the 10.
+ */
+const WORKLOADS: readonly { name: string; combinations: readonly Combination[]; limitMs: number }[] = [
+  { name: 'gas and heat pump on the cap', combinations: onCap(['gas', 'heatPump']), limitMs: 5_000 },
+  { name: 'four setups on the cap', combinations: onCap(SETUPS), limitMs: 10_000 },
+  { name: 'all 10 combinations', combinations: COMBINATIONS, limitMs: 10_000 },
+];
+const CENTRAL_LIMIT_MS = 100;
+/** The central run is short, so it is timed as the best of several to keep start-up out of it. */
+const CENTRAL_REPEATS = 5;
 
 const root = new URL('../', import.meta.url);
 const readJson = (path: string): unknown => JSON.parse(readFileSync(new URL(path, root), 'utf8')) as unknown;
 
 const access = createAccessor(loadRegister(readJson('data/register.json')));
 const snapshot = loadPvgisSnapshot(readJson(access.series('weather.pvgisTypicalYearLondon').file));
-
-const weather = prepareWeather(weatherFromSnapshot(snapshot), readInputs(access));
+const timeOfUse = readTimeOfUseTariffs(access, loadOctopusSnapshot(readJson(access.series('tariffs.octopusLondon').file)));
+const inputs = readInputs(access);
+const weather = prepareWeather(weatherFromSnapshot(snapshot), inputs);
 
 let failed = false;
-const WORKLOADS: readonly (readonly Setup[])[] = [['gas', 'heatPump'], SETUPS];
-for (const setups of WORKLOADS) {
-  const start = performance.now();
-  runSetups(access, weather, REPORT_PLAN, { setups });
-  const elapsedMs = performance.now() - start;
-  const limitMs = LIMIT_MS_PER_SETUP * setups.length;
-  console.log(`${REPORT_PLAN.count} samples × ${setups.join(', ')} took ${Math.round(elapsedMs)} ms (limit ${limitMs} ms)`);
+const check = (label: string, elapsedMs: number, limitMs: number): void => {
+  console.log(`${label} took ${elapsedMs.toFixed(elapsedMs < 1000 ? 1 : 0)} ms (limit ${limitMs} ms)`);
   if (elapsedMs > limitMs) failed = true;
+};
+
+let centralMs = Number.POSITIVE_INFINITY;
+for (let repeat = 0; repeat < CENTRAL_REPEATS; repeat += 1) {
+  const start = performance.now();
+  runCombinations(inputs, weather, COMBINATIONS, timeOfUse);
+  centralMs = Math.min(centralMs, performance.now() - start);
+}
+check('One central run of all 10 combinations', centralMs, CENTRAL_LIMIT_MS);
+
+for (const { name, combinations, limitMs } of WORKLOADS) {
+  const start = performance.now();
+  runSetups(access, weather, REPORT_PLAN, { combinations, timeOfUse });
+  check(`${REPORT_PLAN.count} samples × ${name}`, performance.now() - start, limitMs);
 }
 if (failed) {
-  console.error('Bench failed: a paired run is slower than the limit');
+  console.error('Bench failed: a run is slower than its limit');
   process.exit(1);
 }

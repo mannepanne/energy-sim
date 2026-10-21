@@ -1,7 +1,8 @@
 // ABOUT: Upfront cost after the grant, replacements inside a horizon, and the payback year of one setup against another
 // ABOUT: Running costs change each year under a shared real price scenario; payback is undiscounted, in whole years
 
-import { forSetup, SETUP_KIT, type BySetup, type Setup } from './setups.ts';
+import { forCombination, partsOf, type ByCombination, type Combination } from './combinations.ts';
+import { SETUP_KIT, type Setup } from './setups.ts';
 
 /** Installed costs at today's real prices, the grant and lifetimes, as read from the register. */
 export interface CapitalCosts {
@@ -142,25 +143,28 @@ export function paybackYear(option: PaybackSide, baseline: PaybackSide, horizonY
 export const solarHorizon = (capital: CapitalCosts): number => wholeYears(capital.pvLifetimeYears);
 
 /**
- * The horizon for a setup against the reference: the heat pump's lifetime for heat pump setups, with or without
- * solar (any PV value left at the end is ignored), and PV's lifetime for gas with solar.
+ * The horizon for a combination against the reference (the gas boiler on the price cap): the heat pump's lifetime
+ * for heat pump setups, with or without solar (any PV value left at the end is ignored), PV's lifetime for gas with
+ * solar, and the boiler's for the gas boiler on another tariff.
  */
-export function horizonAgainstReference(setup: Setup, capital: CapitalCosts): number {
+export function horizonAgainstReference(combination: Combination, capital: CapitalCosts): number {
+  const { setup, tariff } = partsOf(combination);
   const { heating, solar } = SETUP_KIT[setup];
   if (heating === 'heatPump') return wholeYears(capital.heatPumpLifetimeYears);
   if (solar) return solarHorizon(capital);
-  throw new Error(`Setup "${setup}" is the reference and has no payback against itself`);
+  if (tariff !== 'cap') return wholeYears(capital.boilerLifetimeYears);
+  throw new Error(`Combination "${combination}" is the reference and has no payback against itself`);
 }
 
-
-/** Per-setup running costs for one sample (or the central run). */
-export type RunningCosts = BySetup<RunningCost>;
+/** Per-combination running costs for one sample (or the central run). */
+export type RunningCosts = ByCombination<RunningCost>;
 
 /** The payback year of `option` against `baseline` in one sample, with the given horizon. */
-export function samplePayback(option: Setup, baseline: Setup, horizonYears: number, economics: SampleEconomics, running: RunningCosts): number {
+export function samplePayback(option: Combination, baseline: Combination, horizonYears: number, economics: SampleEconomics, running: RunningCosts): number {
+  const kitOf = (combination: Combination): Component[] => components(partsOf(combination).setup, economics);
   return paybackYear(
-    { kit: components(option, economics), running: forSetup(running, option) },
-    { kit: components(baseline, economics), running: forSetup(running, baseline) },
+    { kit: kitOf(option), running: forCombination(running, option) },
+    { kit: kitOf(baseline), running: forCombination(running, baseline) },
     horizonYears,
     economics.priceScenario,
   );

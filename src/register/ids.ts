@@ -64,6 +64,8 @@ export const ROW_IDS = [
   'heating.boilerRatedOutput',
   'heating.designTemperatureDifference',
   'heating.heatPumpOutputMargin',
+  'heating.controlBoost',
+  'heating.preheatLeadTime',
   'hotWater.deliveryTemperature',
   'hotWater.coldFeedTemperature',
   'hotWater.cylinderStandingLoss',
@@ -78,6 +80,7 @@ export const ROW_IDS = [
   'prices.electricityStandingCharge',
   'prices.gasUnitRate',
   'prices.gasStandingCharge',
+  'prices.electricityVatRate',
   'prices.exportRate',
   'prices.gasRealChange',
   'prices.electricityRealChange',
@@ -102,6 +105,11 @@ export const ROW_IDS = [
   'costs.heatPumpLifetime',
   'costs.boilerLifetime',
   'costs.pvLifetime',
+  'tariffs.octopusLondon',
+  'tariffs.cosyUnitRate',
+  'tariffs.cosyStandingCharge',
+  'tariffs.agileStandingCharge',
+  'tariffs.agileCheapPeakShare',
 ] as const;
 
 export type RowId = (typeof ROW_IDS)[number];

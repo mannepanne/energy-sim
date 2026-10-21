@@ -78,12 +78,13 @@ describe('data/register.json', () => {
     expect([exportRate.low, exportRate.default, exportRate.high]).toEqual([4.1, 12, 15]);
   });
 
-  it('reproduces the spec’s worked price check to within 0.01p', () => {
+  it('reproduces the phase 1 spec’s worked price check on the London cap to within 0.01p', () => {
+    // The spec worked it on the GB average (9.40p and 9.38p a kWh of heat, £108.33 a year); London's cap gives these.
     const heatPumpPencePerKwh = access.fixed('prices.electricityUnitRate').value / 2.8;
     const boilerPencePerKwh = access.fixed('prices.gasUnitRate').value / 0.85;
-    expect(Math.abs(heatPumpPencePerKwh - 9.4)).toBeLessThan(0.01);
-    expect(Math.abs(boilerPencePerKwh - 9.38)).toBeLessThan(0.01);
-    expect((access.fixed('prices.gasStandingCharge').value * 365) / 100).toBeCloseTo(108.33, 2);
+    expect(Math.abs(heatPumpPencePerKwh - 9.5)).toBeLessThan(0.01);
+    expect(Math.abs(boilerPencePerKwh - 9.59)).toBeLessThan(0.01);
+    expect((access.fixed('prices.gasStandingCharge').value * 365) / 100).toBeCloseTo(110.23, 2);
   });
 });
 

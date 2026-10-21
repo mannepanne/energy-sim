@@ -2493,6 +2493,39 @@
       "value": 1.15
     },
     {
+      "id": "heating.controlBoost",
+      "kind": "uncertain",
+      "section": "heating",
+      "label": "Control boost: how far the setpoint rises in cheap hours and falls in peak hours, heat pump on a time-of-use tariff",
+      "unit": "K",
+      "status": "approximate",
+      "rationale": "Under control on Cosy or Agile, the heat pump preheats to setpoint + boost in cheap hours during a heating period or up to heating.preheatLeadTime before one, and coasts down to setpoint − boost in peak hours during a heating period. The boost is also the comfort cap: control never heats above setpoint + boost. The spec sets it around 1–2 K: enough to store useful heat in the fabric without a household noticing much. Triangular from 1 to 2 K with a mode of 1.5 K. It changes nothing on the price cap, which has no cheap or peak hours.",
+      "lastChecked": "2026-10-21",
+      "refreshCadence": "static",
+      "default": 1.5,
+      "low": 1,
+      "high": 2,
+      "distribution": "triangular",
+      "overridable": false,
+      "overrideHint": null,
+      "dependsOn": []
+    },
+    {
+      "id": "heating.preheatLeadTime",
+      "kind": "fixed",
+      "section": "heating",
+      "label": "How long before a heating period control may preheat in cheap hours",
+      "unit": "hours",
+      "status": "approximate",
+      "rationale": "The spec's rule: preheat in cheap hours during a heating period or up to 3 hours before one. Three hours lets Cosy's 04:00–07:00 cheap period warm the house for a 07:00 start. Longer would let the house lose more of the stored heat before it is needed.",
+      "lastChecked": "2026-10-21",
+      "refreshCadence": "static",
+      "value": 3,
+      "overridable": false,
+      "overrideHint": null,
+      "dependsOn": []
+    },
+    {
       "id": "hotWater.deliveryTemperature",
       "kind": "fixed",
       "section": "hotWater",
@@ -2687,81 +2720,101 @@
       "id": "prices.electricityUnitRate",
       "kind": "fixed",
       "section": "prices",
-      "label": "Electricity unit rate, price cap, GB average, Direct Debit, 1 October–31 December 2026",
+      "label": "Electricity unit rate, price cap, London region, Direct Debit, single rate, 1 October–31 December 2026",
       "unit": "p/kWh",
       "status": "sourced",
       "source": {
-        "title": "Ofgem: Energy price cap unit rates and standing charges",
+        "title": "Ofgem: Energy price cap unit rates and standing charges, by region (London, Direct Debit)",
         "url": "https://www.ofgem.gov.uk/your-energy-supply/your-energy-bill/energy-price-cap-unit-rates-and-standing-charges"
       },
-      "rationale": "Electricity carries no VAT from October 2026 to March 2027.",
-      "lastChecked": "2026-10-17",
+      "rationale": "The London region's single-rate cap from Ofgem's regional tables on the page, read on 21 October 2026. Electricity carries no VAT from 1 October 2026 to 31 March 2027 (prices.electricityVatRate). The GB average is 26.32p.",
+      "lastChecked": "2026-10-21",
       "refreshCadence": "quarterly",
       "validUntil": "2026-12-31",
       "overridable": true,
       "overrideHint": "The unit rate on your electricity bill.",
       "dependsOn": [],
-      "value": 26.32
+      "value": 26.6
     },
     {
       "id": "prices.electricityStandingCharge",
       "kind": "fixed",
       "section": "prices",
-      "label": "Electricity standing charge, price cap, GB average, Direct Debit, 1 October–31 December 2026",
+      "label": "Electricity standing charge, price cap, London region, Direct Debit, 1 October–31 December 2026",
       "unit": "p/day",
       "status": "sourced",
       "source": {
-        "title": "Ofgem: Energy price cap unit rates and standing charges",
+        "title": "Ofgem: Energy price cap unit rates and standing charges, by region (London, Direct Debit)",
         "url": "https://www.ofgem.gov.uk/your-energy-supply/your-energy-bill/energy-price-cap-unit-rates-and-standing-charges"
       },
-      "rationale": "Paid by both setups.",
-      "lastChecked": "2026-10-17",
+      "rationale": "The London region's cap from Ofgem's regional tables on the page, read on 21 October 2026. Paid by every setup on the price cap; Cosy and Agile have their own standing charges. The GB average is 54.83p.",
+      "lastChecked": "2026-10-21",
       "refreshCadence": "quarterly",
       "validUntil": "2026-12-31",
       "overridable": true,
       "overrideHint": "The standing charge on your electricity bill.",
       "dependsOn": [],
-      "value": 54.83
+      "value": 42.92
     },
     {
       "id": "prices.gasUnitRate",
       "kind": "fixed",
       "section": "prices",
-      "label": "Gas unit rate, price cap, GB average, Direct Debit, 1 October–31 December 2026",
+      "label": "Gas unit rate, price cap, London region, Direct Debit, 1 October–31 December 2026",
       "unit": "p/kWh",
       "status": "sourced",
       "source": {
-        "title": "Ofgem: Energy price cap unit rates and standing charges",
+        "title": "Ofgem: Energy price cap unit rates and standing charges, by region (London, Direct Debit)",
         "url": "https://www.ofgem.gov.uk/your-energy-supply/your-energy-bill/energy-price-cap-unit-rates-and-standing-charges"
       },
-      "rationale": "Includes 5% VAT. Per kWh on a gross calorific value basis, as billed.",
-      "lastChecked": "2026-10-17",
+      "rationale": "The London region's cap from Ofgem's regional tables on the page, read on 21 October 2026. Includes 5% VAT. Per kWh on a gross calorific value basis, as billed. Gas is always on the price cap, whatever the electricity tariff. The GB average is 7.97p.",
+      "lastChecked": "2026-10-21",
       "refreshCadence": "quarterly",
       "validUntil": "2026-12-31",
       "overridable": true,
       "overrideHint": "The unit rate on your gas bill.",
       "dependsOn": [],
-      "value": 7.97
+      "value": 8.15
     },
     {
       "id": "prices.gasStandingCharge",
       "kind": "fixed",
       "section": "prices",
-      "label": "Gas standing charge, price cap, GB average, Direct Debit, 1 October–31 December 2026",
+      "label": "Gas standing charge, price cap, London region, Direct Debit, 1 October–31 December 2026",
       "unit": "p/day",
       "status": "sourced",
       "source": {
-        "title": "Ofgem: Energy price cap unit rates and standing charges",
+        "title": "Ofgem: Energy price cap unit rates and standing charges, by region (London, Direct Debit)",
         "url": "https://www.ofgem.gov.uk/your-energy-supply/your-energy-bill/energy-price-cap-unit-rates-and-standing-charges"
       },
-      "rationale": "Includes 5% VAT. Paid only by the gas setup: the heat-pump-only house is assumed to have no gas hob and no gas supply.",
-      "lastChecked": "2026-10-17",
+      "rationale": "The London region's cap from Ofgem's regional tables on the page, read on 21 October 2026. Includes 5% VAT. Paid only by the gas setups: the heat-pump-only house is assumed to have no gas hob and no gas supply. The GB average is 29.68p.",
+      "lastChecked": "2026-10-21",
       "refreshCadence": "quarterly",
       "validUntil": "2026-12-31",
       "overridable": true,
       "overrideHint": "The standing charge on your gas bill.",
       "dependsOn": [],
-      "value": 29.68
+      "value": 30.2
+    },
+    {
+      "id": "prices.electricityVatRate",
+      "kind": "fixed",
+      "section": "prices",
+      "label": "VAT on household electricity, 1 October 2026–31 March 2027",
+      "unit": "fraction",
+      "status": "sourced",
+      "source": {
+        "title": "Ofgem: Energy price cap unit rates and standing charges, by region (London, Direct Debit)",
+        "url": "https://www.ofgem.gov.uk/your-energy-supply/your-energy-bill/energy-price-cap-unit-rates-and-standing-charges"
+      },
+      "rationale": "Ofgem's price cap page: 'There is no VAT on electricity from 1 October 2026 to 31 March 2027.' The cap and Cosy rows already carry this. The Agile snapshot's past year carried 5% VAT, so Agile's rates are its rates before VAT with this rate applied, putting every tariff on today's VAT.",
+      "lastChecked": "2026-10-21",
+      "refreshCadence": "quarterly",
+      "validUntil": "2027-03-31",
+      "value": 0,
+      "overridable": false,
+      "overrideHint": null,
+      "dependsOn": []
     },
     {
       "id": "prices.exportRate",
@@ -2769,13 +2822,13 @@
       "section": "prices",
       "label": "Export rate for solar setups, flat, London",
       "unit": "p/kWh",
-      "status": "approximate",
+      "status": "sourced",
       "source": {
-        "title": "Octopus Energy public API: Outgoing Octopus (OUTGOING-VAR-24-10-26), London region (C) unit rates",
+        "title": "Octopus Energy public API: Outgoing Octopus and the fixed Smart Export Guarantee tariff, London (region C), snapshot data/snapshots/octopus-london.json",
         "url": "https://api.octopus.energy/v1/products/OUTGOING-VAR-24-10-26/"
       },
-      "rationale": "Approximate until the tariffs PR snapshots the Octopus rates; the source is the API query the mode was taken from on 19 October 2026. The range spans the export tariffs a solar household in London can get from Octopus, as Magnus decided on 20 October 2026: the low end is Octopus's fixed Smart Export Guarantee tariff (4.1p/kWh since February 2022), the mode is Outgoing Octopus, the flat tariff the spec calls Outgoing Fixed (12p/kWh in London from 1 March 2026), and the high end is Outgoing Octopus's earlier rate (15p/kWh from October 2024 to February 2026). All are flat, with no VAT and no standing charge. Triangular, so the mean is 10.4p. The engine assumes every solar setup qualifies for the tariff it is drawn.",
-      "lastChecked": "2026-10-19",
+      "rationale": "The range spans the export tariffs a solar household in London can get from Octopus, as Magnus decided on 20 October 2026. The mode is Outgoing Octopus, the flat tariff once called Outgoing Fixed (12p/kWh in London since 1 March 2026). The low end is Octopus's fixed Smart Export Guarantee tariff (4.1p/kWh since February 2022). The high end is Outgoing Octopus's previous rate (15p/kWh from October 2024 to February 2026). All three come from the Octopus snapshot (npm run fetch:octopus, 21 October 2026), and a test checks the row against it. All are flat, with no VAT and no standing charge. Triangular, so the mean is 10.4p. One flat rate applies on every import tariff. The engine assumes every solar setup qualifies for the tariff it is drawn.",
+      "lastChecked": "2026-10-21",
       "refreshCadence": "quarterly",
       "overridable": true,
       "overrideHint": "The export rate on your export tariff.",
@@ -2849,18 +2902,18 @@
       "section": "carbon",
       "label": "Natural gas carbon factor, gross calorific value (DESNZ 2026 factor set)",
       "unit": "kgCO₂e/kWh",
-      "status": "to-verify",
+      "status": "sourced",
       "source": {
-        "title": "DESNZ: Greenhouse gas reporting: conversion factors 2026",
+        "title": "DESNZ: Greenhouse gas reporting: conversion factors 2026, flat file (version 1.2, revised July 2026)",
         "url": "https://www.gov.uk/government/publications/greenhouse-gas-reporting-conversion-factors-2026"
       },
-      "rationale": "Scope 1 combustion factor for natural gas per kWh on a gross CV basis, which matches billed gas. The value is the recent editions' figure: DESNZ's 2026 summaries say fuel factors are mostly unchanged, but the exact 2026 cell in the full-set spreadsheet still needs checking. Well-to-tank emissions are excluded, as for electricity.",
-      "lastChecked": "2026-10-17",
+      "rationale": "Scope 1, Fuels, Gaseous fuels, Natural gas, per kWh (Gross CV), kg CO₂e: 0.18231 (factor ID 1_100_1004_6_1), checked in the flat file on 21 October 2026. Gross CV matches billed gas. 'Natural gas' is grid gas with its biomethane share, not the '100% mineral blend' row (0.18442). Well-to-tank emissions (0.03021) are excluded, as for electricity. The grid electricity factor in the same file matches carbon.gridElectricityFactor (0.13096 generation plus 0.01299 losses).",
+      "lastChecked": "2026-10-21",
       "refreshCadence": "yearly",
       "overridable": false,
       "overrideHint": null,
       "dependsOn": [],
-      "value": 0.18296
+      "value": 0.18231
     },
     {
       "id": "carbon.gridElectricityFactor",
@@ -3391,6 +3444,137 @@
       "high": 30,
       "distribution": "triangular",
       "lastChecked": "2026-10-19",
+      "overridable": false,
+      "overrideHint": null,
+      "dependsOn": []
+    },
+    {
+      "id": "tariffs.octopusLondon",
+      "kind": "series",
+      "section": "tariffs",
+      "label": "Octopus tariffs for London (region C): Agile's half-hourly rates over a past 12 months, Cosy and the export tariffs",
+      "unit": "p/kWh and p/day",
+      "status": "sourced",
+      "source": {
+        "title": "Octopus Energy public API, London (region C), snapshot data/snapshots/octopus-london.json",
+        "url": "https://api.octopus.energy/v1/products/"
+      },
+      "rationale": "Fetched at build time by scripts/fetch-octopus.ts (2026-10-21). Agile (AGILE-24-10-01) covers the last full 12 months, 1 October 2025 to 30 September 2026 (UTC), placed on the typical year by calendar date and time; 29 February is dropped, though this window has none. The engine averages each UTC hour's two half-hours. Negative prices pass through, so the house is paid to import. Limitations, stated wherever Agile results appear: a past year is not a forecast; the past year's prices are paired with typical-year weather, which loses the link between price spikes and cold, still days and likely flatters the heat pump on Agile; weekdays do not match between the window and the reference year; and control knows each day's prices in advance, which Octopus's day-ahead publication makes realistic for a smart controller but which favours the heat pump over a household that doesn't respond.",
+      "lastChecked": "2026-10-21",
+      "refreshCadence": "yearly",
+      "file": "data/snapshots/octopus-london.json",
+      "schema": "octopus-london",
+      "columns": [
+        "agile.halfHourlyExcVatPence",
+        "agile.halfHourlyIncVatPence"
+      ],
+      "overridable": false,
+      "overrideHint": null,
+      "dependsOn": []
+    },
+    {
+      "id": "tariffs.cosyUnitRate",
+      "kind": "profile",
+      "section": "tariffs",
+      "label": "Octopus Cosy electricity unit rate by UK local hour, London, Direct Debit",
+      "unit": "p/kWh",
+      "status": "sourced",
+      "source": {
+        "title": "Octopus Energy public API: Cosy Octopus (COSY-22-12-08), London (region C) unit rates",
+        "url": "https://api.octopus.energy/v1/products/COSY-22-12-08/electricity-tariffs/E-1R-COSY-22-12-08-C/standard-unit-rates/"
+      },
+      "rationale": "Read from the Octopus snapshot for 2026-10-21 (UK local time), the rates in force since 21 October 2026; no VAT, as for the cap. Cheap 04:00–07:00, 13:00–16:00 and 22:00–00:00 (14.12p); peak 16:00–19:00 (43.19p); the rest 28.80p. The engine takes the hours at the profile's lowest rate as Cosy's cheap periods and those at its highest as its peak, and keeps them fixed in local time across the clock changes. Cosy is sold only to homes with a heat pump or electric heating, so only the heat pump setups use it. A test checks the row against the snapshot.",
+      "lastChecked": "2026-10-21",
+      "refreshCadence": "quarterly",
+      "validUntil": "2026-12-31",
+      "overridable": true,
+      "overrideHint": "The unit rates on your Cosy bill, by time of day.",
+      "dependsOn": [
+        "tariffs.octopusLondon"
+      ],
+      "values": [
+        28.796,
+        28.796,
+        28.796,
+        28.796,
+        14.1216,
+        14.1216,
+        14.1216,
+        28.796,
+        28.796,
+        28.796,
+        28.796,
+        28.796,
+        28.796,
+        14.1216,
+        14.1216,
+        14.1216,
+        43.194,
+        43.194,
+        43.194,
+        28.796,
+        28.796,
+        28.796,
+        14.1216,
+        14.1216
+      ],
+      "resolution": "hour-of-day"
+    },
+    {
+      "id": "tariffs.cosyStandingCharge",
+      "kind": "fixed",
+      "section": "tariffs",
+      "label": "Octopus Cosy electricity standing charge, London, Direct Debit",
+      "unit": "p/day",
+      "status": "sourced",
+      "source": {
+        "title": "Octopus Energy public API: Cosy Octopus (COSY-22-12-08), London (region C) standing charges",
+        "url": "https://api.octopus.energy/v1/products/COSY-22-12-08/electricity-tariffs/E-1R-COSY-22-12-08-C/standing-charges/"
+      },
+      "rationale": "In force since 21 October 2026, from the Octopus snapshot; no VAT. A test checks the row against the snapshot.",
+      "lastChecked": "2026-10-21",
+      "refreshCadence": "quarterly",
+      "validUntil": "2026-12-31",
+      "overridable": true,
+      "overrideHint": "The standing charge on your Cosy bill.",
+      "dependsOn": [
+        "tariffs.octopusLondon"
+      ],
+      "value": 42.2934
+    },
+    {
+      "id": "tariffs.agileStandingCharge",
+      "kind": "fixed",
+      "section": "tariffs",
+      "label": "Octopus Agile electricity standing charge, London, Direct Debit",
+      "unit": "p/day",
+      "status": "sourced",
+      "source": {
+        "title": "Octopus Energy public API: Agile Octopus (AGILE-24-10-01), London (region C) standing charges",
+        "url": "https://api.octopus.energy/v1/products/AGILE-24-10-01/electricity-tariffs/E-1R-AGILE-24-10-01-C/standing-charges/"
+      },
+      "rationale": "Today's standing charge from the Octopus snapshot, not the past year's: the API lists one charge in force since 1 October 2024, with and without VAT the same. A test checks the row against the snapshot.",
+      "lastChecked": "2026-10-21",
+      "refreshCadence": "quarterly",
+      "validUntil": "2026-12-31",
+      "overridable": true,
+      "overrideHint": "The standing charge on your Agile bill.",
+      "dependsOn": [
+        "tariffs.octopusLondon"
+      ],
+      "value": 37.6525
+    },
+    {
+      "id": "tariffs.agileCheapPeakShare",
+      "kind": "fixed",
+      "section": "tariffs",
+      "label": "Share of each day's hours that control treats as cheap, and as peak, on Agile",
+      "unit": "fraction of the day's hours",
+      "status": "approximate",
+      "rationale": "Control on Agile treats the cheapest quarter of each UK local day's hours as cheap and the dearest quarter as peak: 6 of 24 hours, matching Cosy's 6 to 8 cheap hours a day. Rounded to whole hours on the 23- and 25-hour days of the clock changes (6 either way); ties go to the earlier hour. A quarter is a judgement, not a source: a smaller share concentrates running in the very cheapest hours, a larger one spreads it.",
+      "lastChecked": "2026-10-21",
+      "refreshCadence": "static",
+      "value": 0.25,
       "overridable": false,
       "overrideHint": null,
       "dependsOn": []
