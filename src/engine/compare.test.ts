@@ -4,14 +4,19 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { loadPvgisSnapshot } from '../snapshots/pvgisSchema.ts';
-import { band, centralOutsideBand, compare, METRICS, pairedDifference, quantile, runSetups, shareCheapest } from './compare.ts';
+import { band, centralOutsideBand, compare, METRICS, pairedDifference, quantile, runSamples, shareCheapest } from './compare.ts';
 import { components, DOES_NOT_PAY_BACK, paybackQuantile, samplePayback, solarHorizon, upfrontPounds } from './payback.ts';
-import { forSetup, SETUPS } from './setups.ts';
+import { COMBINATIONS, forCombination, onCap, partsOf, type Combination } from './combinations.ts';
+import { agileFromSnapshot } from './tariffs.ts';
+import { loadOctopusSnapshot } from '../snapshots/octopusSchema.ts';
+import { SETUP_KIT, SETUPS } from './setups.ts';
 import { defaultHouse } from './archetypes.ts';
 import { readInputs } from './inputs.ts';
 import { simulate } from './simulate.ts';
 import { fixtureAccessor, type FixtureRanges } from './testing/fixtureRegister.ts';
 import { prepareWeather, weatherFromSnapshot } from './weather.ts';
+
+const CAP = onCap(SETUPS);
 
 const rawWeather = weatherFromSnapshot(
   loadPvgisSnapshot(JSON.parse(readFileSync(new URL('../../data/snapshots/pvgis-tmy-london.json', import.meta.url), 'utf8')) as unknown),
@@ -87,142 +92,142 @@ describe('the paired difference and the share cheapest', () => {
   });
 });
 
-describe('runSetups', () => {
+describe('runSamples', () => {
   const access = fixtureAccessor({}, RANGES);
-  const run = runSetups(access, weather, plan);
-  const samples = (setup: (typeof SETUPS)[number]) => forSetup(run.samples, setup);
+  const run = runSamples(access, weather, plan);
+  const samples = (setup: Combination) => forCombination(run.samples, setup);
 
-  it('runs all four setups by default, and the central case with every uncertain row at its default', () => {
-    expect(run.setups).toEqual(SETUPS);
+  it('runs the four setups on the price cap by default, and the central case with every uncertain row at its default', () => {
+    expect(run.combinations).toEqual(CAP);
     const inputs = readInputs(access);
-    expect(forSetup(run.central, 'gas').costPounds).toBe(simulate(inputs, weather, 'gas').annual.cost.totalPounds);
-    expect(forSetup(run.central, 'heatPump').carbonKg).toBe(simulate(inputs, weather, 'heatPump').annual.carbonKg);
-    expect(forSetup(run.central, 'heatPumpSolar').costPounds).toBe(simulate(inputs, weather, 'heatPump', { solar: true }).annual.cost.totalPounds);
+    expect(forCombination(run.central, 'gas/cap').costPounds).toBe(simulate(inputs, weather, 'gas').annual.cost.totalPounds);
+    expect(forCombination(run.central, 'heatPump/cap').carbonKg).toBe(simulate(inputs, weather, 'heatPump').annual.carbonKg);
+    expect(forCombination(run.central, 'heatPumpSolar/cap').costPounds).toBe(simulate(inputs, weather, 'heatPump', { solar: true }).annual.cost.totalPounds);
   });
 
   it('keeps one annual total per sample for each metric and setup, and one set of economics per sample', () => {
-    for (const setup of SETUPS) for (const metric of METRICS) expect(samples(setup)[metric]).toHaveLength(plan.count);
+    for (const setup of CAP) for (const metric of METRICS) expect(samples(setup)[metric]).toHaveLength(plan.count);
     expect(run.economics).toHaveLength(plan.count);
   });
 
   it('splits the running cost into a gas part and an electricity part net of export', () => {
-    for (const setup of SETUPS) {
-      const totals = forSetup(run.central, setup);
+    for (const setup of CAP) {
+      const totals = forCombination(run.central, setup);
       expect(totals.gasCostPounds + totals.electricityCostPounds).toBeCloseTo(totals.costPounds, 9);
     }
-    expect(forSetup(run.central, 'heatPump').gasCostPounds).toBe(0);
+    expect(forCombination(run.central, 'heatPump/cap').gasCostPounds).toBe(0);
   });
 
   it('gives identical results for the same seed and different results for another seed', () => {
     // Only the heat pump setup is rerun: runs of some setups pair with runs of all four (the next test).
-    const heatPumpOnly = { setups: ['heatPump'] } as const;
-    expect(forSetup(runSetups(access, weather, plan, heatPumpOnly).samples, 'heatPump').costPounds).toEqual(samples('heatPump').costPounds);
-    expect(forSetup(runSetups(access, weather, { ...plan, seed: 12 }, heatPumpOnly).samples, 'heatPump').costPounds).not.toEqual(samples('heatPump').costPounds);
+    const heatPumpOnly = { combinations: ['heatPump/cap'] } as const;
+    expect(forCombination(runSamples(access, weather, plan, heatPumpOnly).samples, 'heatPump/cap').costPounds).toEqual(samples('heatPump/cap').costPounds);
+    expect(forCombination(runSamples(access, weather, { ...plan, seed: 12 }, heatPumpOnly).samples, 'heatPump/cap').costPounds).not.toEqual(samples('heatPump/cap').costPounds);
   });
 
   it('pairs a run of some setups with a run of all four, sample by sample', () => {
-    const two = runSetups(access, weather, plan, { setups: ['gas', 'heatPump'] });
-    expect(two.central.gasSolar).toBeUndefined();
-    expect(forSetup(two.samples, 'heatPump').costPounds).toEqual(samples('heatPump').costPounds);
+    const two = runSamples(access, weather, plan, { combinations: ['gas/cap', 'heatPump/cap'] });
+    expect(two.central['gasSolar/cap']).toBeUndefined();
+    expect(forCombination(two.samples, 'heatPump/cap').costPounds).toEqual(samples('heatPump/cap').costPounds);
     expect(two.economics).toEqual(run.economics);
-    expect(() => forSetup(two.samples, 'gasSolar')).toThrow(/"gasSolar" is not in this run/);
+    expect(() => forCombination(two.samples, 'gasSolar/cap')).toThrow(/"gasSolar\/cap" is not in this run/);
   });
 
   it('rejects an empty or repeated list of setups', () => {
-    expect(() => runSetups(access, weather, plan, { setups: [] })).toThrow(/distinct and at least one/);
-    expect(() => runSetups(access, weather, plan, { setups: ['gas', 'gas'] })).toThrow(/distinct and at least one/);
+    expect(() => runSamples(access, weather, plan, { combinations: [] })).toThrow(/distinct and at least one/);
+    expect(() => runSamples(access, weather, plan, { combinations: ['gas/cap', 'gas/cap'] })).toThrow(/distinct and at least one/);
   });
 
   it('gives the solar setups one roof, and lowers imports and cost in every sample', () => {
-    expect(samples('gas').generationKwh.every((value) => value === 0)).toBe(true);
-    expect(samples('gasSolar').generationKwh).toEqual(samples('heatPumpSolar').generationKwh);
-    expect(samples('gasSolar').spaceHeatKwh).toEqual(samples('gas').spaceHeatKwh);
-    samples('heatPumpSolar').importKwh.forEach((imported, sample) => {
-      expect(imported).toBeLessThan(samples('heatPump').importKwh[sample]!);
-      expect(samples('heatPumpSolar').costPounds[sample]!).toBeLessThan(samples('heatPump').costPounds[sample]!);
+    expect(samples('gas/cap').generationKwh.every((value) => value === 0)).toBe(true);
+    expect(samples('gasSolar/cap').generationKwh).toEqual(samples('heatPumpSolar/cap').generationKwh);
+    expect(samples('gasSolar/cap').spaceHeatKwh).toEqual(samples('gas/cap').spaceHeatKwh);
+    samples('heatPumpSolar/cap').importKwh.forEach((imported, sample) => {
+      expect(imported).toBeLessThan(samples('heatPump/cap').importKwh[sample]!);
+      expect(samples('heatPumpSolar/cap').costPounds[sample]!).toBeLessThan(samples('heatPump/cap').costPounds[sample]!);
     });
   });
 
   it('runs every setup on the same inputs in each sample, so space heat matches sample by sample', () => {
-    for (const setup of SETUPS) expect(samples(setup).spaceHeatKwh).toEqual(samples('gas').spaceHeatKwh);
+    for (const setup of CAP) expect(samples(setup).spaceHeatKwh).toEqual(samples('gas/cap').spaceHeatKwh);
   });
 
   it('keeps each setup’s upfront cost after the grant', () => {
     const { capital, pvPeakPowerKw } = run.centralEconomics;
-    expect(forSetup(run.central, 'gas').upfrontPounds).toBe(2_000);
-    expect(forSetup(run.central, 'heatPump').upfrontPounds).toBe(12_000 - 7_500);
-    expect(forSetup(run.central, 'heatPumpSolar').upfrontPounds).toBe(12_000 - 7_500 + pvPeakPowerKw * capital.pvPoundsPerKwp);
+    expect(forCombination(run.central, 'gas/cap').upfrontPounds).toBe(2_000);
+    expect(forCombination(run.central, 'heatPump/cap').upfrontPounds).toBe(12_000 - 7_500);
+    expect(forCombination(run.central, 'heatPumpSolar/cap').upfrontPounds).toBe(12_000 - 7_500 + pvPeakPowerKw * capital.pvPoundsPerKwp);
     expect(pvPeakPowerKw).toBe(4);
   });
 
   it('applies the house to the central run and every sample', () => {
     const house = { ...defaultHouse(access, 'semi1930s'), loft: 'none' as const };
-    const variant = runSetups(access, weather, plan, { house, setups: ['gas'] });
+    const variant = runSamples(access, weather, plan, { house, combinations: ['gas/cap'] });
     expect(variant.house).toEqual(house);
-    expect(forSetup(variant.central, 'gas').spaceHeatKwh).toBeGreaterThan(forSetup(run.central, 'gas').spaceHeatKwh);
-    forSetup(variant.samples, 'gas').spaceHeatKwh.forEach((kwh, sample) => expect(kwh).toBeGreaterThan(samples('gas').spaceHeatKwh[sample]!));
+    expect(forCombination(variant.central, 'gas/cap').spaceHeatKwh).toBeGreaterThan(forCombination(run.central, 'gas/cap').spaceHeatKwh);
+    forCombination(variant.samples, 'gas/cap').spaceHeatKwh.forEach((kwh, sample) => expect(kwh).toBeGreaterThan(samples('gas/cap').spaceHeatKwh[sample]!));
   });
 
   it('lowers heat pump electricity in every sample when the SPF is higher', () => {
-    const higher = runSetups(fixtureAccessor({ 'heating.heatPumpSpf': 2.8 }, { ...RANGES, 'heating.heatPumpSpf': { low: 2.3, high: 3.8, sigma: 0.15 } }), weather, plan, {
-      setups: ['heatPump'],
+    const higher = runSamples(fixtureAccessor({ 'heating.heatPumpSpf': 2.8 }, { ...RANGES, 'heating.heatPumpSpf': { low: 2.3, high: 3.8, sigma: 0.15 } }), weather, plan, {
+      combinations: ['heatPump/cap'],
     });
-    samples('heatPump').electricityKwh.forEach((kwh, sample) => expect(forSetup(higher.samples, 'heatPump').electricityKwh[sample]).toBeLessThan(kwh));
+    samples('heatPump/cap').electricityKwh.forEach((kwh, sample) => expect(forCombination(higher.samples, 'heatPump/cap').electricityKwh[sample]).toBeLessThan(kwh));
   });
 });
 
 describe('compare', () => {
   const access = fixtureAccessor({}, RANGES);
-  const run = runSetups(access, weather, plan);
+  const run = runSamples(access, weather, plan);
   const comparison = compare(run);
 
   it('collapses every band to the central value when every range is collapsed', () => {
-    const collapsed = compare(runSetups(fixtureAccessor(), weather, plan));
-    for (const setup of SETUPS) {
+    const collapsed = compare(runSamples(fixtureAccessor(), weather, plan));
+    for (const setup of CAP) {
       for (const metric of METRICS) {
-        const { central, p10, median, p90 } = forSetup(collapsed.bands, setup)[metric];
+        const { central, p10, median, p90 } = forCombination(collapsed.bands, setup)[metric];
         expect([p10, median, p90]).toEqual([central, central, central]);
       }
     }
-    const difference = forSetup(collapsed.differences, 'heatPump').costPounds;
+    const difference = forCombination(collapsed.differences, 'heatPump/cap').costPounds;
     expect(difference.p10).toBe(difference.central);
   });
 
   it('reports paired differences as reference minus setup, for every setup but the reference', () => {
-    expect(comparison.reference).toBe('gas');
-    expect(comparison.differences.gas).toBeUndefined();
-    const heatPump = forSetup(comparison.differences, 'heatPump');
-    expect(heatPump.costPounds.central).toBeCloseTo(forSetup(run.central, 'gas').costPounds - forSetup(run.central, 'heatPump').costPounds, 9);
-    expect(heatPump.carbonKg.median).toBe(quantile(pairedDifference(forSetup(run.samples, 'gas').carbonKg, forSetup(run.samples, 'heatPump').carbonKg), 0.5));
+    expect(comparison.reference).toBe('gas/cap');
+    expect(comparison.differences['gas/cap']).toBeUndefined();
+    const heatPump = forCombination(comparison.differences, 'heatPump/cap');
+    expect(heatPump.costPounds.central).toBeCloseTo(forCombination(run.central, 'gas/cap').costPounds - forCombination(run.central, 'heatPump/cap').costPounds, 9);
+    expect(heatPump.carbonKg.median).toBe(quantile(pairedDifference(forCombination(run.samples, 'gas/cap').carbonKg, forCombination(run.samples, 'heatPump/cap').carbonKg), 0.5));
   });
 
   it('gives shares cheapest that sum to 1 across the setups run', () => {
-    const total = SETUPS.reduce((sum, setup) => sum + forSetup(comparison.shareCheapest, setup), 0);
+    const total = CAP.reduce((sum, setup) => sum + forCombination(comparison.shareCheapest, setup), 0);
     expect(total).toBeCloseTo(1, 12);
   });
 
   it('raises the heat pump’s share cheapest when it is made strictly better', () => {
-    const setups = ['gas', 'heatPump'] as const;
-    const better = runSetups(fixtureAccessor({ 'heating.heatPumpSpf': 3.2 }, { ...RANGES, 'heating.heatPumpSpf': { low: 2.4, high: 4, sigma: 0.15 } }), weather, plan, { setups });
-    expect(forSetup(compare(better).shareCheapest, 'heatPump')).toBeGreaterThan(forSetup(compare(runSetups(access, weather, plan, { setups })).shareCheapest, 'heatPump'));
+    const setups = ['gas/cap', 'heatPump/cap'] as const;
+    const better = runSamples(fixtureAccessor({ 'heating.heatPumpSpf': 3.2 }, { ...RANGES, 'heating.heatPumpSpf': { low: 2.4, high: 4, sigma: 0.15 } }), weather, plan, { combinations: setups });
+    expect(forCombination(compare(better).shareCheapest, 'heatPump/cap')).toBeGreaterThan(forCombination(compare(runSamples(access, weather, plan, { combinations: setups })).shareCheapest, 'heatPump/cap'));
   });
 
   it('works out each sample’s payback from that sample’s own economics and running costs', () => {
     const years = run.economics.map((economics, sample) => {
       const running = Object.fromEntries(
-        SETUPS.map((setup) => [setup, { gasPounds: forSetup(run.samples, setup).gasCostPounds[sample]!, electricityPounds: forSetup(run.samples, setup).electricityCostPounds[sample]! }]),
+        CAP.map((setup) => [setup, { gasPounds: forCombination(run.samples, setup).gasCostPounds[sample]!, electricityPounds: forCombination(run.samples, setup).electricityCostPounds[sample]! }]),
       );
-      return samplePayback('heatPumpSolar', 'heatPump', solarHorizon(economics.capital), economics, running);
+      return samplePayback('heatPumpSolar/cap', 'heatPump/cap', solarHorizon(economics.capital), economics, running);
     });
-    const summary = forSetup(comparison.solarPayback, 'heatPump');
+    const summary = forCombination(comparison.solarPayback, 'heatPumpSolar/cap');
     expect(summary.median).toBe(paybackQuantile(years, 0.5));
     expect(summary.sharePaysBack).toBe(years.filter((year) => year !== DOES_NOT_PAY_BACK).length / years.length);
     expect(upfrontPounds(components('heatPumpSolar', run.centralEconomics))).toBeGreaterThan(upfrontPounds(components('heatPump', run.centralEconomics)));
   });
 
   it('gives payback against the reference for every other setup, and solar’s own payback on each heating system', () => {
-    expect(Object.keys(comparison.payback).toSorted()).toEqual(['gasSolar', 'heatPump', 'heatPumpSolar']);
-    expect(Object.keys(comparison.solarPayback).toSorted()).toEqual(['gas', 'heatPump']);
+    expect(Object.keys(comparison.payback).toSorted()).toEqual(['gasSolar/cap', 'heatPump/cap', 'heatPumpSolar/cap']);
+    expect(Object.keys(comparison.solarPayback).toSorted()).toEqual(['gasSolar/cap', 'heatPumpSolar/cap']);
     for (const summary of [...Object.values(comparison.payback), ...Object.values(comparison.solarPayback)]) {
       expect(summary.sharePaysBack).toBeGreaterThanOrEqual(0);
       expect(summary.sharePaysBack).toBeLessThanOrEqual(1);
@@ -232,36 +237,72 @@ describe('compare', () => {
 
   it('marks a setup that can never pay back, and leaves out solar’s own payback when a run lacks one side', () => {
     // A heat pump far dearer to run than gas never recovers its extra cost.
-    const dear = runSetups(fixtureAccessor({ 'heating.heatPumpSpf': 1, 'costs.heatPumpInstalled': 20_000 }), weather, plan, { setups: ['gas', 'heatPump'] });
-    const payback = forSetup(compare(dear).payback, 'heatPump');
+    const dear = runSamples(fixtureAccessor({ 'heating.heatPumpSpf': 1, 'costs.heatPumpInstalled': 20_000 }), weather, plan, { combinations: ['gas/cap', 'heatPump/cap'] });
+    const payback = forCombination(compare(dear).payback, 'heatPump/cap');
     expect(payback.sharePaysBack).toBe(0);
     expect([payback.central, payback.median, payback.p90]).toEqual([DOES_NOT_PAY_BACK, DOES_NOT_PAY_BACK, DOES_NOT_PAY_BACK]);
     expect(compare(dear).solarPayback).toEqual({});
   });
 
   it('rejects a reference the run left out', () => {
-    expect(() => compare(runSetups(access, weather, plan, { setups: ['heatPump'] }))).toThrow(/reference setup "gas" is not in this run/);
+    expect(() => compare(runSamples(access, weather, plan, { combinations: ['heatPump/cap'] }))).toThrow(/reference combination "gas\/cap" is not in this run/);
   });
 });
 
 describe('the well-installed SPF scenario', () => {
   const ranges: FixtureRanges = { ...RANGES, 'heating.heatPumpSpfWellInstalled': { low: 3, high: 4.5, sigma: 0.1 } };
   const access = fixtureAccessor({}, ranges);
-  const setups = ['gas', 'heatPump'] as const;
-  const fieldTrial = runSetups(access, weather, plan, { setups });
-  const wellInstalled = runSetups(access, weather, plan, { setups, spfScenario: 'wellInstalled' });
+  const setups = ['gas/cap', 'heatPump/cap'] as const;
+  const fieldTrial = runSamples(access, weather, plan, { combinations: setups });
+  const wellInstalled = runSamples(access, weather, plan, { combinations: setups, spfScenario: 'wellInstalled' });
 
   it('shares every draw but the SPF, so the gas setup is identical in both scenarios', () => {
     expect(fieldTrial.spfScenario).toBe('fieldTrial');
     expect(wellInstalled.spfScenario).toBe('wellInstalled');
-    for (const metric of METRICS) expect(forSetup(wellInstalled.samples, 'gas')[metric]).toEqual(forSetup(fieldTrial.samples, 'gas')[metric]);
-    expect(forSetup(wellInstalled.samples, 'heatPump').spaceHeatKwh).toEqual(forSetup(fieldTrial.samples, 'heatPump').spaceHeatKwh);
+    for (const metric of METRICS) expect(forCombination(wellInstalled.samples, 'gas/cap')[metric]).toEqual(forCombination(fieldTrial.samples, 'gas/cap')[metric]);
+    expect(forCombination(wellInstalled.samples, 'heatPump/cap').spaceHeatKwh).toEqual(forCombination(fieldTrial.samples, 'heatPump/cap').spaceHeatKwh);
   });
 
   it('runs the heat pump on the well-installed SPF, which is higher here in every sample', () => {
-    expect(forSetup(wellInstalled.central, 'heatPump').electricityKwh).toBeLessThan(forSetup(fieldTrial.central, 'heatPump').electricityKwh);
-    forSetup(wellInstalled.samples, 'heatPump').electricityKwh.forEach((electricity, sample) => {
-      expect(electricity).toBeLessThan(forSetup(fieldTrial.samples, 'heatPump').electricityKwh[sample]!);
+    expect(forCombination(wellInstalled.central, 'heatPump/cap').electricityKwh).toBeLessThan(forCombination(fieldTrial.central, 'heatPump/cap').electricityKwh);
+    forCombination(wellInstalled.samples, 'heatPump/cap').electricityKwh.forEach((electricity, sample) => {
+      expect(electricity).toBeLessThan(forCombination(fieldTrial.samples, 'heatPump/cap').electricityKwh[sample]!);
     });
+  });
+});
+
+const sumShares = (shares: Partial<Record<Combination, number>>): number => Object.values(shares).reduce((total, value) => total + value, 0);
+
+describe('the tariff grid', () => {
+  const access = fixtureAccessor({}, { ...RANGES, 'heating.controlBoost': { low: 1, high: 2 } });
+  const octopus = loadOctopusSnapshot(JSON.parse(readFileSync(new URL('../../data/snapshots/octopus-london.json', import.meta.url), 'utf8')) as unknown);
+  const agile = agileFromSnapshot(octopus);
+  const run = runSamples(access, weather, plan, { combinations: COMBINATIONS, agile });
+  const comparison = compare(run);
+
+  it('pairs every combination on one set of draws, so the cap runs match a run of the cap alone', () => {
+    const capOnly = runSamples(access, weather, plan, { combinations: CAP });
+    for (const combination of CAP) expect(forCombination(run.samples, combination).costPounds).toEqual(forCombination(capOnly.samples, combination).costPounds);
+    expect(run.economics).toEqual(capOnly.economics);
+  });
+
+  it('keeps gas on the price cap: the gas boiler’s gas cost is the same on Agile', () => {
+    expect(forCombination(run.samples, 'gas/agile').gasCostPounds).toEqual(forCombination(run.samples, 'gas/cap').gasCostPounds);
+  });
+
+  it('gives shares cheapest across all 10, and within each tariff, that each sum to 1', () => {
+    expect(sumShares(comparison.shareCheapest)).toBeCloseTo(1, 12);
+    expect(Object.keys(comparison.shareCheapestByTariff)).toEqual(['cap', 'cosy', 'agile']);
+    expect(Object.values(comparison.shareCheapestByTariff).map((shares) => Math.round(sumShares(shares) * 1e9) / 1e9)).toEqual([1, 1, 1]);
+    expect(Object.keys(comparison.shareCheapestByTariff.cosy!)).toEqual(['heatPump/cosy', 'heatPumpSolar/cosy']);
+  });
+
+  it('gives payback against the gas boiler on the cap for the other 9, and solar’s own payback on each heating system and tariff', () => {
+    expect(Object.keys(comparison.payback)).toHaveLength(9);
+    expect(Object.keys(comparison.solarPayback).toSorted()).toEqual(COMBINATIONS.filter((combination) => SETUP_KIT[partsOf(combination).setup].solar).toSorted());
+  });
+
+  it('refuses an Agile combination without Agile’s rates, before running anything', () => {
+    expect(() => runSamples(access, weather, plan, { combinations: ['heatPump/agile'] })).toThrow(/needs Agile's rates/);
   });
 });

@@ -22,7 +22,7 @@ export const SECTIONS = [
 export const STATUSES = ['sourced', 'to-verify', 'approximate'] as const;
 
 /** Snapshot schemas a `series` row may name. Each has a validator in src/snapshots/. */
-export const SNAPSHOT_SCHEMAS = ['pvgis-tmy'] as const;
+export const SNAPSHOT_SCHEMAS = ['pvgis-tmy', 'octopus-london'] as const;
 
 /** Profile resolutions and the number of values each needs. */
 export const PROFILE_RESOLUTIONS = ['hour-of-day', 'hour-of-week', 'month'] as const;

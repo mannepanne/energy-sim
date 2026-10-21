@@ -2,8 +2,8 @@
 // ABOUT: pre-registered NEED readings, its gap from them and the flag. Pure and clock-free, so output is byte-identical
 
 import { ARCHETYPE_KEYS, defaultHouse, type ArchetypeKey } from '../../src/engine/archetypes.ts';
-import { band, compare, runSetups, type Band } from '../../src/engine/compare.ts';
-import { forSetup } from '../../src/engine/setups.ts';
+import { band, compare, runSamples, type Band } from '../../src/engine/compare.ts';
+import { forCombination } from '../../src/engine/combinations.ts';
 import { heatLoss } from '../../src/engine/geometry.ts';
 import { readInputs } from '../../src/engine/inputs.ts';
 import type { SamplingPlan } from '../../src/engine/sampling.ts';
@@ -43,9 +43,9 @@ export interface ArchetypeRow {
 export function archetypeRows(access: RegisterAccessor, weather: PreparedWeather, plan: SamplingPlan = ARCHETYPE_PLAN): ArchetypeRow[] {
   return ARCHETYPE_KEYS.map((archetype) => {
     const house = defaultHouse(access, archetype);
-    const run = runSetups(access, weather, plan, { house, setups: ['gas', 'heatPump'] });
-    const gas = forSetup(run.samples, 'gas');
-    const gasCentral = forSetup(run.central, 'gas');
+    const run = runSamples(access, weather, plan, { house, combinations: ['gas/cap', 'heatPump/cap'] });
+    const gas = forCombination(run.samples, 'gas/cap');
+    const gasCentral = forCombination(run.central, 'gas/cap');
     const comparison = compare(run);
     const readings = needReadings(archetype);
     return {
@@ -54,8 +54,8 @@ export function archetypeRows(access: RegisterAccessor, weather: PreparedWeather
       occupants: house.occupants,
       heatLossWPerK: heatLoss(readInputs(access, { house })).totalWPerK,
       gasKwh: band(gas.gasKwh, gasCentral.gasKwh),
-      gasCostPounds: forSetup(comparison.bands, 'gas').costPounds,
-      heatPumpCostPounds: forSetup(comparison.bands, 'heatPump').costPounds,
+      gasCostPounds: forCombination(comparison.bands, 'gas/cap').costPounds,
+      heatPumpCostPounds: forCombination(comparison.bands, 'heatPump/cap').costPounds,
       readings,
       gap: archetypeGap(gasCentral.gasKwh, readings),
     };

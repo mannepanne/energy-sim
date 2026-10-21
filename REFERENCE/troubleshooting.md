@@ -54,7 +54,7 @@ Add an entry here when a problem takes more than a few minutes to work out.
 - *The pinned gap (−2.55%) moved:* a change to the sun position, the transposition, the PV formulas or the weather moved the engine's yield. If the change is intended and the gap stays within 8%, re-pin it and update the table in [engine.md](./engine.md#checks-against-outside-references).
 - *Outside 8%:* stop and look for the cause before touching any row; the tolerance was fixed before the check ran.
 
-**"Setup "…" is not in this run" or "The reference setup "gas" is not in this run".** A caller asked `forSetup` or `compare` for a setup that `runSetups` was not given. Pass it in `setups`, or leave `setups` out to run all four.
+**"Setup "…" is not in this run" or "The reference combination "gas/cap" is not in this run".** A caller asked `forSetup`, `forCombination` or `compare` for something `runSamples` was not given. Pass it in `combinations`, or leave `combinations` out to run the four setups on the cap.
 
 **`setups.test.ts` fails on "… on gasSolar" (or another setup).** A row that `runningCostReads` says a setup does not read now moves that setup's running cost, so the sensitivity tables would drop a row that matters. Add the row to the right set in `src/engine/setups.ts` (heat pump, boiler, solar or capital), or remove it from the set it wrongly sits in.
 
@@ -66,6 +66,16 @@ Add an entry here when a problem takes more than a few minutes to work out.
 
 **"The … schedule must be 168 values, each 0 (off) or 1 (heating)".** A heating schedule row (`heating.scheduleGas` or `heating.scheduleHeatPump`) has the wrong length or a value other than 0 or 1. Each value is one local hour of the week, Monday 00:00 first.
 
+**"The register and the Octopus snapshot" tests fail** (`src/engine/tariffs.test.ts`). The snapshot was refreshed but the register still holds the old Cosy rates, a standing charge or the export range, or the other way round. Copy the snapshot's values into `tariffs.cosyUnitRate`, `tariffs.cosyStandingCharge`, `tariffs.agileStandingCharge` and the mode of `prices.exportRate` (Outgoing Octopus's rate), update their `lastChecked`, and regenerate the report. The export row's low and high (4.1p and 15p) are Magnus's range: if the snapshot shows the fixed export tariff or Outgoing Octopus's range has moved, ask him before changing them.
+
+**"Combination … is not in this run" or "… cannot be on the cosy tariff".** A caller asked for a combination the run left out, or for a gas setup on Cosy, which only heat pump homes can have. The 10 combinations are in `COMBINATIONS` (`src/engine/combinations.ts`).
+
+**"The agile tariff needs Agile's rates from the Octopus snapshot (agileFromSnapshot)".** A run or sensitivity table includes an Agile combination but was given no `agile`. Load the Octopus snapshot and pass `{ agile: agileFromSnapshot(snapshot) }`. Cosy needs nothing extra: its rows come through the inputs. The default sensitivity pairs include Agile.
+
+**"… must be from -100 to 500 p/kWh" in the Octopus snapshot.** A fetched rate is outside the broad bound on any unit rate (`RATE_BOUNDS_PENCE`), which catches a corrupted fetch. Check the rate in the API by hand; if it is real, widen the bound and say why.
+
+**Control looks as if it does nothing.** On the price cap that is right: it has no cheap or peak hours. On Cosy or Agile, check that the run passed `{ tariff }` and not `{ control: false }`, and that the gas setups are not the ones being looked at; they have no control.
+
 ## The report and CI
 
 **CI's "Report drift" step fails.** The committed report no longer matches what the register and snapshot produce, or a file in `reports/` was never committed. Run `npm run report` and commit the result. Any change to a register row, the snapshot or the engine can change the report, so regenerate it in the same PR.
@@ -74,7 +84,7 @@ Add an entry here when a problem takes more than a few minutes to work out.
 
 **`npm run archetypes` shows an archetype newly flagged.** The flag rule and the NEED readings were fixed before any archetype ran ([scripts/archetypes/README.md](../scripts/archetypes/README.md)), so don't change them to clear a flag. A flag is an honest result. Check instead that the archetype's register rows are right, and record the gap as evidence on [#14](https://github.com/mannepanne/energy-sim/issues/14).
 
-**CI's "Bench" step fails.** 500 samples took longer than 2.5 seconds per setup: 5 seconds for the two setups without solar, or 10 for all four. On a recent Mac they take about 1.55 and 3.0 seconds, and on the CI runner about 3.2 and 6.2 seconds (20 October 2026). So a failure means a real slowdown, not noise. Look for a slowdown in the hourly loop: per-hour objects instead of typed arrays, weather prepared again for every sample instead of once, or a schedule expanded to engine hours on every run instead of once (`heatingHours` keeps each one).
+**CI's "Bench" step fails.** A workload took longer than its limit: 5 seconds for 500 samples of the two setups without solar on the cap, 10 for the four setups, 10 for all 10 combinations, or 100 ms for one central run of the 10. On a recent Mac they take about 0.6, 0.7 and 1.2 seconds and 3 ms (21 October 2026); the CI runner has been about twice as slow. So a failure means a real slowdown, not noise. Look for a slowdown in an hourly loop: per-hour objects instead of typed arrays, `.map` and `.reduce` with closures over 8,760 values in code that runs per combination (`completeRun` sums in one plain loop), weather prepared again for every sample instead of once, a schedule expanded on every run (`heatingHours` keeps each one), or combinations that no longer share their `runBasis` (`runCombinations` keeps one per set of inputs).
 
 ## The benchmark
 
@@ -98,8 +108,13 @@ Add an entry here when a problem takes more than a few minutes to work out.
 - *The heat pump cost* (`costs.heatPumpInstalled`, quarterly): download the latest Boiler Upgrade Scheme statistics from GOV.UK (ask first), read table Q1.1A's latest quarter for air-to-water heat pumps, and update the median and the rationale's quartiles. Keep the file in `REFERENCE/data-downloads/`.
 - *PV per kWp* (yearly): DESNZ publishes solar PV cost data each financial year. Read the summary table's 0–4 kW median, then scale it by the domestic 0–4 kW mean ÷ the all-installs 0–4 kW mean (domestic costs table and summary table). The median includes cheaper non-domestic installs, so entering it unscaled flatters solar. Record both figures and the ratio in the rationale.
 - *The grant* (monthly): check GOV.UK's "Apply for the Boiler Upgrade Scheme" pages for the amount and the conditions, and update the row's rationale and `lastChecked`.
-- *The export rate* (quarterly): query the Octopus API for London (region C) unit rates of Outgoing Octopus (the mode) and of the fixed Smart Export Guarantee tariff (the low end). The high end is Outgoing Octopus's highest recent rate. The tariffs PR snapshots them.
+- *The export rate* (quarterly): refresh the Octopus snapshot (below) and copy Outgoing Octopus's rate into the mode. The low and high (4.1p and 15p) are Magnus's range; change them only with him.
 
 Each change moves payback, and the price rows also move running cost, so regenerate the report.
 
-**Updating prices at a new price cap period.** Update the price rows, their `lastChecked` and `validUntil` dates, and their source, then regenerate the report. The report's "Rows due for a fresh check" table shows which rows are due.
+**Updating prices at a new price cap period.** Read the London region's Direct Debit rates from Ofgem's regional tables (ask first before downloading anything), update the price rows, their `lastChecked` and `validUntil` dates, and their source, then regenerate the report. Check `prices.electricityVatRate` too: electricity carries no VAT until 31 March 2027. The report's "Rows due for a fresh check" table shows which rows are due.
+
+**Refreshing the Octopus snapshot** (Cosy and the standing charges quarterly, Agile yearly). Ask before fetching, then run `npm run fetch:octopus` (network). It writes `data/snapshots/octopus-london.json` with Agile's last full 12 months, Cosy's rates on the latest whole day, and the export rates. Copy the values into the register rows the tariffs test names (above), update the Agile row's rationale and the limitations' months if the window moved, run `npm run tariffs` and `npm run report`, and commit.
+- *"Expected one Agile product over the window"*: Octopus launched a new Agile product inside the window. The build refuses to join two product codes; decide with Magnus how to join them (for example, each half-hour from the product on offer then), and add that to `scripts/octopus/build.ts` with a test.
+- *"Agile has no rate for N typical-year half-hours"*: the API returned a gap, often for the most recent days. Fetch again later, or move the window back a month.
+- *"… is not one half-hour long"*: the API changed its rate format. Check one page by hand before changing the build.

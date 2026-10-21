@@ -10,12 +10,15 @@ import { SENSITIVITY_PAIRS, sensitivity } from './sensitivity.ts';
 import { CAPITAL_ROWS } from './setups.ts';
 import { simulate } from './simulate.ts';
 import { fixtureAccessor } from './testing/fixtureRegister.ts';
+import { agileFromSnapshot } from './tariffs.ts';
 import { prepareWeather, weatherFromSnapshot } from './weather.ts';
+import { loadOctopusSnapshot } from '../snapshots/octopusSchema.ts';
 
 const rawWeather = weatherFromSnapshot(
   loadPvgisSnapshot(JSON.parse(readFileSync(new URL('../../data/snapshots/pvgis-tmy-london.json', import.meta.url), 'utf8')) as unknown),
 );
 const weather = prepareWeather(rawWeather, readInputs(fixtureAccessor()));
+const agile = agileFromSnapshot(loadOctopusSnapshot(JSON.parse(readFileSync(new URL('../../data/snapshots/octopus-london.json', import.meta.url), 'utf8')) as unknown));
 
 describe('sensitivity', () => {
   const access = fixtureAccessor(
@@ -24,26 +27,27 @@ describe('sensitivity', () => {
       'heating.heatPumpSpf': { low: 2, high: 4, sigma: 0.15 },
       'heating.boilerSeasonalEfficiency': { low: 0.75, high: 0.85 },
       'electricity.baseUse': { low: 2000, high: 3500 },
+      'heating.controlBoost': { low: 1, high: 2 },
     },
   );
-  const tables = sensitivity(access, weather);
+  const tables = sensitivity(access, weather, SENSITIVITY_PAIRS, { agile });
   const table = tables[0]!.rows;
   const SOLAR_ROWS = ['solar.systemSize', 'solar.azimuth', 'solar.usableRoofFraction', 'prices.exportRate'];
 
   it('gives one table per pair, the heat pump against gas first', () => {
     expect(tables.map((entry) => entry.pair)).toEqual(SENSITIVITY_PAIRS);
-    expect(tables[0]!.pair).toEqual({ setup: 'heatPump', against: 'gas' });
+    expect(tables[0]!.pair).toEqual({ option: 'heatPump/cap', against: 'gas/cap' });
   });
 
-  it('lists every row either setup reads: no roof solar or export rows without solar, and never a capital row', () => {
+  it('lists every row either combination reads: no roof solar or export rows without solar, no control rows on the cap, and never a capital row', () => {
     // The well-installed SPF and standby share are read only in their own scenario.
     const fieldTrial = UNCERTAIN_ROW_IDS.filter((id) => !rowsOutsideScenario('fieldTrial').includes(id));
-    const expected = fieldTrial.filter((id) => !SOLAR_ROWS.includes(id) && !CAPITAL_ROWS.has(id));
+    const expected = fieldTrial.filter((id) => !SOLAR_ROWS.includes(id) && !CAPITAL_ROWS.has(id) && id !== 'heating.controlBoost');
     expect(table.map((row) => row.id).toSorted()).toEqual(expected.toSorted());
   });
 
   it('lists the roof solar rows for solar against no solar, but not the boiler’s efficiency on the heat pump', () => {
-    const solarOnHeatPump = tables.find(({ pair }) => pair.setup === 'heatPumpSolar' && pair.against === 'heatPump')!.rows.map((row) => row.id);
+    const solarOnHeatPump = tables.find(({ pair }) => pair.option === 'heatPumpSolar/cap' && pair.against === 'heatPump/cap')!.rows.map((row) => row.id);
     for (const id of SOLAR_ROWS) expect(solarOnHeatPump).toContain(id);
     expect(solarOnHeatPump).not.toContain('heating.boilerSeasonalEfficiency');
     expect(solarOnHeatPump).toContain('heating.heatPumpSpf');
@@ -51,7 +55,7 @@ describe('sensitivity', () => {
 
   it('runs a house other than the default when given one', () => {
     const house = { ...defaultHouse(access, 'semi1930s'), loft: 'none' as const };
-    const noLoft = sensitivity(access, weather, [SENSITIVITY_PAIRS[0]!], house)[0]!.rows.find((row) => row.id === 'heating.heatPumpSpf')!;
+    const noLoft = sensitivity(access, weather, [SENSITIVITY_PAIRS[0]!], { house })[0]!.rows.find((row) => row.id === 'heating.heatPumpSpf')!;
     const spf = table.find((row) => row.id === 'heating.heatPumpSpf')!;
     expect(noLoft.low.costPounds.against).toBeGreaterThan(spf.low.costPounds.against);
   });
@@ -61,19 +65,30 @@ describe('sensitivity', () => {
     expect(spf.low.value).toBe(2);
     expect(spf.high.value).toBe(4);
     const atLow = simulate(readInputs(access, { overrides: { 'heating.heatPumpSpf': 2 } }), weather, 'heatPump').annual.cost.totalPounds;
-    expect(spf.low.costPounds.setup).toBe(atLow);
+    expect(spf.low.costPounds.option).toBe(atLow);
     expect(spf.low.costPounds.against).toBe(simulate(readInputs(access), weather, 'gas').annual.cost.totalPounds);
     expect(spf.swingPounds).toBeCloseTo(spf.high.costDifferencePounds - spf.low.costDifferencePounds, 9);
     expect(spf.swingPounds).toBeGreaterThan(0);
   });
 
   it('runs solar setups with solar', () => {
-    const rows = tables.find(({ pair }) => pair.setup === 'gasSolar')!.rows;
+    const rows = tables.find(({ pair }) => pair.option === 'gasSolar/cap')!.rows;
     const base = rows.find((row) => row.id === 'electricity.baseUse')!;
     const withSolar = simulate(readInputs(access, { overrides: { 'electricity.baseUse': 2000 } }), weather, 'gas', { solar: true }).annual.cost.totalPounds;
-    expect(base.low.costPounds.setup).toBe(withSolar);
+    expect(base.low.costPounds.option).toBe(withSolar);
     // Solar meets some of the extra base use, so more base use widens solar's saving.
     expect(base.swingPounds).toBeGreaterThan(0);
+  });
+
+  it('refuses a pair on Agile without Agile’s rates', () => {
+    expect(() => sensitivity(access, weather)).toThrow(/needs Agile's rates/);
+  });
+
+  it('lists the control boost for a heat pump on a time-of-use tariff, where it moves the cost', () => {
+    const [cosy] = sensitivity(access, weather, [{ option: 'heatPump/cosy', against: 'gas/cap' }], { agile });
+    const boost = cosy!.rows.find((row) => row.id === 'heating.controlBoost');
+    expect(boost).toBeDefined();
+    expect(Math.abs(boost!.swingPounds)).toBeGreaterThan(0);
   });
 
   it('ranks by the size of the swing, largest first', () => {

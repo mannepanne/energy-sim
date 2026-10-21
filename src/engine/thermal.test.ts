@@ -14,6 +14,11 @@ import { heatLoss } from './geometry.ts';
 import { readInputs } from './inputs.ts';
 import { checkSchedule, heatingHours, PRE_ROLL_HOURS, runThermalNode, type ThermalNode, type ThermalYear } from './thermal.ts';
 import { prepareWeather, weatherFromSnapshot } from './weather.ts';
+import { heatingTargets } from './control.ts';
+
+/** The node on a heating schedule at one setpoint, starting the pre-roll at the setpoint. */
+const runNode = (node: Parameters<typeof runThermalNode>[0], outdoorC: Float64Array, gainsW: Float64Array, heatingOn: ArrayLike<number>, setpointC: number) =>
+  runThermalNode(node, outdoorC, gainsW, heatingTargets(heatingOn, setpointC), setpointC);
 
 const readJson = (path: string): unknown => JSON.parse(readFileSync(new URL(path, import.meta.url), 'utf8')) as unknown;
 const access = createAccessor(loadRegister(readJson('../../data/register.json')));
@@ -37,7 +42,7 @@ const phase1SpaceHeatKwh = (setpointC: number): number =>
 
 /** How much full C lowers continuous heating against phase 1's method, as a share. */
 const continuousReduction = (setpoint: number): number =>
-  1 - sum(runThermalNode(semiNode, prepared.outdoorTemperatureC, semiGains, ALWAYS, setpoint).spaceHeatKwh) / phase1SpaceHeatKwh(setpoint);
+  1 - sum(runNode(semiNode, prepared.outdoorTemperatureC, semiGains, ALWAYS, setpoint).spaceHeatKwh) / phase1SpaceHeatKwh(setpoint);
 
 /**
  * Free decay from 20 °C towards 0 °C outdoors at a given time constant, with no gains. The pre-roll (the year's last
@@ -53,7 +58,7 @@ function decay(timeConstantHours: number): { year: ThermalYear; largestError: nu
     outdoor[hour] = 20;
     heating[hour] = 1;
   }
-  const year = runThermalNode(node, outdoor, constant(0), heating, 20);
+  const year = runNode(node, outdoor, constant(0), heating, 20);
   let largestError = 0;
   for (let hour = 0; hour < 10 * timeConstantHours; hour += 1) {
     const exact = 20 * Math.exp(-(hour + 1) / timeConstantHours);
@@ -64,7 +69,7 @@ function decay(timeConstantHours: number): { year: ThermalYear; largestError: nu
 
 describe('the no-mass limit and continuous heating', () => {
   it('with C = 0 reproduces phase 1’s continuous method exactly (within 0.5%)', () => {
-    const year = runThermalNode({ ...semiNode, heatCapacityWhPerK: 0 }, prepared.outdoorTemperatureC, semiGains, ALWAYS, 19);
+    const year = runNode({ ...semiNode, heatCapacityWhPerK: 0 }, prepared.outdoorTemperatureC, semiGains, ALWAYS, 19);
     const phase1 = phase1SpaceHeatKwh(19);
     expect(sum(year.spaceHeatKwh) / phase1 - 1).toBeCloseTo(0, 12);
   });
@@ -108,7 +113,7 @@ describe('a scheduled year on the PVGIS weather', () => {
   const hours = new Set([7, 8, 16, 17, 18, 19, 20, 21, 22]);
   const heating = Uint8Array.from({ length: HOURS_PER_YEAR }, (_, hour) => (hours.has(hour % 24) ? 1 : 0));
   const capW = 6000;
-  const year = runThermalNode({ ...semiNode, outputCapW: capW }, prepared.outdoorTemperatureC, semiGains, heating, 20);
+  const year = runNode({ ...semiNode, outputCapW: capW }, prepared.outdoorTemperatureC, semiGains, heating, 20);
 
   it('closes the energy balance every hour and over the year: Q + G − H (T − T_out) = C (T − T_before)', () => {
     let before = year.startTemperatureC;
@@ -145,12 +150,12 @@ describe('a scheduled year on the PVGIS weather', () => {
   });
 
   it('uses less heat with a lower cap, since the house is then colder after each off period', () => {
-    const lowCap = runThermalNode({ ...semiNode, outputCapW: 3000 }, prepared.outdoorTemperatureC, semiGains, heating, 20);
+    const lowCap = runNode({ ...semiNode, outputCapW: 3000 }, prepared.outdoorTemperatureC, semiGains, heating, 20);
     expect(sum(lowCap.spaceHeatKwh)).toBeLessThan(sum(year.spaceHeatKwh));
   });
 
   it('uses more heat than with no mass, which reaches the setpoint at once and loses nothing while off', () => {
-    const noMass = runThermalNode({ ...semiNode, heatCapacityWhPerK: 0, outputCapW: capW }, prepared.outdoorTemperatureC, semiGains, heating, 20);
+    const noMass = runNode({ ...semiNode, heatCapacityWhPerK: 0, outputCapW: capW }, prepared.outdoorTemperatureC, semiGains, heating, 20);
     expect(sum(year.spaceHeatKwh)).toBeGreaterThan(sum(noMass.spaceHeatKwh));
   });
 });
@@ -158,12 +163,12 @@ describe('a scheduled year on the PVGIS weather', () => {
 describe('input checks and schedule helpers', () => {
   it('rejects series of the wrong length and an invalid node', () => {
     const short = new Float64Array(24);
-    expect(() => runThermalNode(semiNode, short, constant(0), ALWAYS, 20)).toThrow('8760 hours');
-    expect(() => runThermalNode(semiNode, constant(0), short, ALWAYS, 20)).toThrow('8760 hours');
-    expect(() => runThermalNode(semiNode, constant(0), constant(0), short, 20)).toThrow('8760 hours');
-    expect(() => runThermalNode({ ...semiNode, heatLossWPerK: 0 }, constant(0), constant(0), ALWAYS, 20)).toThrow('H > 0');
-    expect(() => runThermalNode({ ...semiNode, heatCapacityWhPerK: -1 }, constant(0), constant(0), ALWAYS, 20)).toThrow('C ≥ 0');
-    expect(() => runThermalNode({ ...semiNode, outputCapW: Number.NaN }, constant(0), constant(0), ALWAYS, 20)).toThrow('cap ≥ 0');
+    expect(() => runNode(semiNode, short, constant(0), ALWAYS, 20)).toThrow('8760 hours');
+    expect(() => runNode(semiNode, constant(0), short, ALWAYS, 20)).toThrow('8760 hours');
+    expect(() => runNode(semiNode, constant(0), constant(0), short, 20)).toThrow('8760 hours');
+    expect(() => runNode({ ...semiNode, heatLossWPerK: 0 }, constant(0), constant(0), ALWAYS, 20)).toThrow('H > 0');
+    expect(() => runNode({ ...semiNode, heatCapacityWhPerK: -1 }, constant(0), constant(0), ALWAYS, 20)).toThrow('C ≥ 0');
+    expect(() => runNode({ ...semiNode, outputCapW: Number.NaN }, constant(0), constant(0), ALWAYS, 20)).toThrow('cap ≥ 0');
   });
 
   it('expands a schedule to every engine hour in local time, once per schedule', () => {

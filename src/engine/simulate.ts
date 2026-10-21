@@ -1,8 +1,9 @@
-// ABOUT: Runs one house with one heating setup, with or without roof solar, over the 8,760 hours of the typical year
-// ABOUT: Returns hourly typed arrays and annual totals for heat, fuel, solar, import, export, cost and carbon, and the COP scale
+// ABOUT: Runs one house with one heating setup, with or without roof solar, on one electricity tariff, over the 8,760 hours of the typical year
+// ABOUT: Runs of one set of inputs share a basis, so the heat side is computed once for every solar and tariff choice that leaves it unchanged
 
-import { buildCalendar, expandDaily } from './calendar.ts';
+import { expandDaily, REFERENCE_CALENDAR } from './calendar.ts';
 import { HOURS_PER_YEAR } from './constants.ts';
+import { heatingTargets } from './control.ts';
 import { annualCarbonKg, annualCost, type AnnualCost } from './costCarbon.ts';
 import { runCylinder } from './cylinder.ts';
 import { dailyHotWaterKwh, totalGainsW } from './demand.ts';
@@ -12,7 +13,8 @@ import type { EngineInputs } from './inputs.ts';
 import { pvGenerationKwh, useSolar } from './pv.ts';
 import { planeIrradiance } from './solar.ts';
 import { auxiliaryElectricity, baseElectricityKwh, fuelForHeat } from './supply.ts';
-import { heatingHours, runThermalNode } from './thermal.ts';
+import { capTariff, importUnitPence, type ElectricityTariff, type Tariff } from './tariffs.ts';
+import { heatingHours, runThermalNode, type ThermalYear } from './thermal.ts';
 import type { PreparedWeather } from './weather.ts';
 
 /**
@@ -31,6 +33,8 @@ export interface HourlyResult {
   /** Space heat plus hot water: the heat the system supplies. */
   heatKwh: Float64Array;
   gasKwh: Float64Array;
+  /** The heat pump's electricity (space heating, cylinder reheats and standby); zero for the gas setups. */
+  heatingElectricityKwh: Float64Array;
   /** Base use plus the heat pump's heating electricity or the boiler's pump and fan electricity. */
   electricityKwh: Float64Array;
   /** AC generation from roof solar; zero without solar. */
@@ -76,6 +80,10 @@ export interface AnnualResult {
 export interface SimulationResult {
   heating: Heating;
   solar: boolean;
+  /** The electricity tariff; gas is always on the price cap. */
+  tariff: Tariff;
+  /** Whether the control rules moved the heat pump's running: a heat pump on a tariff with cheap and peak hours. */
+  controlled: boolean;
   /** The PV system's size after the roof limit; zero without solar. */
   pvPeakPowerKw: number;
   heatLoss: HeatLoss;
@@ -90,9 +98,7 @@ export interface SimulationResult {
 export interface SimulateOptions {
   /**
    * The heat pump's COP scale from the reference run: price cap, no control, on the gas setups' heating schedule.
-   * When absent, k is solved here on that reference run. A caller that applies control or a time-of-use tariff
-   * must pass the reference run's scale. Solar does not change the heat the heat pump delivers, so it does not
-   * change k.
+   * When absent, k is solved here on that reference run. Solar, the tariff and control do not change k.
    */
   copScale?: CopScale;
   /** Adds roof solar, sized by `inputs.pv`. Defaults to false. */
@@ -102,47 +108,25 @@ export interface SimulateOptions {
    * in a sample compute it once. Computed here when absent.
    */
   generationKwh?: Float64Array;
+  /** The electricity tariff. Defaults to the price cap from the inputs. Gas is always on the price cap. */
+  tariff?: ElectricityTariff;
+  /**
+   * Whether the heat pump follows the control rules on a tariff with cheap and peak hours. Defaults to true. The
+   * rules act only on those hours, so on the price cap they change nothing, and the gas setups have no control.
+   */
+  control?: boolean;
 }
 
-/** The time base for local-time profiles, built once: it depends only on the reference year. */
-const CALENDAR = buildCalendar();
-
-const sum = (values: Float64Array): number => values.reduce((total, value) => total + value, 0);
-
-/** The COP curve's shape each hour: space heating at the compensated flow, cylinder reheats at the hot water flow. */
-function copShapes(inputs: EngineInputs, outdoorC: Float64Array): Pick<HeatPumpLoad, 'spaceShape' | 'hotWaterShape'> {
-  const spaceShape = new Float64Array(HOURS_PER_YEAR);
-  const hotWaterShape = new Float64Array(HOURS_PER_YEAR);
-  for (let hour = 0; hour < HOURS_PER_YEAR; hour += 1) {
-    const outdoor = outdoorC[hour]!;
-    spaceShape[hour] = copShape(compensatedFlowC(outdoor, inputs.compensation), outdoor, inputs.copCurve);
-    hotWaterShape[hour] = copShape(inputs.hotWaterFlowTemperatureC, outdoor, inputs.copCurve);
-  }
-  return { spaceShape, hotWaterShape };
+function sum(values: Float64Array): number {
+  let total = 0;
+  for (let index = 0; index < values.length; index += 1) total += values[index]!;
+  return total;
 }
 
 /** The heat pump's output cap: the design heat loss (H × the design temperature difference) × the margin. */
 export function heatPumpOutputCapW(inputs: EngineInputs, heatLossWPerK: number): number {
   return heatLossWPerK * inputs.designTemperatureDifferenceK * inputs.heatPumpOutputMargin;
 }
-
-/** What the thermal node needs from a run that is the same for every schedule and cap. */
-interface SpaceHeatContext {
-  inputs: EngineInputs;
-  heatLossWPerK: number;
-  outdoorC: Float64Array;
-  gainsW: Float64Array;
-}
-
-/** Space heat each hour on a heating schedule, at the inputs' setpoint, up to an output cap. */
-function spaceHeatOn(context: SpaceHeatContext, schedule: readonly number[], outputCapW: number) {
-  const { inputs } = context;
-  const node = { heatLossWPerK: context.heatLossWPerK, heatCapacityWhPerK: inputs.heatCapacityWhPerK, outputCapW };
-  return runThermalNode(node, context.outdoorC, context.gainsW, heatingHours(schedule, CALENDAR), inputs.setpointC);
-}
-
-const sameSchedule = (a: readonly number[], b: readonly number[]): boolean =>
-  a.length === b.length && a.every((value, index) => value === b[index]);
 
 /** Roof solar generation for the inputs' PV system, on the roof's sampled direction. */
 export function solarGeneration(inputs: EngineInputs, weather: PreparedWeather): Float64Array {
@@ -151,13 +135,140 @@ export function solarGeneration(inputs: EngineInputs, weather: PreparedWeather):
   return pvGenerationKwh(onRoof, airC, inputs.pv);
 }
 
-/** What a heating setup supplies over the year, and the electricity loads solar meets after base use. */
-interface Supply {
+/**
+ * What every run of one set of inputs shares. Parts that only some runs need (the COP shapes, thermal years,
+ * cylinder runs and the COP scale) are computed on first use and kept.
+ */
+export interface RunBasis {
+  inputs: EngineInputs;
+  weather: PreparedWeather;
+  loss: HeatLoss;
+  outdoorC: Float64Array;
+  gainsW: Float64Array;
+  /** Hot water drawn at the taps each hour. */
+  drawKwh: Float64Array;
+  baseKwh: Float64Array;
+  memo: {
+    shapes?: Pick<HeatPumpLoad, 'spaceShape' | 'hotWaterShape'>;
+    copScale?: CopScale;
+    generationKwh?: Float64Array;
+    thermal: Map<string, ThermalYear>;
+    cylinder: Map<string, Float64Array>;
+  };
+}
+
+export function runBasis(inputs: EngineInputs, weather: PreparedWeather): RunBasis {
+  const loss = heatLoss(inputs);
+  const outdoorC = weather.outdoorTemperatureC.map((temperature) => temperature + inputs.outdoorTemperatureOffsetK);
+  const drawPerDay = dailyHotWaterKwh(inputs);
+  return {
+    inputs,
+    weather,
+    loss,
+    outdoorC,
+    gainsW: totalGainsW(inputs, weather.meanVerticalIrradiance),
+    drawKwh: expandDaily(inputs.hotWaterDrawProfile, REFERENCE_CALENDAR).map((share) => share * drawPerDay),
+    baseKwh: baseElectricityKwh(inputs, REFERENCE_CALENDAR),
+    memo: { thermal: new Map(), cylinder: new Map() },
+  };
+}
+
+/** The roof's generation for this basis, computed once. */
+export function basisGeneration(basis: RunBasis): Float64Array {
+  basis.memo.generationKwh ??= solarGeneration(basis.inputs, basis.weather);
+  return basis.memo.generationKwh;
+}
+
+/** The COP curve's shape each hour: space heating at the compensated flow, cylinder reheats at the hot water flow. */
+function copShapes(basis: RunBasis): Pick<HeatPumpLoad, 'spaceShape' | 'hotWaterShape'> {
+  if (!basis.memo.shapes) {
+    const { inputs, outdoorC } = basis;
+    const spaceShape = new Float64Array(HOURS_PER_YEAR);
+    const hotWaterShape = new Float64Array(HOURS_PER_YEAR);
+    for (let hour = 0; hour < HOURS_PER_YEAR; hour += 1) {
+      const outdoor = outdoorC[hour]!;
+      spaceShape[hour] = copShape(compensatedFlowC(outdoor, inputs.compensation), outdoor, inputs.copCurve);
+      hotWaterShape[hour] = copShape(inputs.hotWaterFlowTemperatureC, outdoor, inputs.copCurve);
+    }
+    basis.memo.shapes = { spaceShape, hotWaterShape };
+  }
+  return basis.memo.shapes;
+}
+
+const outputCapOf = (basis: RunBasis, heating: Heating): number =>
+  heating === 'gas' ? basis.inputs.boilerOutputCapW : heatPumpOutputCapW(basis.inputs, basis.loss.totalWPerK);
+
+const sameSchedule = (a: readonly number[], b: readonly number[]): boolean =>
+  a.length === b.length && a.every((value, index) => value === b[index]);
+
+/**
+ * The thermal year for a heating system on a schedule, under control on a tariff or not. A heat pump on the gas
+ * schedule is the reference run for k. Kept by tariff name: every tariff a basis meets is built from its inputs,
+ * so there is one of each name.
+ */
+function thermalYear(basis: RunBasis, heating: Heating, schedule: 'gas' | 'heatPump', controlTariff: ElectricityTariff | undefined): ThermalYear {
+  const { inputs } = basis;
+  const values = schedule === 'gas' ? inputs.gasSchedule : inputs.heatPumpSchedule;
+  // A heat pump on its own schedule that matches the gas one is the same run.
+  const scheduleKey = sameSchedule(inputs.heatPumpSchedule, inputs.gasSchedule) ? 'gas' : schedule;
+  const key = `${heating}|${scheduleKey}|${controlTariff?.tariff ?? 'none'}`;
+  let year = basis.memo.thermal.get(key);
+  if (!year) {
+    const node = { heatLossWPerK: basis.loss.totalWPerK, heatCapacityWhPerK: inputs.heatCapacityWhPerK, outputCapW: outputCapOf(basis, heating) };
+    const targets = heatingTargets(heatingHours(values, REFERENCE_CALENDAR), inputs.setpointC, controlTariff?.band, controlTariff && inputs.control);
+    year = runThermalNode(node, basis.outdoorC, basis.gainsW, targets, inputs.setpointC);
+    basis.memo.thermal.set(key, year);
+  }
+  return year;
+}
+
+/** The heat pump's cylinder reheats, under control on a tariff or not. */
+function cylinderReheats(basis: RunBasis, controlTariff: ElectricityTariff | undefined): Float64Array {
+  const key = controlTariff?.tariff ?? 'none';
+  let reheatKwh = basis.memo.cylinder.get(key);
+  if (!reheatKwh) {
+    const { inputs } = basis;
+    const cylinder = {
+      volumeLitres: inputs.cylinderVolumeLitres,
+      setpointC: inputs.cylinderSetpointC,
+      minimumC: inputs.cylinderMinimumC,
+      coldFeedC: inputs.coldFeedTemperatureC,
+      standingLossKwhPerDay: inputs.cylinderStandingLossKwhPerDay,
+    };
+    reheatKwh = runCylinder(basis.drawKwh, cylinder, controlTariff?.band).reheatKwh;
+    basis.memo.cylinder.set(key, reheatKwh);
+  }
+  return reheatKwh;
+}
+
+/**
+ * k for this basis, solved on the reference run: the heat pump, with its own cap, on the gas setups' schedule, on
+ * the price cap with no control, so its cylinder reheats whenever it falls below its minimum.
+ */
+export function referenceCopScale(basis: RunBasis): CopScale {
+  if (!basis.memo.copScale) {
+    const { inputs } = basis;
+    const load: HeatPumpLoad = {
+      spaceHeatKwh: thermalYear(basis, 'heatPump', 'gas', undefined).spaceHeatKwh,
+      hotWaterHeatKwh: cylinderReheats(basis, undefined),
+      ...copShapes(basis),
+    };
+    basis.memo.copScale = solveCopScale(load, inputs.heatPumpSpf, inputs.copCurve, inputs.heatPumpStandbyShare);
+  }
+  return basis.memo.copScale;
+}
+
+/** The heating system's side of a run: everything but solar and the tariff's prices. */
+export interface HeatSide {
+  heating: Heating;
+  controlled: boolean;
+  outputCapW: number;
+  thermal: ThermalYear;
   hotWaterKwh: Float64Array;
   gasKwh: Float64Array;
   heatingElectricityKwh: Float64Array;
   auxiliaryElectricityKwh: Float64Array;
-  /** The heat pump's space heating and standby, or the boiler's pump and fan. */
+  /** The heat pump's space heating and standby, or the boiler's pump and fan: the load solar meets after base use. */
   heatingLoadKwh: Float64Array;
   /** The heat pump's cylinder reheats; zero for the combi. */
   cylinderLoadKwh: Float64Array;
@@ -165,14 +276,19 @@ interface Supply {
 }
 
 /** The combi heats the draw-off as it is drawn; its pump and fan run in proportion to its gas use. */
-function gasSupply(inputs: EngineInputs, spaceHeatKwh: Float64Array, drawKwh: Float64Array): Supply {
+function gasSide(basis: RunBasis): HeatSide {
+  const thermal = thermalYear(basis, 'gas', 'gas', undefined);
   const gasKwh = fuelForHeat(
-    spaceHeatKwh.map((space, hour) => space + drawKwh[hour]!),
-    inputs.boilerSeasonalEfficiency,
+    thermal.spaceHeatKwh.map((space, hour) => space + basis.drawKwh[hour]!),
+    basis.inputs.boilerSeasonalEfficiency,
   );
-  const auxiliaryElectricityKwh = auxiliaryElectricity(gasKwh, inputs.boilerAuxiliaryElectricityKwhPerYear);
+  const auxiliaryElectricityKwh = auxiliaryElectricity(gasKwh, basis.inputs.boilerAuxiliaryElectricityKwhPerYear);
   return {
-    hotWaterKwh: drawKwh,
+    heating: 'gas',
+    controlled: false,
+    outputCapW: outputCapOf(basis, 'gas'),
+    thermal,
+    hotWaterKwh: basis.drawKwh,
     gasKwh,
     heatingElectricityKwh: new Float64Array(HOURS_PER_YEAR),
     auxiliaryElectricityKwh,
@@ -181,32 +297,17 @@ function gasSupply(inputs: EngineInputs, spaceHeatKwh: Float64Array, drawKwh: Fl
   };
 }
 
-/**
- * The heat pump reheats its cylinder and heats the house through the COP curve, at the given k or one solved on the
- * reference run, whose space heat is `referenceSpaceHeatKwh()`.
- */
-function heatPumpSupply(
-  inputs: EngineInputs,
-  outdoorC: Float64Array,
-  spaceHeatKwh: Float64Array,
-  referenceSpaceHeatKwh: () => Float64Array,
-  drawKwh: Float64Array,
-  givenScale: CopScale | undefined,
-): Supply {
-  const hotWaterKwh = runCylinder(drawKwh, {
-    volumeLitres: inputs.cylinderVolumeLitres,
-    setpointC: inputs.cylinderSetpointC,
-    minimumC: inputs.cylinderMinimumC,
-    coldFeedC: inputs.coldFeedTemperatureC,
-    standingLossKwhPerDay: inputs.cylinderStandingLossKwhPerDay,
-  }).reheatKwh;
-  const shapes = copShapes(inputs, outdoorC);
-  const load: HeatPumpLoad = { spaceHeatKwh, hotWaterHeatKwh: hotWaterKwh, ...shapes };
-  const copScale =
-    givenScale ??
-    solveCopScale({ ...load, spaceHeatKwh: referenceSpaceHeatKwh() }, inputs.heatPumpSpf, inputs.copCurve, inputs.heatPumpStandbyShare);
-  const electricity = heatPumpElectricityParts(load, copScale, inputs.copCurve);
+/** The heat pump reheats its cylinder and heats the house through the COP curve at scale k. */
+function heatPumpSide(basis: RunBasis, controlTariff: ElectricityTariff | undefined, copScale: CopScale): HeatSide {
+  const thermal = thermalYear(basis, 'heatPump', 'heatPump', controlTariff);
+  const hotWaterKwh = cylinderReheats(basis, controlTariff);
+  const load: HeatPumpLoad = { spaceHeatKwh: thermal.spaceHeatKwh, hotWaterHeatKwh: hotWaterKwh, ...copShapes(basis) };
+  const electricity = heatPumpElectricityParts(load, copScale, basis.inputs.copCurve);
   return {
+    heating: 'heatPump',
+    controlled: controlTariff !== undefined,
+    outputCapW: outputCapOf(basis, 'heatPump'),
+    thermal,
     hotWaterKwh,
     gasKwh: new Float64Array(HOURS_PER_YEAR),
     heatingElectricityKwh: electricity.totalKwh,
@@ -218,74 +319,109 @@ function heatPumpSupply(
   };
 }
 
-export function simulate(inputs: EngineInputs, weather: PreparedWeather, heating: Heating, options: SimulateOptions = {}): SimulationResult {
-  const solar = options.solar ?? false;
-  const loss = heatLoss(inputs);
-  const outdoorC = weather.outdoorTemperatureC.map((temperature) => temperature + inputs.outdoorTemperatureOffsetK);
-  const context: SpaceHeatContext = {
-    inputs,
-    heatLossWPerK: loss.totalWPerK,
-    outdoorC,
-    gainsW: totalGainsW(inputs, weather.meanVerticalIrradiance),
-  };
-  const outputCapW = heating === 'gas' ? inputs.boilerOutputCapW : heatPumpOutputCapW(inputs, loss.totalWPerK);
-  const schedule = heating === 'gas' ? inputs.gasSchedule : inputs.heatPumpSchedule;
-  const thermal = spaceHeatOn(context, schedule, outputCapW);
-  const spaceHeatKwh = thermal.spaceHeatKwh;
-  const drawPerDay = dailyHotWaterKwh(inputs);
-  const drawKwh = expandDaily(inputs.hotWaterDrawProfile, CALENDAR).map((share) => share * drawPerDay);
+/**
+ * The heat side of a run. Control applies to the heat pump on a tariff with cheap or peak hours; `copScale`
+ * defaults to the reference run's.
+ */
+export function heatSide(basis: RunBasis, heating: Heating, tariff: ElectricityTariff, control = true, copScale?: CopScale): HeatSide {
+  if (heating === 'gas') return gasSide(basis);
+  const controlTariff = control && tariff.hasBands ? tariff : undefined;
+  return heatPumpSide(basis, controlTariff, copScale ?? referenceCopScale(basis));
+}
 
-  // The reference run for k: the heat pump, with its own cap, on the gas setups' schedule.
-  const referenceSpaceHeatKwh = (): Float64Array =>
-    sameSchedule(inputs.heatPumpSchedule, inputs.gasSchedule) ? spaceHeatKwh : spaceHeatOn(context, inputs.gasSchedule, outputCapW).spaceHeatKwh;
-  const baseKwh = baseElectricityKwh(inputs, CALENDAR);
-  const supply =
-    heating === 'gas'
-      ? gasSupply(inputs, spaceHeatKwh, drawKwh)
-      : heatPumpSupply(inputs, outdoorC, spaceHeatKwh, referenceSpaceHeatKwh, drawKwh, options.copScale);
-  const { hotWaterKwh, gasKwh, heatingElectricityKwh, auxiliaryElectricityKwh, copScale } = supply;
-  const heatKwh = spaceHeatKwh.map((space, hour) => space + hotWaterKwh[hour]!);
-  const electricityKwh = heatingElectricityKwh.map((heatingKwh, hour) => heatingKwh + auxiliaryElectricityKwh[hour]! + baseKwh[hour]!);
+/**
+ * Adds base use, solar and the tariff's prices to a heat side. Runs once per combination, so its hourly work is
+ * one loop that builds the hourly arrays and the year's sums together.
+ */
+export function completeRun(basis: RunBasis, heat: HeatSide, tariff: ElectricityTariff, solar: boolean, givenGenerationKwh?: Float64Array): SimulationResult {
+  const { inputs, baseKwh } = basis;
+  const { hotWaterKwh, gasKwh, heatingElectricityKwh, auxiliaryElectricityKwh, copScale } = heat;
+  const spaceHeatKwh = heat.thermal.spaceHeatKwh;
+  const heatKwh = new Float64Array(HOURS_PER_YEAR);
+  const electricityKwh = new Float64Array(HOURS_PER_YEAR);
+  const totals = { space: 0, hotWater: 0, heat: 0, gas: 0, heatingElectricity: 0, auxiliary: 0, base: 0, electricity: 0 };
+  for (let hour = 0; hour < HOURS_PER_YEAR; hour += 1) {
+    const space = spaceHeatKwh[hour]!;
+    const hotWater = hotWaterKwh[hour]!;
+    const heating = heatingElectricityKwh[hour]!;
+    const auxiliary = auxiliaryElectricityKwh[hour]!;
+    const base = baseKwh[hour]!;
+    heatKwh[hour] = space + hotWater;
+    electricityKwh[hour] = heating + auxiliary + base;
+    totals.space += space;
+    totals.hotWater += hotWater;
+    totals.heat += space + hotWater;
+    totals.gas += gasKwh[hour]!;
+    totals.heatingElectricity += heating;
+    totals.auxiliary += auxiliary;
+    totals.base += base;
+    totals.electricity += heating + auxiliary + base;
+  }
 
   let generationKwh: Float64Array = new Float64Array(HOURS_PER_YEAR);
   let importKwh: Float64Array = electricityKwh;
   let exportKwh: Float64Array = new Float64Array(HOURS_PER_YEAR);
   let solarUsedBy: SolarUsedBy = { baseKwh: 0, heatingKwh: 0, cylinderKwh: 0 };
+  let annualGeneration = 0;
+  let annualExport = 0;
+  let annualImport = totals.electricity;
   if (solar) {
-    generationKwh = options.generationKwh ?? solarGeneration(inputs, weather);
-    const use = useSolar(generationKwh, { baseKwh, heatingKwh: supply.heatingLoadKwh, cylinderKwh: supply.cylinderLoadKwh });
+    generationKwh = givenGenerationKwh ?? basisGeneration(basis);
+    const use = useSolar(generationKwh, { baseKwh, heatingKwh: heat.heatingLoadKwh, cylinderKwh: heat.cylinderLoadKwh });
     importKwh = use.importKwh;
     exportKwh = use.exportKwh;
     solarUsedBy = { baseKwh: use.usedByBaseKwh, heatingKwh: use.usedByHeatingKwh, cylinderKwh: use.usedByCylinderKwh };
+    annualGeneration = sum(generationKwh);
+    annualExport = sum(exportKwh);
+    annualImport = sum(importKwh);
   }
 
-  const annualGeneration = sum(generationKwh);
-  const annualExport = sum(exportKwh);
-  const fuel = { gasKwh: sum(gasKwh), electricityKwh: sum(importKwh), exportKwh: annualExport, hasGasSupply: heating === 'gas' };
+  const fuel = { gasKwh: totals.gas, electricityKwh: annualImport, exportKwh: annualExport, hasGasSupply: heat.heating === 'gas' };
+  const charges = { unitPence: importUnitPence(importKwh, tariff), standingChargePencePerDay: tariff.standingChargePencePerDay };
   return {
-    heating,
+    heating: heat.heating,
     solar,
+    tariff: tariff.tariff,
+    controlled: heat.controlled,
     pvPeakPowerKw: solar ? inputs.pv.peakPowerKw : 0,
-    heatLoss: loss,
-    outputCapW,
-    hourly: { spaceHeatKwh, internalTemperatureC: thermal.internalTemperatureC, hotWaterKwh, heatKwh, gasKwh, electricityKwh, generationKwh, importKwh, exportKwh },
+    heatLoss: basis.loss,
+    outputCapW: heat.outputCapW,
+    hourly: {
+      spaceHeatKwh,
+      internalTemperatureC: heat.thermal.internalTemperatureC,
+      hotWaterKwh,
+      heatKwh,
+      gasKwh,
+      heatingElectricityKwh,
+      electricityKwh,
+      generationKwh,
+      importKwh,
+      exportKwh,
+    },
     annual: {
-      spaceHeatKwh: sum(spaceHeatKwh),
-      hotWaterKwh: sum(hotWaterKwh),
-      heatKwh: sum(heatKwh),
-      gasKwh: fuel.gasKwh,
-      heatingElectricityKwh: sum(heatingElectricityKwh),
-      auxiliaryElectricityKwh: sum(auxiliaryElectricityKwh),
-      baseElectricityKwh: sum(baseKwh),
-      electricityKwh: sum(electricityKwh),
+      spaceHeatKwh: totals.space,
+      hotWaterKwh: totals.hotWater,
+      heatKwh: totals.heat,
+      gasKwh: totals.gas,
+      heatingElectricityKwh: totals.heatingElectricity,
+      auxiliaryElectricityKwh: totals.auxiliary,
+      baseElectricityKwh: totals.base,
+      electricityKwh: totals.electricity,
       generationKwh: annualGeneration,
       selfConsumedKwh: annualGeneration - annualExport,
       solarUsedBy,
-      importKwh: fuel.electricityKwh,
+      importKwh: annualImport,
       exportKwh: annualExport,
-      cost: annualCost(fuel, inputs),
+      cost: annualCost(fuel, inputs, charges),
       carbonKg: annualCarbonKg(fuel, inputs),
     },
     ...(copScale && { copScale }),
   };
+}
+
+export function simulate(inputs: EngineInputs, weather: PreparedWeather, heating: Heating, options: SimulateOptions = {}): SimulationResult {
+  const basis = runBasis(inputs, weather);
+  const tariff = options.tariff ?? capTariff(inputs);
+  const heat = heatSide(basis, heating, tariff, options.control ?? true, options.copScale);
+  return completeRun(basis, heat, tariff, options.solar ?? false, options.generationKwh);
 }

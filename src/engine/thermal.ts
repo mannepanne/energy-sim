@@ -1,5 +1,5 @@
 // ABOUT: One thermal-mass node, stepped hour by hour with backward Euler: C dT/dt = Q + G − H (T − T_out)
-// ABOUT: Heats to the hour's setpoint, up to an output cap, during heating periods, and lets the house cool outside them
+// ABOUT: Heats to each hour's target temperature, up to an output cap, and lets the house cool in hours with no target
 
 import { expandWeekly, HOURS_PER_WEEK, type Calendar } from './calendar.ts';
 import { HOURS_PER_YEAR, WH_PER_KWH } from './constants.ts';
@@ -28,20 +28,20 @@ export interface ThermalYear {
 export const PRE_ROLL_HOURS = HOURS_PER_WEEK;
 
 /**
- * Runs the node over the year. `heatingOn` is positive (1) in each hour of a heating period and 0 when heating is off; the
- * pre-roll starts at the setpoint. `outdoorC` and `gainsW` (solar plus internal) are hourly. One backward Euler step per hour:
- * the free temperature is T_free = (a T₀ + G + H T_out) ÷ (a + H), with a = C ÷ 1 h; in a heating period below
- * the setpoint, Q = (a + H)(T_set − T_free), capped, and T = T_free + Q ÷ (a + H).
+ * Runs the node over the year. `targetC` is the temperature the heating holds in each hour, or NaN when heating is
+ * off; the pre-roll starts at `startC`. `outdoorC` and `gainsW` (solar plus internal) are hourly. One backward Euler
+ * step per hour: the free temperature is T_free = (a T₀ + G + H T_out) ÷ (a + H), with a = C ÷ 1 h; below the
+ * hour's target, Q = (a + H)(T_target − T_free), capped, and T = T_free + Q ÷ (a + H).
  */
 export function runThermalNode(
   node: ThermalNode,
   outdoorC: Float64Array,
   gainsW: Float64Array,
-  heatingOn: ArrayLike<number>,
-  setpointC: number,
+  targetC: Float64Array,
+  startC: number,
 ): ThermalYear {
-  if (outdoorC.length !== HOURS_PER_YEAR || gainsW.length !== HOURS_PER_YEAR || heatingOn.length !== HOURS_PER_YEAR) {
-    throw new Error(`Weather, gains and heating hours must each have ${HOURS_PER_YEAR} hours`);
+  if (outdoorC.length !== HOURS_PER_YEAR || gainsW.length !== HOURS_PER_YEAR || targetC.length !== HOURS_PER_YEAR) {
+    throw new Error(`Weather, gains and heating targets must each have ${HOURS_PER_YEAR} hours`);
   }
   if (!(node.heatLossWPerK > 0) || !(node.heatCapacityWhPerK >= 0) || !(node.outputCapW >= 0)) {
     throw new Error('The thermal node needs H > 0, C ≥ 0 and an output cap ≥ 0');
@@ -53,15 +53,16 @@ export function runThermalNode(
 
   const spaceHeatKwh = new Float64Array(HOURS_PER_YEAR);
   const internalTemperatureC = new Float64Array(HOURS_PER_YEAR);
-  let temperature = setpointC;
-  let startTemperatureC = setpointC;
+  let temperature = startC;
+  let startTemperatureC = startC;
   // Steps below 0 are the pre-roll, over the year's last week; only steps from 0 are recorded.
   for (let step = -PRE_ROLL_HOURS; step < HOURS_PER_YEAR; step += 1) {
     if (step === 0) startTemperatureC = temperature;
     const hour = step < 0 ? step + HOURS_PER_YEAR : step;
     const free = (a * temperature + gainsW[hour]! + h * outdoorC[hour]!) / conductance;
-    let heatW = 0;
-    if (heatingOn[hour]! > 0 && free < setpointC) heatW = Math.min(conductance * (setpointC - free), cap);
+    const target = targetC[hour]!;
+    // A NaN target (heating off) fails the comparison, so no heat is supplied.
+    const heatW = free < target ? Math.min(conductance * (target - free), cap) : 0;
     temperature = free + heatW / conductance;
     if (step >= 0) {
       spaceHeatKwh[hour] = heatW / WH_PER_KWH;
