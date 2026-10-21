@@ -6,10 +6,10 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     include: ['src/**/*.test.ts', 'scripts/**/*.test.ts'],
-    // Tests that run the real register (the report, the archetype table, the SPF check) take
-    // under a second locally but up to about seven times longer on CI runners under coverage,
-    // which is past Vitest's 5-second default. They are deterministic, so a longer limit can't
-    // hide a wrong answer.
+    // Tests that run the real register (the report, the archetype table, the SPF checks) take
+    // under a second locally but have been seen to take several times longer on CI runners
+    // under coverage, past Vitest's 5-second default. They are deterministic, so a longer
+    // limit can't hide a wrong answer.
     testTimeout: 30_000,
     coverage: {
       provider: 'v8',
