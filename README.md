@@ -6,7 +6,7 @@ The site gives estimates, not financial advice. Its results are never influenced
 
 ## Status
 
-Phase 1 of 4 is complete, and phase 2 is under way: a headless TypeScript engine for ten house types in London, adjusted by quick facts (loft, walls, glazing, occupants), comparing a gas boiler with a heat pump, each with or without roof solar. So far the repository has its tooling, CI, the benchmark (a rough heat-demand estimate checked against the government's Home Energy Model and against measured gas use), the parameter register that holds every number the engine uses, the hourly engine (with a heat pump efficiency curve, roof solar checked against PVGIS's PV calculator, and an hourly base electricity profile from Elexon), and seeded uncertainty ranges with a paired comparison and a sensitivity table. The results are in the [phase 1 report](./reports/phase-1-london-semi.md). There is no website yet.
+Phase 1 of 4 is complete, and phase 2 is in its last step: a headless TypeScript engine for ten house types in London, adjusted by quick facts (loft, walls, glazing, occupants), comparing a gas boiler with a heat pump, each with or without roof solar. So far the repository has its tooling, CI, the benchmark (a rough heat-demand estimate checked against the government's Home Energy Model and against measured gas use), the parameter register that holds every number the engine uses, the hourly engine (with a heat pump efficiency curve, roof solar checked against PVGIS's PV calculator, and an hourly base electricity profile from Elexon), the London price cap and Octopus Cosy and Agile with simple control rules, costs, the grant and payback, and seeded uncertainty ranges with paired comparisons and sensitivity tables. The results for all 10 setup and tariff combinations are in the [phase 2 report](./reports/phase-2-v1-model.md); the [phase 1 report](./reports/phase-1-london-semi.md) is kept as a historical file. There is no website yet.
 
 - What the project is: [project outline](./SPECIFICATIONS/ORIGINAL_IDEA/project-outline.md)
 - What phase 1 built: [phase 1 spec, archived](./SPECIFICATIONS/ARCHIVE/01-engine-core.md)
@@ -42,8 +42,8 @@ Other commands:
 | `npm run calibrate` | Solves the heating setpoint for the measured-gas target with the hourly engine and its schedule |
 | `npm run archetypes` | Prints the archetype table against the pre-registered NEED readings (offline) |
 | `npm run tariffs` | Prints the 10 setup and tariff combinations and what control does on Cosy and Agile (offline) |
-| `npm run report` | Writes the phase 1 report, `reports/phase-1-london-semi.md` (offline; commit the result) |
-| `npm run bench` | Times 500 samples of 2 setups, 4 and all 10 setup and tariff combinations, and one central run of the 10, and fails above its limits |
+| `npm run report` | Writes the phase 2 report, `reports/phase-2-v1-model.md` (offline; commit the result) |
+| `npm run bench` | Times 500 samples of 2 setups, 4 and all 10 setup and tariff combinations, one central run of the 10 and the full report, and fails above its limits |
 
 GitHub Actions runs the type check, lint, tests with coverage, the report drift check and the bench on every pull request.
 

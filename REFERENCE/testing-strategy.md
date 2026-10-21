@@ -260,8 +260,8 @@ npm run test:coverage   # Tests must pass and meet the coverage thresholds
 
 ### Pull Request Checks
 GitHub Actions (`.github/workflows/ci.yml`) runs the same three commands on every pull request, on the Node version in `.nvmrc`. It then runs two more checks:
-- **Report drift:** `npm run report`, then fails if `reports/` differs from the committed copy or holds an uncommitted file. After changing a register row, regenerate the report and commit it.
-- **Bench:** `npm run bench` runs 500 samples × 2 setups outside the coverage run, logs the time, and fails only above 5 seconds.
+- **Report drift:** `npm run report` (the phase 2 report; the phase 1 report is historical and not regenerated), then fails if `reports/` differs from the committed copy or holds an uncommitted file. After changing a register row, regenerate the report and commit it.
+- **Bench:** `npm run bench` runs outside the coverage run and logs each time: one central run of the 10 combinations (limit 100 ms), 500 samples of 2 setups (5 s), of the 4 setups and of all 10 (10 s each), and the full phase 2 report (60 s).
 
 ---
 

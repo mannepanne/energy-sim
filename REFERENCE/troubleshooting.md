@@ -78,13 +78,17 @@ Add an entry here when a problem takes more than a few minutes to work out.
 
 ## The report and CI
 
-**CI's "Report drift" step fails.** The committed report no longer matches what the register and snapshot produce, or a file in `reports/` was never committed. Run `npm run report` and commit the result. Any change to a register row, the snapshot or the engine can change the report, so regenerate it in the same PR.
+**CI's "Report drift" step fails.** The committed phase 2 report (`reports/phase-2-v1-model.md`) no longer matches what the register and snapshots produce, or a file in `reports/` was never committed. Run `npm run report` and commit the result. Any change to a register row, a snapshot (PVGIS, Octopus or PVcalc) or the engine can change the report, so regenerate it in the same PR. The phase 1 report is historical: `npm run report` no longer writes it, so never edit it to clear a drift failure.
 
 **`npm run report` gives a different file on a second run.** That breaks the drift check. The report must never read the clock or depend on run order. Look for a date, a timestamp or an unseeded random number in `scripts/report/`.
 
+**The report test fails on "no timestamps".** It forbids anything like `07:00`. Write times of day in words ("7 am to 11 pm"), as the rest of the report does.
+
+**The report test says a section lacks the time-of-use pointer.** Every table with Cosy or Agile rows must end with `TIME_OF_USE_NOTE`; the table helpers in `scripts/report/comparisons.ts` add it when a combination is off the cap. A table built by hand needs it added.
+
 **`npm run archetypes` shows an archetype newly flagged.** The flag rule and the NEED readings were fixed before any archetype ran ([scripts/archetypes/README.md](../scripts/archetypes/README.md)), so don't change them to clear a flag. A flag is an honest result. Check instead that the archetype's register rows are right, and record the gap as evidence on [#14](https://github.com/mannepanne/energy-sim/issues/14).
 
-**CI's "Bench" step fails.** A workload took longer than its limit: 5 seconds for 500 samples of the two setups without solar on the cap, 10 for the four setups, 10 for all 10 combinations, or 100 ms for one central run of the 10. On a recent Mac they take about 0.6, 0.7 and 1.2 seconds and 3 ms (21 October 2026); the CI runner has been about twice as slow. So a failure means a real slowdown, not noise. Look for a slowdown in an hourly loop: per-hour objects instead of typed arrays, `.map` and `.reduce` with closures over 8,760 values in code that runs per combination (`completeRun` sums in one plain loop), weather prepared again for every sample instead of once, a schedule expanded on every run (`heatingHours` keeps each one), or combinations that no longer share their `runBasis` (`runCombinations` keeps one per set of inputs).
+**CI's "Bench" step fails.** A workload took longer than its limit: 5 seconds for 500 samples of the two setups without solar on the cap, 10 for the four setups, 10 for all 10 combinations, 100 ms for one central run of the 10, or 60 seconds for the full phase 2 report. On a recent Mac they take about 0.6, 0.7 and 1.2 seconds, 3 ms and 6 seconds (21 October 2026); the CI runner has been about twice as slow. So a failure means a real slowdown, not noise. Look for a slowdown in an hourly loop: per-hour objects instead of typed arrays, `.map` and `.reduce` with closures over 8,760 values in code that runs per combination (`completeRun` sums in one plain loop), weather prepared again for every sample instead of once, a schedule expanded on every run (`heatingHours` keeps each one), or combinations that no longer share their `runBasis` (`runCombinations` keeps one per set of inputs).
 
 ## The benchmark
 
