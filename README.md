@@ -37,11 +37,13 @@ Other commands:
 | `npm run benchmark:tables` | Prints the HEM and measured-data comparison tables |
 | `npm run fetch:pvgis` | Re-fetches the PVGIS weather snapshot for London (needs network access; commit the result) |
 | `npm run fetch:pvcalc` | Re-fetches PVGIS's PV calculator result for the PV check (needs network access; commit the result) |
+| `npm run fetch:octopus` | Re-fetches Octopus's London tariffs: Cosy, Agile's last 12 months and the export rates (needs network access; commit the result) |
 | `npm run derive:base-profile -- <folder>` | Prints the base electricity profile rows from Elexon's unzipped profiling spreadsheet |
 | `npm run calibrate` | Solves the heating setpoint for the measured-gas target with the hourly engine and its schedule |
 | `npm run archetypes` | Prints the archetype table against the pre-registered NEED readings (offline) |
+| `npm run tariffs` | Prints the 10 setup and tariff combinations and what control does on Cosy and Agile (offline) |
 | `npm run report` | Writes the phase 1 report, `reports/phase-1-london-semi.md` (offline; commit the result) |
-| `npm run bench` | Times 500 samples × 2 setups, without and with solar, and fails above 5 seconds |
+| `npm run bench` | Times 500 samples of 2 setups, 4 and all 10 setup and tariff combinations, and one central run of the 10, and fails above its limits |
 
 GitHub Actions runs the type check, lint, tests with coverage, the report drift check and the bench on every pull request.
 

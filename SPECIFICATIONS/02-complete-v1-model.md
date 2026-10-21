@@ -532,7 +532,7 @@ The flat-tariff work comes first, so a failed HEM check under a schedule still l
    - the HEM run and decision;
    - the recalibration and its ADR, with the sourced heat pump schedule (closes #13, with evidence on #14 and #15).
 6. `feature/phase-2-tariffs`: London cap rates, the Octopus snapshots (Cosy, Agile, export), and the control rules and their ADR.
-7. `feature/phase-2-report`: the phase 2 report, the archetype table, the bench workloads and the CI drift switch. The report shows the heat pump on the gas schedule as the sensitivity of the heat pump schedule row, which the row-by-row tables can't move (PR 5: central £1,911 against £1,967 a year on the price cap). The report adds a payback sensitivity table that ranks the capital costs, lifetimes and price changes by how much they move payback, since the running-cost tables can't show them (Magnus, 20 October 2026, after the [PR 38 review](https://github.com/mannepanne/energy-sim/pull/38)).
+7. `feature/phase-2-report`: the phase 2 report, the archetype table, the bench workloads and the CI drift switch. The report shows the heat pump on the gas schedule as the sensitivity of the heat pump schedule row, which the row-by-row tables can't move (PR 5: central £1,911 against £1,967 a year on the GB average cap; on the London cap from PR 6, £1,885 against £1,943). The report adds a payback sensitivity table that ranks the capital costs, lifetimes and price changes by how much they move payback, since the running-cost tables can't show them (Magnus, 20 October 2026, after the [PR 38 review](https://github.com/mannepanne/energy-sim/pull/38)). Every Agile result carries Agile's limitations next to it (`agileLimitations` in `scripts/tariffs/table.ts`), and the report includes the tariff table and control table from `npm run tariffs`.
 
 Until PR 5 lands, the engine heats continuously, as in phase 1. PRs 2–4 are built and tested on that, and their numbers shift once when schedules arrive. The report is only generated in PR 7.
 
@@ -562,10 +562,9 @@ Run `/review-pr` on each.
 
 ## Technical debt
 
-Closed by this phase: [#7](https://github.com/mannepanne/energy-sim/issues/7), [#9](https://github.com/mannepanne/energy-sim/issues/9) (its MCS cross-check moves to [#24](https://github.com/mannepanne/energy-sim/issues/24)), [#13](https://github.com/mannepanne/energy-sim/issues/13), [#18](https://github.com/mannepanne/energy-sim/issues/18) and [#20](https://github.com/mannepanne/energy-sim/issues/20). [#15](https://github.com/mannepanne/energy-sim/issues/15) also closes, if the heat pump schedule is sourced.
+Closed by this phase: [#7](https://github.com/mannepanne/energy-sim/issues/7), [#8](https://github.com/mannepanne/energy-sim/issues/8) (the gas carbon factor, checked in the tariffs PR), [#9](https://github.com/mannepanne/energy-sim/issues/9) (its MCS cross-check moves to [#24](https://github.com/mannepanne/energy-sim/issues/24)), [#13](https://github.com/mannepanne/energy-sim/issues/13), [#18](https://github.com/mannepanne/energy-sim/issues/18) and [#20](https://github.com/mannepanne/energy-sim/issues/20). [#15](https://github.com/mannepanne/energy-sim/issues/15) also closes, if the heat pump schedule is sourced.
 
 Carried forward:
-- [#8](https://github.com/mannepanne/energy-sim/issues/8): verify the 2026 gas carbon factor. It is quick, and done in the tariffs PR if the DESNZ file is available.
 - [#14](https://github.com/mannepanne/energy-sim/issues/14): fabric error versus behaviour. Phase 2 adds the archetype gaps as evidence. Settling it needs homes with known fabric.
 - [#15](https://github.com/mannepanne/energy-sim/issues/15): if the heat pump schedule can't be sourced.
 - [#16](https://github.com/mannepanne/energy-sim/issues/16): one fixed weather year. Phase 2 adds a price scenario.

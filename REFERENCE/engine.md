@@ -2,9 +2,9 @@
 
 **When to read this:** changing the physics, reading engine results, adding an input, or checking how a number is calculated.
 
-The engine is a pure TypeScript library in `src/engine/`. It reads no files and makes no network calls, so the same code runs in tests, scripts and (in phase 3) the browser. It runs one house with one heating setup, with or without roof solar, over the 8,760 hours of a typical year, using typed arrays rather than an object per hour. A house is one of ten archetypes, adjusted by quick facts. Every number it uses comes from the [register](./register.md); only physical constants and method settings live in code.
+The engine is a pure TypeScript library in `src/engine/`. It reads no files and makes no network calls, so the same code runs in tests, scripts and (in phase 3) the browser. It runs one house with one heating setup, with or without roof solar, on one electricity tariff, over the 8,760 hours of a typical year, using typed arrays rather than an object per hour. A house is one of ten archetypes, adjusted by quick facts. Every number it uses comes from the [register](./register.md); only physical constants and method settings live in code.
 
-What phase 1 built and why is in the [phase 1 spec](../SPECIFICATIONS/ARCHIVE/01-engine-core.md); phase 2's plan is in the [phase 2 spec](../SPECIFICATIONS/02-complete-v1-model.md). Why the setpoint is an air temperature calibrated to measured gas use is in the [calibration ADR](./decisions/2026-10-17-air-temperature-calibrated-to-need.md); why heating runs in periods on one thermal-mass node, and how the heat pump's schedule was chosen, is in the [schedules ADR](./decisions/2026-10-20-heating-schedules-one-thermal-mass-node.md).
+What phase 1 built and why is in the [phase 1 spec](../SPECIFICATIONS/ARCHIVE/01-engine-core.md); phase 2's plan is in the [phase 2 spec](../SPECIFICATIONS/02-complete-v1-model.md). Why the setpoint is an air temperature calibrated to measured gas use is in the [calibration ADR](./decisions/2026-10-17-air-temperature-calibrated-to-need.md); why heating runs in periods on one thermal-mass node, and how the heat pump's schedule was chosen, is in the [schedules ADR](./decisions/2026-10-20-heating-schedules-one-thermal-mass-node.md); why the heat pump follows fixed rules on a time-of-use tariff is in the [tariff control ADR](./decisions/2026-10-21-rule-based-tariff-control.md).
 
 ## Files
 
@@ -20,17 +20,20 @@ What phase 1 built and why is in the [phase 1 spec](../SPECIFICATIONS/ARCHIVE/01
 | `groundFloor.ts` | The ground floor U-value by BS EN ISO 13370, as RdSAP 10 section 5.12 applies it |
 | `calendar.ts` | The time base: UTC engine hours to UK local time, weekly and daily profiles, and Agile half-hours (see "Time base") |
 | `demand.ts` | Solar and internal gains, and the day's hot water |
-| `thermal.ts` | The thermal-mass node: `runThermalNode(node, outdoor, gains, heatingOn, setpoint)` steps the year with backward Euler; `heatingHours(schedule, calendar)` expands an hour-of-week schedule to engine hours (see "Space heat on a thermal-mass node") |
+| `thermal.ts` | The thermal-mass node: `runThermalNode(node, outdoor, gains, targets, startC)` steps the year with backward Euler towards each hour's target temperature; `heatingHours(schedule, calendar)` expands an hour-of-week schedule to engine hours (see "Space heat on a thermal-mass node") |
+| `tariffs.ts` | The electricity tariffs as hourly rates on engine hours, each hour marked cheap, peak or neither: `capTariff`, `readTimeOfUseTariffs(access, octopusSnapshot)` for Cosy and Agile, and `importUnitPence` (see "Tariffs and control") |
+| `control.ts` | The control rules: `heatingTargets(heatingOn, setpoint, band, control)` gives each hour's target temperature, or none (see "Tariffs and control") |
 | `supply.ts` | Gas for heat (÷ boiler efficiency), the boiler's pump and fan electricity, base electricity by hour, and the cost of a kWh of heat |
 | `heatPump.ts` | The heat pump's hourly COP: the compensation line, the clamped shape, the k solve and the electricity (see "The heat pump over the year") |
-| `cylinder.ts` | The heat pump setups' hot water cylinder, stepped hour by hour |
+| `cylinder.ts` | The heat pump setups' hot water cylinder, stepped hour by hour, filled in cheap hours under control |
 | `costCarbon.ts` | Annual cost, net of export income and split into a gas part and an electricity part, and annual carbon |
-| `simulate.ts` | `simulate(inputs, preparedWeather, heating, { copScale, solar })`: one house, one heating system (`gas` or `heatPump`) on its own schedule and output cap, with or without solar, one year; `heatPumpOutputCapW(inputs, H)` |
-| `setups.ts` | The four setups (`gas`, `gasSolar`, `heatPump`, `heatPumpSolar`), the reference (`gas`), and `runningCostReads(setup, id)`: which uncertain values can change a setup's running cost |
-| `payback.ts` | Each setup's kit and upfront cost after the grant, replacements inside a horizon, the price scenario, `paybackYear` and the payback summary (see "Costs, grants and payback") |
+| `simulate.ts` | `simulate(inputs, preparedWeather, heating, { copScale, solar, tariff, control })`: one house, one heating system (`gas` or `heatPump`) on its own schedule and output cap, with or without solar, on one electricity tariff, one year. Built from `runBasis` (what every run of the inputs shares, with k, the thermal years and the cylinder runs kept once computed), `heatSide` and `completeRun`; `heatPumpOutputCapW(inputs, H)` |
+| `setups.ts` | The four setups (`gas`, `gasSolar`, `heatPump`, `heatPumpSolar`) and `runningCostReads(setup, id)`: which uncertain values can change a setup's running cost |
+| `combinations.ts` | The tariff grid: the 10 combinations of a setup and a tariff (`heatPump/cosy` and so on), the reference (`gas/cap`), `combinationReads(combination, id)`, and `runCombinations(inputs, weather, combinations, timeOfUse)`, which shares each heat side between the combinations that need it |
+| `payback.ts` | Each setup's kit and upfront cost after the grant, replacements inside a horizon, the price scenario, `paybackYear` and the payback summary for each combination (see "Costs, grants and payback") |
 | `sampling.ts` | Seeded, stable draws with a Gaussian copula: `drawSamples(rows, plan, correlations)`, `sampleOverrides(access, plan, house, spfScenario)`, the normal CDF and the inverse distribution functions |
-| `compare.ts` | `runSetups(access, weather, plan, { house, spfScenario, setups })` runs any of the four setups on the same samples; `compare(run)` gives the bands, the paired differences against the reference, the share cheapest and payback |
-| `sensitivity.ts` | `sensitivity(access, weather, pairs, house)`: one table per pair of setups, each uncertain row or cell either setup reads at its low and its high, ranked by its effect on the pair's cost difference |
+| `compare.ts` | `runSetups(access, weather, plan, { house, spfScenario, combinations, timeOfUse })` runs any of the 10 combinations on the same samples; `compare(run)` gives the bands, the paired differences against the reference, the shares cheapest (across all and within each tariff) and payback |
+| `sensitivity.ts` | `sensitivity(access, weather, pairs, { house, timeOfUse })`: one table per pair of combinations, each uncertain row or cell either one reads at its low and its high, ranked by its effect on the pair's cost difference |
 | `testing/fixtureRegister.ts` | Test support: builds inline fixture registers, starting from the fixture house below |
 
 ## Running the engine
@@ -43,6 +46,8 @@ const weather = prepareWeather(weatherFromSnapshot(loadPvgisSnapshot(snapshotJso
 const gas = simulate(inputs, weather, 'gas');
 const heatPump = simulate(inputs, weather, 'heatPump');
 const heatPumpWithSolar = simulate(inputs, weather, 'heatPump', { solar: true });
+const timeOfUse = readTimeOfUseTariffs(access, loadOctopusSnapshot(octopusJson)); // Cosy and Agile, once
+const heatPumpOnCosy = simulate(inputs, weather, 'heatPump', { tariff: timeOfUse.cosy }); // control on by default
 gas.annual.gasKwh; // also spaceHeatKwh, hotWaterKwh, electricityKwh, generationKwh, selfConsumedKwh, solarUsedBy, importKwh, exportKwh, cost, carbonKg, and hourly arrays
 ```
 
@@ -50,12 +55,13 @@ gas.annual.gasKwh; // also spaceHeatKwh, hotWaterKwh, electricityKwh, generation
 - **Only answers that fit are offered.** `wallAnswers(access, archetype)` lists the wall answers that have a U-value for the archetype's band and construction: solid brick offers `asBuilt` and `solidWallInsulated`, cavity bands C–G offer `asBuilt` and `cavityFilled`, and bands K and L offer `asBuilt` only. `readInputs` throws on any other answer, on a floor area that is not positive, and on an occupant count outside 1–5.
 - **Overrides.** `readInputs(access, { overrides: { 'heating.heatPumpSpf': 3.2 } })` replaces an uncertain row's default, and is the hook for sampling. An uncertain table cell is overridden under `rowId|key`. A value that is not a finite number throws, and so does an override the house does not read (a typo, for example).
 - **The SPF scenario.** `spfScenario: 'wellInstalled'` reads `heating.heatPumpSpfWellInstalled` in place of `heating.heatPumpSpf`; every other value is the same. `sampleOverrides` and `runSetups` take the scenario too, and the two scenarios share every draw but the SPF, so they pair sample by sample.
-- **The heat pump's k.** Unless it is given one (`{ copScale }`), `simulate` solves the COP scale k on the reference run: the heat pump, with its own output cap, on the gas setups' schedule, on the price cap with no control. It then runs the heat pump on its own schedule with that k, and returns the k as `copScale`. A caller that applies control or a time-of-use tariff must pass the reference run's `copScale` (see "The heat pump over the year").
+- **The heat pump's k.** Unless it is given one (`{ copScale }`), `simulate` solves the COP scale k on the reference run: the heat pump, with its own output cap, on the gas setups' schedule, on the price cap with no control, its cylinder reheated only below its minimum. It then runs the heat pump on its own schedule, tariff and control with that k, and returns the k as `copScale`. The tariff and control never change k (see "The heat pump over the year").
+- **Tariffs.** `{ tariff }` puts the house's electricity on Cosy or Agile (from `readTimeOfUseTariffs`); the default is the price cap from the inputs. Gas is always on the price cap. On a tariff with cheap and peak hours the heat pump follows the control rules unless `{ control: false }`; the gas setups have no control. `combinations.ts` names the 10 combinations (see "Tariffs and control").
 - **Solar.** `{ solar: true }` adds roof solar to either heating system, sized by `inputs.pv`. `setups.ts` names the four setups: each heating system with and without solar. Solar changes no heat, so it changes no k. Without solar, `importKwh` is `electricityKwh` and generation and export are zero, so a run without solar gives the same results as an engine with no solar model. `runSetups` computes the roof's generation once a sample and passes it to both solar setups (`{ generationKwh }`).
 - **Prepared weather** holds the outdoor temperature, the hourly mean wall irradiance, the horizontal irradiance and the sun's path. It depends only on fixed rows, so one preparation serves every sample. The roof's direction is sampled, so irradiance on the roof is computed on each solar run from the prepared sun path.
 - **Overrides are not user overrides.** The sampling hook follows row kind. The register's `overridable` flag, for what a visitor may change, also covers fixed rows (U-values, prices, cylinder loss), and excludes some uncertain ones (fabric quality factor, internal gains). How user overrides reach the engine is a phase 3 decision (see [SPECIFICATIONS/CLAUDE.md](../SPECIFICATIONS/CLAUDE.md)).
 - **Prepared weather must match the inputs.** `simulate` does not check that the weather was prepared with the same sample minute and ground reflectance. Both are fixed rows today; if either becomes uncertain, prepare the weather per sample.
-- **Speed.** `simulate` takes about 1–2 ms for a year on a recent Mac, and `prepareWeather` a few ms, run once. The heat pump setups run the thermal node twice when their schedule differs from the gas one (once for the k solve). On a recent Mac, 500 samples × 2 setups take about 1.55 seconds, and × 4 setups about 3.0 seconds; on the CI runner about 3.2 and 6.2 seconds (20 October 2026). Each result holds nine hourly arrays (about 630 KB), so a sampler should keep only the annual totals. The node's hourly loop allocates nothing, and each schedule is expanded to engine hours once and kept.
+- **Speed.** `simulate` takes about 1–2 ms for a year on a recent Mac, and `prepareWeather` a few ms, run once. `runCombinations` shares one `runBasis` between the combinations it runs, so all 10 take five thermal passes (the gas boiler; the heat pump on the cap, on Cosy and on Agile; and the reference run for k) and three cylinder runs, and solar and the tariff's prices only add a pass over the hours each. One central run of all 10 takes about 3 ms. On a recent Mac, 500 samples take about 0.6 seconds for 2 setups on the cap, 0.7 for 4 and 1.2 for all 10 combinations (21 October 2026). Each result holds ten hourly arrays (about 700 KB), so a sampler should keep only the annual totals. The hourly loops allocate nothing: each builds its arrays once and fills them, and each schedule is expanded to engine hours once and kept.
 
 ## The physics
 
@@ -110,13 +116,13 @@ H = f_fabric × (Σ U·A + y × A_exposed + 0.33 · n · V)       W/K
 C dT/dt = Q(t) + G_solar(t) + G_internal − H (T(t) − T_out(t) − offset)
 one hour, backward Euler, with a = C ÷ 1 h:
   T_free = (a T_before + G + H T_out) ÷ (a + H)
-  in a heating period, if T_free < T_set:  Q = min((a + H)(T_set − T_free), cap),  T = T_free + Q ÷ (a + H)
-  otherwise:                                Q = 0,  T = T_free
+  if the hour has a target and T_free < T_target:  Q = min((a + H)(T_target − T_free), cap),  T = T_free + Q ÷ (a + H)
+  otherwise:                                        Q = 0,  T = T_free
 ```
 
 - **One node** holds the air and the fabric at one temperature, an **air** temperature. Backward Euler is stable at every C, so C = 0 is allowed and gives phase 1's continuous method exactly: Q = max(0, H (T_set − T_out) − G).
 - **C** is SAP's thermal mass parameter × floor area: 250 kJ/m²K for masonry without internal insulation (RdSAP 10 Table 22, `fabric.thermalMassParameter`), so 6,250 Wh/K for the 1930s semi's 90 m². Every archetype's time constant C ÷ H is at least 17.7 hours at its defaults (the pre-1900 end-terrace) and up to 50 (the 2010s mid-terrace). A test keeps them all at 10 hours or more, the range where an hourly step stays within 2% of the exact exponential decay.
-- **Heating periods** come from the setup's schedule row, an hour-of-week profile of 1 (heating) and 0 (off) in UK local time (see "Time base"). In a period, the heating brings the house to the setpoint (`heating.setpoint`, 17.6 °C) if it can within the output cap. Outside a period, and on warm days, the house floats: there is no cooling, and it may sit above the setpoint.
+- **Heating periods** come from the setup's schedule row, an hour-of-week profile of 1 (heating) and 0 (off) in UK local time (see "Time base"). In a period, the heating brings the house to the setpoint (`heating.setpoint`, 17.6 °C) if it can within the output cap. Each hour's target is the setpoint in a heating period and none outside one, except where the control rules move it (see "Tariffs and control"). Outside a period, and on warm days, the house floats: there is no cooling, and it may sit above the setpoint.
   - **The gas setups** follow SAP's pattern: weekdays 07:00–09:00 and 16:00–23:00, weekends 07:00–23:00 (`heating.scheduleGas`).
   - **The heat pump setups** heat 07:00–23:00 every day, SAP's longer heat pump day (`heating.scheduleHeatPump`). On these two schedules the engine understates the heat pump's space heat against the boiler's by about 6.7 points, against HEM (see "Checks against outside references").
 - **Output caps:** the heat pump's is its design heat loss × a margin, H × 24.2 K (SAP 10.2 Appendix N, section N2) × 1.15 (HeatpumpMonitor.org's median ratio of rated output to design heat loss): 7.6 kW for the 1930s semi. The boiler's is 24 kW for space heating. Hot water is outside both caps. A cap that binds leaves the house below the setpoint until it catches up.
@@ -158,14 +164,14 @@ draw-off in hour t = draw-off per day × profile[local hour of t]
 L is litres a day: 36 plus an uncertain 25 per occupant (17–35), SAP 2012's 25N + 36. That is 111 litres a day for the 1930s semi's 3 occupants. The per-occupant hot water and gains terms are correlated (see "Sampling"). The draw-off profile (`hotWater.drawOffProfile`) gives each local hour's share of the day, from the Energy Saving Trust's measurements in about 120 English homes (2008): peaks of 9.7% at 07:00 and 8.0% at 18:00, and under 1.5% an hour between midnight and 06:00; the shares must sum to 1, or reading the inputs fails. The calendar module converts local hours to engine hours, so on the night the clocks go back the 01:00 share is drawn twice, and on the night they go forward it is skipped; the year's total is unchanged.
 
 - **Gas setups** have a combi boiler, so the boiler heats the draw-off in the hour it is drawn.
-- **Heat pump setups** have a cylinder (`cylinder.ts`), held as one stored-energy state above the cold feed: 200 litres at a 50 °C setpoint stores 9.29 kWh. Each hour the draw-off and an hour's standing loss (1.5 kWh a day ÷ 24) come out. If the store is then below its minimum (45 °C), the heat pump reheats it to the setpoint within the hour, so it never ends an hour below the minimum and can't run out. The reheats are the heat pump's hot water heat. The store is one temperature, not stratified, so the minimum is a reheat trigger, not a tap temperature. No immersion backup is modelled. The cylinder starts the year full, so the year's reheats = draw-off + standing loss − the fall in stored heat over the year (at most 1.16 kWh); a test checks this balance.
+- **Heat pump setups** have a cylinder (`cylinder.ts`), held as one stored-energy state above the cold feed: 200 litres at a 50 °C setpoint stores 9.29 kWh. Each hour the draw-off and an hour's standing loss (1.5 kWh a day ÷ 24) come out. If the store is then below its minimum (45 °C), the heat pump reheats it to the setpoint within the hour, so it never ends an hour below the minimum and can't run out. The reheats are the heat pump's hot water heat. The store is one temperature, not stratified, so the minimum is a reheat trigger, not a tap temperature. No immersion backup is modelled. Under control, the cylinder is filled to its setpoint in every cheap hour, and outside them a reheat lifts it only back to its minimum (see "Tariffs and control"). The cylinder starts the year full, so the year's reheats = draw-off + standing loss − the fall in stored heat over the year (at most 1.16 kWh); a test checks this balance.
 
 ### Supply
 
 - **Gas:** gas kWh = (space heat + hot water) ÷ boiler seasonal efficiency, hour by hour.
 - **The boiler's pump and fan:** 86 kWh of electricity a year (SAP 10.2 Table 4f), spread over the year in proportion to each hour's gas use. The heat pump setups have none.
 - **Heat pump:** each hour, electricity = space heat ÷ COP at the space heating flow + cylinder reheat ÷ COP at the hot water flow. The COP curve is scaled so the reference run matches the sampled SPF (see "The heat pump over the year"). Space heating is capped (see "Space heat on a thermal-mass node"), and there is no backup heater.
-- **Base electricity** (lights and appliances) is the same in every setup. Each engine hour gets the weekly shape (`electricity.baseProfileWeekly`, by local hour of the week) × the month level (`electricity.baseProfileMonthly`, by local month), and the year is rescaled so its total equals the base use row exactly. Both rows come from Elexon's profile class 1 (domestic unrestricted), 2013/14, evaluated at 10-year average temperatures: a weekday peaks at 18:00 local and dips at 03:00, and January days use about 35% more than July days. On a flat tariff the shape changes no annual figure; it matters for solar self-consumption and, later, time-of-use costs.
+- **Base electricity** (lights and appliances) is the same in every setup. Each engine hour gets the weekly shape (`electricity.baseProfileWeekly`, by local hour of the week) × the month level (`electricity.baseProfileMonthly`, by local month), and the year is rescaled so its total equals the base use row exactly. Both rows come from Elexon's profile class 1 (domestic unrestricted), 2013/14, evaluated at 10-year average temperatures: a weekday peaks at 18:00 local and dips at 03:00, and January days use about 35% more than July days. On a flat tariff the shape changes no annual figure; it matters for solar self-consumption and time-of-use costs.
 
 ### Roof solar PV
 
@@ -182,7 +188,7 @@ roof maximum = footprint ÷ cos(pitch) × ½ × 0.7 usable × 0.2 kWp per m²
 - **Temperature:** the cell runs above the air temperature in proportion to the irradiance on it (the NOCT relation for a module with a NOCT of 45 °C), and output falls 0.4% per K above 25 °C. Air temperature is the snapshot's, plus the outdoor offset row. Generation is never negative.
 - **System loss** (14%, PVGIS's suggested default) covers the inverter, cables, mismatch and soiling. Reflection at the glass and spectral effects are not modelled; the PVGIS check measures them.
 - **Size:** uncertain, 2.5–6 kWp with a mode of 4, clipped to what one roof slope takes. The roof footprint is the derived footprint. At their defaults, six of the ten archetypes are clipped below 4 kWp: the pre-1900 mid-terrace (3.72 kWp), the 1930s semi (3.85), the 1950s semi (3.76), the 1970s mid-terrace (3.42), the 2000s semi (3.63) and the 2010s mid-terrace (3.67). The other four take the full 4 kWp. The usable share of the slope decides most of this, so it is uncertain too (0.5–0.85, mode 0.7): on a clipped house the spread of sizes is mostly the spread of that row. `pvRequestedPeakPowerKw` and `pvRoofMaximumKw` in the inputs say whether a size was clipped.
-- **Use each hour** (`useSolar`): generation meets base use first, then heating (the heat pump's space heating and standby electricity, or the boiler's pump and fan), then the heat pump's cylinder reheats; the rest is exported, and what the loads still need is imported. With no control, the order only says which load solar met; import and export would be the same in any order. Under the tariffs PR's control rules (phase 2 spec, PR 6), the cylinder may also be reheated to use surplus generation.
+- **Use each hour** (`useSolar`): generation meets base use first, then heating (the heat pump's space heating and standby electricity, or the boiler's pump and fan), then the heat pump's cylinder reheats; the rest is exported, and what the loads still need is imported. The order only says which load solar met; import and export would be the same in any order. Control is blind to solar: it moves running by the tariff's cheap and peak hours, and solar then meets what it can.
 - **Exports never exceed generation**, and every hour balances: generation + import = electricity used + export. Tests check both.
 
 ### The heat pump over the year
@@ -212,10 +218,11 @@ standby         = standby share × Σheat ÷ SPF ÷ 8,760, the same in every hou
 
 ### Cost and carbon
 
-- Cost = kWh × unit rate + standing charges, at the flat price cap, less export income. Both setups pay the electricity standing charge. **The heat-pump-only house has no gas supply, so it pays no gas standing charge.**
-- **Electricity is costed on imports, and export earns a flat export rate** (`prices.exportRate`, uncertain: from 4.1p, Octopus's fixed Smart Export Guarantee, to 15p, mode 12p for Outgoing Octopus). Without solar, imports are all the electricity used and export is zero. So **the running cost of a solar setup is net of its export income.**
+- Cost = each hour's imported kWh × that hour's unit rate, summed over the year, + standing charges, less export income. On the price cap every hour has the same rate. **Gas is always on the price cap**, whatever the electricity tariff. Every setup pays its electricity tariff's standing charge. **The heat-pump-only house has no gas supply, so it pays no gas standing charge.**
+- **The price cap** is the London region's, by Direct Debit, for October to December 2026: electricity 26.60p a kWh and 42.92p a day, gas 8.15p a kWh and 30.20p a day.
+- **Electricity is costed on imports, and export earns a flat export rate on every import tariff** (`prices.exportRate`, uncertain: from 4.1p, Octopus's fixed Smart Export Guarantee, to 15p, Outgoing Octopus's previous rate, mode 12p for Outgoing Octopus today). Without solar, imports are all the electricity used and export is zero. So **the running cost of a solar setup is net of its export income.**
 - **The cost is split by fuel:** `gasPounds` (gas unit and standing charges) and `electricityPounds` (electricity unit and standing charges less export income). Payback grows each part by its own real price change.
-- Carbon = gas kWh × gas factor + imported electricity kWh × the annual average grid factor. Exported kWh are reported but earn no carbon credit; the phase 2 report will state this convention.
+- Carbon = gas kWh × gas factor (0.18231 kgCO₂e a kWh, DESNZ 2026) + imported electricity kWh × the annual average grid factor. Exported kWh are reported but earn no carbon credit; the phase 2 report will state this convention.
 
 ## Costs, grants and payback
 
@@ -245,7 +252,7 @@ standby         = standby share × Σheat ÷ SPF ÷ 8,760, the same in every hou
 
 - **Year 1 is today's prices.** In year t, the gas part of a running cost is multiplied by (1 + g)^(t−1) and the electricity part, net of export, by (1 + e)^(t−1).
 - g and e are `prices.gasRealChange` and `prices.electricityRealChange`, real changes a year after inflation. They are drawn once per sample, shared by every setup, and correlated through the copula (`prices.realChangeCorrelation`, 0.6).
-- Each change scales its fuel's unit rate and standing charge together, and export follows electricity. When Cosy and Agile land (phase 2 spec, PR 6) they keep their shape relative to the cap.
+- Each change scales its fuel's unit rate and standing charge together, and export follows electricity. Cosy and Agile keep their shape relative to the cap: the electricity change scales their whole bill.
 - **Payback is undiscounted:** a pound saved in year 15 counts the same as one spent today, in real terms.
 
 ### Payback
@@ -425,8 +432,8 @@ With every row at its default (a 17.6 °C setpoint, filled cavity walls, 100 mm 
 
 | | Space heat | Hot water | Gas | Electricity | Cost | Carbon |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Gas boiler (SAP's periods) | 9,392 kWh | 1,882 kWh | 13,263 kWh | 2,586 kWh | £2,046 | 2,799 kg |
-| Heat pump (07:00–23:00 every day) | 9,348 kWh | 2,429 kWh | 0 | 6,714 kWh | £1,967 | 967 kg |
+| Gas boiler (SAP's periods) | 9,392 kWh | 1,882 kWh | 13,263 kWh | 2,586 kWh | £2,036 | 2,790 kg |
+| Heat pump (07:00–23:00 every day) | 9,348 kWh | 2,429 kWh | 0 | 6,714 kWh | £1,943 | 967 kg |
 
 The heat pump's year runs at 2.795 against its sampled SPF of 2.8: k (0.407) is solved on the gas schedule, and its own longer day puts more heat into the night's colder hours.
 
@@ -434,12 +441,12 @@ With roof solar (3.85 kWp, the roof's maximum, generating 3,818 kWh), with expor
 
 | | Electricity used | Of which from solar | Exported | Imported | Cost | Carbon |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Gas boiler with solar | 2,586 kWh | 1,129 kWh (30% of generation) | 2,689 kWh | 1,457 kWh | £1,426 | 2,636 kg |
-| Heat pump with solar | 6,714 kWh | 1,705 kWh (45%) | 2,113 kWh | 5,009 kWh | £1,265 | 721 kg |
+| Gas boiler with solar | 2,586 kWh | 1,129 kWh (30% of generation) | 2,689 kWh | 1,457 kWh | £1,413 | 2,628 kg |
+| Heat pump with solar | 6,714 kWh | 1,705 kWh (45%) | 2,113 kWh | 5,009 kWh | £1,236 | 721 kg |
 
 The heat pump uses more of the generation: its space heating and standby take 419 kWh, mostly in spring and autumn mornings and evenings, and its cylinder reheats 171 kWh; base use takes 1,115 kWh in both. Solar meets standby with space heating, before the cylinder, because standby runs whatever the heat pump is doing.
 
-These are central values only, measured on 20 October 2026 and not pinned by a test: rerun the engine if a price, SPF, carbon or base-use row changes. The gas setup's electricity includes 86 kWh of boiler pump and fan electricity, which adds about £24 to its bill; the heat pump's hot water is the cylinder's reheats, including its standing loss. The ranges, the paired comparison and the sensitivity table are in the [phase 1 report](../reports/phase-1-london-semi.md). The heat pump's cost margin sits inside a stated bias: on the two setups' schedules the engine understates the heat pump's space heat against the boiler's by about 6.7 points against HEM, and one calibrated setpoint from gas-heated homes applies to both ([#15](https://github.com/mannepanne/energy-sim/issues/15)). Gas use matches the calibration target (see [register.md](./register.md#the-setpoint-calibration)).
+These are central values on the price cap only, measured on 21 October 2026 (with the London cap and the 2026 gas factor) and not pinned by a test: rerun the engine if a price, SPF, carbon or base-use row changes. `npm run tariffs` gives all 10 combinations (see "Tariffs and control"). The gas setup's electricity includes 86 kWh of boiler pump and fan electricity, which adds about £23 to its bill; the heat pump's hot water is the cylinder's reheats, including its standing loss. The ranges, the paired comparison and the sensitivity table are in the [phase 1 report](../reports/phase-1-london-semi.md). The heat pump's cost margin sits inside a stated bias: on the two setups' schedules the engine understates the heat pump's space heat against the boiler's by about 6.7 points against HEM, and one calibrated setpoint from gas-heated homes applies to both ([#15](https://github.com/mannepanne/energy-sim/issues/15)). Gas use matches the calibration target (see [register.md](./register.md#the-setpoint-calibration)).
 
 ## The archetype table
 
@@ -466,7 +473,61 @@ The end-terrace's solid brick walls (U 1.7, as built) cover more exposed wall th
 
 - **Months:** `expandMonthly(values, calendar)` turns a `month` profile (12 values) into engine-hour values by local date.
 
-The hot water draw-off and base electricity profiles use the calendar; the schedules and tariffs PRs will too.
+The hot water draw-off and base electricity profiles, the heating schedules and the tariffs use the calendar.
+
+## Tariffs and control
+
+The reasons are in the [tariff control ADR](./decisions/2026-10-21-rule-based-tariff-control.md).
+
+**The tariff grid** (`combinations.ts`): each setup on each electricity tariff it can use, 10 combinations. Gas is always on the price cap.
+
+| Tariff | Gas setups | Heat pump setups |
+| --- | --- | --- |
+| Price cap (London region) | `gas/cap`, `gasSolar/cap` | `heatPump/cap`, `heatPumpSolar/cap` |
+| Octopus Agile | `gas/agile`, `gasSolar/agile` (electricity only) | `heatPump/agile`, `heatPumpSolar/agile` |
+| Octopus Cosy | none: sold only to homes with a heat pump or electric heating | `heatPump/cosy`, `heatPumpSolar/cosy` |
+
+The reference is `gas/cap`: replacing the boiler like for like on the price cap.
+
+**The tariffs** (`tariffs.ts`) are hourly unit rates on engine hours, a standing charge, and a band for each hour: cheap, peak or neither.
+- **The price cap:** one rate in every hour, no cheap or peak hours.
+- **Cosy** (`tariffs.cosyUnitRate`, 24 values by UK local hour): 14.12p from 04:00 to 07:00, 13:00 to 16:00 and 22:00 to 00:00, 43.19p from 16:00 to 19:00, and 28.80p otherwise; 42.29p a day. The hours at the lowest rate are cheap and those at the highest are peak. The periods stay fixed in local time, so in summer they are one UTC hour earlier.
+- **Agile:** each UTC hour's rate is the mean of its two half-hours from the Octopus snapshot (`tariffs.octopusLondon`), before VAT with today's VAT applied (`prices.electricityVatRate`, 0 until 31 March 2027); 37.65p a day. Negative prices pass through, so the house is paid to import. In each UK local day, the cheapest quarter of its hours (`tariffs.agileCheapPeakShare`) is cheap and the dearest quarter is peak: 6 hours each, also on the 23- and 25-hour days, with ties going to the earlier hour.
+
+**The control rules** (`control.ts` and `cylinder.ts`) apply to the heat pump on any tariff. They act only on cheap and peak hours, so **on the price cap they change nothing**, and a test checks this hour by hour.
+
+```
+target(t) = setpoint + boost   if t is cheap and in a heating period, or a heating period starts within 3 hours of t   (preheat)
+            setpoint − boost   if t is peak and in a heating period                                                 (coast)
+            setpoint           if t is in a heating period
+            none               otherwise
+```
+
+- **The boost** (`heating.controlBoost`) is uncertain: 1 to 2 K, mode 1.5 K. Setpoint + boost is the comfort cap. The lead time (`heating.preheatLeadTime`, 3 hours) and the boost are register rows.
+- **The year wraps,** so late on 31 December control looks ahead to 1 January, as the node's pre-roll does.
+- **During heating periods the target never falls below setpoint − boost.** The temperature can still fall below it where the output cap binds, or in the first hour of a period after the house has cooled; a test checks the bound with the cap lifted.
+- **The cylinder** is filled to its setpoint in every cheap hour. Outside cheap hours a reheat lifts it only back to its minimum, so as much of the reheat as the store holds (about 1.2 kWh between 50 °C and 45 °C) falls in cheap hours, and it still never ends an hour below the minimum. Its standing loss is the same at any temperature, so control moves reheats in time without adding heat.
+- **k is the reference run's,** so control changes efficiency only through the COP curve: moving running into warmer afternoons raises the year's SPF a little, and into colder hours lowers it.
+- **Control is blind to solar.** The gas setups have no control.
+
+**What control does** on the 1930s semi, heat pump without solar, central (`npm run tariffs`, 21 October 2026):
+
+| | Space heat | Heat pump electricity | In cheap hours | In peak hours | Running cost |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Cosy, control off | 9,348 kWh | 4,214 kWh | 18% | 8% | £1,983 |
+| Cosy, control on | 11,409 kWh | 4,854 kWh | 73% | 1% | £1,712 |
+| Agile, control off | 9,348 kWh | 4,214 kWh | 9% | 33% | £1,455 |
+| Agile, control on | 10,246 kWh | 4,474 kWh | 39% | 11% | £1,387 |
+
+Control saves money but uses more heat: preheating keeps the house about 0.9 K warmer on average on Cosy and 0.4 K on Agile. The comfort isn't valued, and carbon rises with the extra electricity.
+
+**Agile's limitations,** stated wherever Agile results appear (`agileLimitations` in `scripts/tariffs/table.ts`):
+- the rates are one past year, October 2025 to September 2026 (UTC), placed on the typical year by calendar date and time, and a past year is not a forecast;
+- the past year's prices are paired with typical-year weather, which loses the link between price spikes and cold, still days, and likely flatters the heat pump;
+- control knows each day's prices in advance: realistic for a smart controller, since Octopus publishes them the day before, but it favours the heat pump over a household that doesn't respond;
+- weekdays don't match between the past year and the reference year.
+
+**`npm run tariffs`** prints the 10 combinations' running costs and carbon (central and P10–P90 from 200 samples), the difference against `gas/cap`, the shares cheapest across all 10 and within each tariff, the control table above and Agile's limitations. It is offline and its output is byte-identical; the phase 2 report (PR 7) carries it.
 
 ## Ranges, the paired comparison and sensitivity
 
@@ -474,36 +535,36 @@ The engine turns register ranges into result ranges by sampling. The [phase 1 re
 
 ```typescript
 const weather = prepareWeather(weatherFromSnapshot(snapshot), readInputs(access)); // once
-const run = runSetups(access, weather, { seed: 1, count: 500 }); // options: house, spfScenario, setups (default all four)
-const comparison = compare(run); // bands, paired differences against gas, the share cheapest, payback and solar's own payback
-const tables = sensitivity(access, weather); // one table per pair in SENSITIVITY_PAIRS
+const run = runSetups(access, weather, { seed: 1, count: 500 }, { combinations: COMBINATIONS, timeOfUse }); // options: house, spfScenario, combinations (default the four setups on the cap)
+const comparison = compare(run); // bands, paired differences against gas/cap, the shares cheapest, payback and solar's own payback
+const tables = sensitivity(access, weather); // one table per pair in SENSITIVITY_PAIRS, on the cap
 ```
 
 ### Sampling
 
-- **What is sampled:** the uncertain rows in `UNCERTAIN_ROW_IDS` that the house reads under its SPF scenario (22 of the 24: each scenario reads its own SPF and standby share), plus any uncertain table cell the house reads (none in the register yet). Every run reads every one of them, whichever setups it runs, so runs of different setups pair sample by sample. That includes the three solar rows (size, usable roof share and direction), the export rate, and the capital rows (installed costs, lifetimes and the two price changes). `uncertainDraws(access, house, spfScenario)` lists them, and `sampleOverrides(access, plan, house, spfScenario)` draws them. Every other row is fixed. The fabric quality factor is one shared multiplier, so fabric uncertainty is not averaged away.
+- **What is sampled:** the uncertain rows in `UNCERTAIN_ROW_IDS` that the house reads under its SPF scenario (22 of the 24: each scenario reads its own SPF and standby share), plus any uncertain table cell the house reads (none in the register yet). Every run reads every one of them, whichever combinations it runs, so runs of different combinations pair sample by sample. That includes the three solar rows (size, usable roof share and direction), the export rate, the control boost, and the capital rows (installed costs, lifetimes and the two price changes). `uncertainDraws(access, house, spfScenario)` lists them, and `sampleOverrides(access, plan, house, spfScenario)` draws them. Every other row is fixed. The fabric quality factor is one shared multiplier, so fabric uncertainty is not averaged away.
 - **Correlated rows:** a Gaussian copula pairs the rows named by each `correlation` row. The anchor (the first row named) keeps its own uniform u_a. The partner's normal score becomes z = ρ Φ⁻¹(u_a) + √(1 − ρ²) Φ⁻¹(u_p), and its uniform is Φ(z), clipped to the same open interval as every other uniform. So ρ is a correlation of normal scores; the correlation of the drawn values is slightly lower. Rows outside a pair keep their own independent draws. Φ is Hart's double-precision approximation (as given by West, 2005). There are two pairs, both estimates: the per-occupant gains and hot water terms, at 0.5, and the gas and electricity real price changes, at 0.6. A test checks the sample correlation within 0.05 of ρ over 100,000 draws.
 - **Stable draws:** each value comes from its own uniform number, `u = (hash32("seed|sample|rowId") + 0.5) ÷ 2³²`, so u is never 0 or 1. An uncertain table cell uses `rowId|key` in place of the row id. `hash32` is FNV-1a followed by the murmur3 finaliser, in plain TypeScript, so it runs in the browser too. Because a draw depends only on (seed, sample, row id), adding or reordering rows never moves another row's draws. A test pins some hash values, so a change to the hash fails loudly.
 - **Inverse distribution functions:** a triangular row uses its default as the mode. A lognormal row gives `median × exp(sigma × Φ⁻¹(u))`, clipped to its low and high, with Φ⁻¹ from Acklam's approximation (relative error below 1.2 × 10⁻⁹). A row whose low equals its high always returns its default.
-- **Memory:** `runSetups` keeps only the annual totals for each setup and sample (space heat, hot water, gas, electricity, generation, import, export, the gas and electricity parts of the cost, cost, carbon and upfront cost) in one `Float64Array` per metric, and each sample's capital costs, price scenario and PV size once, shared by every setup. Each full result holds about 560 KB of hourly arrays, so these are dropped straight away.
-- **Speed:** 500 samples take about 1.5 seconds for the two setups without solar and about 3 seconds for all four (19 October 2026). `npm run bench` times both. CI fails above 2.5 seconds per setup: 5 seconds for the two-setup workload, the phase 1 limit, and 10 for all four. On the CI runner, the four-setup run took 5.7 seconds (20 October 2026).
+- **Memory:** `runSetups` keeps only the annual totals for each combination and sample (space heat, hot water, gas, electricity, generation, import, export, the gas and electricity parts of the cost, cost, carbon and upfront cost) in one `Float64Array` per metric, and each sample's capital costs, price scenario and PV size once, shared by every combination. Each full result holds about 560 KB of hourly arrays, so these are dropped straight away.
+- **Speed:** on a recent Mac, 500 samples take about 0.6 seconds for the two setups without solar on the cap, 0.7 for the four setups and 1.2 for all 10 combinations, and one central run of the 10 about 3 ms (21 October 2026). `npm run bench` times all four. CI fails above 5 seconds for the two-setup workload (the phase 1 limit), 10 for the four setups and for all 10 combinations, and 100 ms for the central run (the spec's target).
 
 ### Summaries
 
 - **Central** is the run with every row at its default. **Median** and **P10–P90** come from the samples, by linear interpolation between ranked values (Hyndman and Fan's type 7, the default in R and NumPy). The triangular modes are not medians, so the central value can differ from the median, and can even fall outside the band. The report says so when it does.
-- **The paired differences** are the reference (`gas`) minus each other setup, sample by sample, for running cost and for carbon. Positive means the setup is cheaper or emits less.
-- **The share cheapest** is the share of samples in which each setup has the lowest running cost of the setups run. Setups tied for the lowest in a sample split it equally, so the shares sum to 1. With two setups, an exact tie counts as half. At 500 samples the 95% margin is about ±4 percentage points, so the report rounds the share to 5% and states the margin. The tariffs PR adds the share within each tariff and across all ten combinations.
-- **Payback** is summarised for each setup against the reference, and for solar's own payback on each heating system run both with and without solar (see "Costs, grants and payback").
+- **The paired differences** are the reference (`gas/cap`) minus each other combination, sample by sample, for running cost and for carbon. Positive means the setup is cheaper or emits less.
+- **The share cheapest** is the share of samples in which each combination has the lowest running cost of those run (`shareCheapest`), and the same among the combinations on each tariff (`shareCheapestByTariff`). Combinations tied for the lowest in a sample split it equally, so the shares sum to 1. With two, an exact tie counts as half. At 500 samples the 95% margin is about ±4 percentage points, so the report rounds the share to 5% and states the margin.
+- **Payback** is summarised for each combination against the reference, and for solar's own payback on each heating system and tariff run both with and without solar, keyed by the combination with solar (see "Costs, grants and payback"). The gas boiler on Agile is paid back over the boiler's lifetime: it buys the same kit as the reference, so its payback is year 0 if it never costs more to run.
 
 ### Sensitivity
 
-`sensitivity` gives one table per pair of setups. By default the pairs are `SENSITIVITY_PAIRS`: each setup against the reference, and `heatPumpSolar` against `heatPump` (solar against no solar on the heat pump; `gasSolar` against `gas` is already among the first three). A gas-minus-heat-pump swing can't show roof direction, which cancels when both setups have solar, so the solar pairs are where it shows.
+`sensitivity` gives one table per pair of combinations. By default the pairs are `SENSITIVITY_PAIRS`, all on the price cap: each setup against the reference, and `heatPumpSolar/cap` against `heatPump/cap` (solar against no solar on the heat pump; `gasSolar` against `gas` is already among the first three). A gas-minus-heat-pump swing can't show roof direction, which cancels when both setups have solar, so the solar pairs are where it shows.
 
 - **Each row moves alone,** at its low and then its high value, with every other row at its default. Correlations are ignored.
 - **The swing** is the change in the pair's running-cost difference (baseline minus setup) from the low end to the high end. Rows are ranked by its size, largest first. Swings within £0.000001 count as a tie and are ordered by row id, so floating-point noise never decides the order. Base electricity use, for example, moves gas and the heat pump equally and drops out of their difference.
-- **Only rows the pair reads are listed.** `runningCostReads(setup, id)` says which rows can change a setup's running cost: the heat pump's SPF, standby share and flow temperatures only for heat pump setups, the boiler's efficiency only for gas setups, the roof solar rows and the export rate only for solar setups, and every other engine row for all four. A row is listed if either setup in the pair reads it. Capital rows (costs, lifetimes and price changes) never change a year's running cost, so no table lists them. `setups.test.ts` checks that every row a setup is said not to read leaves its cost unchanged.
+- **Only rows the pair reads are listed.** `runningCostReads(setup, id)` says which rows can change a setup's running cost: the heat pump's SPF, standby share and flow temperatures only for heat pump setups, the boiler's efficiency only for gas setups, the roof solar rows and the export rate only for solar setups, and every other engine row for all four. `combinationReads(combination, id)` adds the tariff: the control boost matters only to a heat pump on Cosy or Agile. A row is listed if either combination in the pair reads it. Capital rows (costs, lifetimes and price changes) never change a year's running cost, so no table lists them. `setups.test.ts` and `combinations.test.ts` check that every row a setup or combination is said not to read leaves its cost unchanged.
 - A lognormal row's low and high are its clip limits (for the SPF, about its 1st and 99th percentiles), so its row shows an extreme spread.
-- **Each value is simulated once** for all the setups the pairs need.
+- **Each value is simulated once** for all the combinations the pairs need.
 
 ## The report
 
@@ -526,7 +587,9 @@ The phase 1 and phase 2 specs list these as technical debt:
 - fixed weather and an annual average grid carbon factor; prices change only through one real change a year for each fuel, drawn per sample;
 - undiscounted payback, a boiler that needs replacing now, installed costs at today's real prices for replacements ([#37](https://github.com/mannepanne/energy-sim/issues/37)), and no inverter replacement for PV ([#39](https://github.com/mannepanne/energy-sim/issues/39));
 - one installed heat pump cost for every archetype, whatever its heat loss, and one PV cost per kWp whatever the system's size;
-- one flat export rate per sample (drawn between 4.1p and 15p), and no carbon credit for export ([#34](https://github.com/mannepanne/energy-sim/issues/34));
+- one flat export rate per sample (drawn between 4.1p and 15p) on every import tariff, and no carbon credit for export ([#34](https://github.com/mannepanne/energy-sim/issues/34));
+- Agile represented by one past year (October 2025 to September 2026) on typical-year weather, with control knowing each day's prices in advance;
+- rule-based control, not an optimiser: it saves money but keeps the house warmer than the setpoint, and that comfort isn't valued;
 - roof solar on one slope facing between south-east and south-west, with an isotropic sky, no reflection or spectral losses, no shading and no inverter clipping; east–west roofs using both slopes are not modelled;
 - base electricity is one weekly shape × a month level from profile class 1 (2013/14), which keeps the winter–summer level but not the small change of daily shape between seasons; the class includes some electric heating, which raises winter use against summer, so solar self-consumption may be slightly understated;
 - the heat pump's COP curve is an approximate shape scaled to the field SPF;
