@@ -42,7 +42,7 @@ jobs:
         run: npm run test:coverage
 
       # Regenerates the phase 2 report offline and fails if it differs from the committed copy,
-      # including a report that was never committed. The phase 1 report is historical and no longer regenerated.
+      # including a report that was never committed. The phase 1 report is historical and not regenerated.
       - name: Report drift
         run: |
           npm run report

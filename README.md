@@ -56,9 +56,9 @@ src/engine/          The hourly engine, plus sampling, the paired comparison and
 src/snapshots/       Schemas for the data snapshots
 scripts/             Build-time scripts: the PVGIS fetches and the PV check, the base electricity profile, the calibration, the archetype table, the report, the bench and the benchmark
 scripts/archetypes/  Pre-registered NEED readings and the archetype table
-scripts/report/      Builds the phase 1 report
+scripts/report/      Builds the phase 2 report
 scripts/benchmark/   Benchmark: rough estimate, HEM run and measured-data comparison
-reports/             Generated reports, committed and checked for drift in CI
+reports/             The phase 2 report, generated, committed and checked for drift in CI; the phase 1 report, kept as a historical file
 SPECIFICATIONS/      Plans for the current and future phases
 REFERENCE/           How implemented parts work, and decision records
 .claude/             Ways of working with Claude Code

@@ -81,7 +81,7 @@ export function archetypeTable(rows: readonly ArchetypeRow[], plan: SamplingPlan
     ].join(' | '),
   );
   return [
-    `Each archetype at its default floor area, occupants and quick-facts answers, on the price cap. Central, with the 10th to 90th percentile from ${wholeNumber(plan.count)} samples (seed ${plan.seed}). Gas is the gas boiler setup's annual gas use. The gap is how far central gas use lies outside the interval between NEED readings T and S; an archetype is flagged above ${Math.round(FLAG_THRESHOLD * 100)}% (see scripts/archetypes/README.md).`,
+    `Each archetype at its default floor area, occupants and quick-facts answers, on the price cap. Central, with the 10th to 90th percentile from ${wholeNumber(plan.count)} samples (seed ${plan.seed}). Gas is the gas boiler setup's annual gas use. The gap is how far central gas use lies outside the interval between NEED readings T and S; an archetype is flagged above ${Math.round(FLAG_THRESHOLD * 100)}% (see [scripts/archetypes/README.md](../scripts/archetypes/README.md)).`,
     '',
     '| Archetype | Floor area, occupants | H | Gas | Gas boiler cost | Heat pump cost | NEED T | NEED S | Gap | Flag |',
     '| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |',

@@ -1,5 +1,5 @@
 // ABOUT: The engine's side of the HEM checks: the benchmark house as HEM's input describes it, on the PVGIS year
-// ABOUT: Annual space heat heated continuously with no mass, and on the thermal node under the three scheduled runs' patterns
+// ABOUT: Not test-only: the engine's tests and the phase 2 report (scripts/report/checks.ts) both run it; keep it out of the site's bundle
 
 import { HOURS_PER_YEAR } from '../constants.ts';
 import { defaultHouse } from '../archetypes.ts';

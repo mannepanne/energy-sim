@@ -94,7 +94,7 @@ Decisions: the [client-side snapshots](../REFERENCE/decisions/2026-10-17-client-
   - one central run of one house, with all setup and tariff combinations, takes under 100 ms on the bench machine;
   - the full report builds in CI in under 60 seconds.
 
-  *PR 7 (21 October 2026): `npm run bench` times both; on a recent Mac, 3.6 ms and 6 seconds.*
+  *PR 7 (21 October 2026): `npm run bench` times both; on the GitHub Actions runner, 3.9 ms and 6.9 seconds.*
 - [x] **Technical debt:** every open `technical-debt` issue is either closed by this phase or carried forward by number in "Technical debt". *Checked in PR 7 (21 October 2026): the 11 open issues (#14–#17, #24–#27, #34, #37, #39) are all listed below. #15 carries forward: the heat pump's day is SAP's, not a field source, and the report states the 6.7-point bias.*
 - [x] **Quality:** tests pass, with coverage at 95% or above for lines, functions and statements and 90% or above for branches; type checking and lint pass; CI is green.
 

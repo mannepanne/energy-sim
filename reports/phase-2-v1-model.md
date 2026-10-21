@@ -7,8 +7,8 @@ This report compares replacing a gas boiler with a new one, or with an air sourc
 ## At a glance
 
 - **Replacing the gas boiler like for like** (the reference) costs £3,000 and £2,040 a year to run, central (£1,820 to £2,280).
-- **A heat pump on the price cap** costs £5,400 after the grant and £1,940 a year to run (£1,660 to £2,260), and emits 970 kg of CO₂e a year against 2,790 kg. It pays back within its lifetime in 60% of samples (central: 13 years); in 30% it doesn’t, and in 10% it is cheaper up front but costs more to run.
-- **The combination most often cheapest to run** is “Heat pump with solar, Agile”, in 100% of samples (with about ±1 percentage points of sampling noise). Cosy and Agile rows carry the [time-of-use caveats](#time-of-use-caveats): a smart controller, a warmer house that isn’t valued, carbon by the annual factor, 0% VAT on electricity in every payback year, and, for Agile, one past year of prices on typical weather.
+- **A heat pump on the price cap** costs £5,400 after the grant and £1,940 a year to run (£1,660 to £2,260), and emits 970 kg of CO₂e a year against 2,790 kg. It pays back within its lifetime in 60% of samples (central: 13 years); in 30% it doesn’t, and in 10% it is cheaper up front but costs more to run. On the price cap the heat pump saves only about £90 a year against £2,400 of extra upfront cost, so its central payback falls in year 13, when the like-for-like boiler would itself need replacing (its lifetime is 13 years). That avoided replacement, not the bill savings, recovers most of the extra cost.
+- **The combination most often cheapest to run** is “Heat pump with solar, Agile”, in 100% of samples (with about ±1 percentage point of sampling noise). On the price cap alone it is “Heat pump with solar, price cap”, in 85%. Cosy and Agile rows carry the [time-of-use caveats](#time-of-use-caveats): a smart controller, a warmer house that isn’t valued, carbon by the annual factor, 0% VAT on electricity in every payback year, and, for Agile, one past year of prices on typical weather.
 - **The heat pump figures carry a stated bias in the heat pump’s favour.** The heat pump heats from 7 am to 11 pm every day and the boiler in SAP’s two periods on weekdays. On those two schedules the engine understates the heat pump’s space heat against the boiler’s by about 6.7 points, against the government’s Home Energy Model, so the heat pump’s running costs may be a little low and its savings a little high ([issue 15](https://github.com/mannepanne/energy-sim/issues/15); see the [schedules ADR](../REFERENCE/decisions/2026-10-20-heating-schedules-one-thermal-mass-node.md)). The sensitivity section shows the heat pump on the gas schedule instead.
 
 ## The house
@@ -98,6 +98,7 @@ The heat pump setups have the £7,500 Boiler Upgrade Scheme grant taken off. The
 
 Cosy and Agile rows carry the [time-of-use caveats](#time-of-use-caveats): a smart controller, a warmer house that isn’t valued, carbon by the annual factor, 0% VAT on electricity in every payback year, and, for Agile, one past year of prices on typical weather.
 
+- **What drives the heat pump’s payback on the cap.** On the price cap the heat pump saves only about £90 a year against £2,400 of extra upfront cost, so its central payback falls in year 13, when the like-for-like boiler would itself need replacing (its lifetime is 13 years). That avoided replacement, not the bill savings, recovers most of the extra cost.
 - **The horizon** is the heat pump’s lifetime for a heat pump setup (any PV value left at the end is ignored), PV’s lifetime for gas with solar, and the boiler’s for the gas boiler on Agile. The reference’s boiler is replaced whenever its lifetime ends inside the horizon, and that cost counts against the reference.
 - **“At once”** means the combination costs no more up front and never costs more to run. **“Cheaper up front, costs more to run”** samples have no payback year and are left out of the percentiles, which rank “doesn’t pay back” after every year and show it as “beyond lifetime”. The three shares sum to 100%.
 - Payback is undiscounted, at today’s rates in year 1 with each fuel’s real price change after that.
@@ -117,9 +118,11 @@ Cosy and Agile rows carry the [time-of-use caveats](#time-of-use-caveats): a sma
 | Heat pump with solar, Cosy | 11,400 kWh | 2,400 kWh | 0 kWh | 7,400 kWh | 3,800 kWh | 2,100 kWh |
 | Heat pump with solar, Agile | 10,200 kWh | 2,400 kWh | 0 kWh | 7,000 kWh | 3,800 kWh | 2,000 kWh |
 
+Cosy and Agile rows carry the [time-of-use caveats](#time-of-use-caveats): a smart controller, a warmer house that isn’t valued, carbon by the annual factor, 0% VAT on electricity in every payback year, and, for Agile, one past year of prices on typical weather.
+
 ## Time-of-use caveats
 
-These apply to every Cosy and Agile result in this report.
+These apply to every Cosy and Agile result in this report. The VAT caveat applies to the price cap too, so every table on the cap points here for it.
 
 - **Cosy and Agile results assume a smart controller** that follows the control rules. A heat pump left on its schedule costs what the “control off” rows show.
 - **Control keeps the house warmer.** Preheating holds it above the setpoint in cheap hours, so Cosy and Agile buy extra warmth the comparison doesn’t value; the mean indoor temperatures show how much.
@@ -164,7 +167,7 @@ Cosy and Agile rows carry the [time-of-use caveats](#time-of-use-caveats): a sma
 
 ### Which is cheapest to run
 
-The 1930s semi at its defaults, in London. Central, with the 10th to 90th percentile from 500 samples (seed 1). Gas is always on the price cap; the tariff is the electricity tariff. The difference is the gas boiler on the price cap minus the combination, so a positive difference is a saving. The heat pump follows the control rules on Cosy and Agile (REFERENCE/engine.md).
+The 1930s semi at its defaults, in London. Central, with the 10th to 90th percentile from 500 samples (seed 1). Gas is always on the price cap; the tariff is the electricity tariff. The difference is the gas boiler on the price cap minus the combination, so a positive difference is a saving. The heat pump follows the control rules on Cosy and Agile ([REFERENCE/engine.md](../REFERENCE/engine.md#tariffs-and-control)).
 
 | Combination | Running cost a year | Difference | Carbon | Cheapest of all | Cheapest on its tariff |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -179,7 +182,7 @@ The 1930s semi at its defaults, in London. Central, with the 10th to 90th percen
 | Heat pump with solar, Cosy | £1,020 (£870 to £1,350) | £1,010 | 810 kg (660 kg to 980 kg) | 0% | 100% |
 | Heat pump with solar, Agile | £820 (£690 to £1,110) | £1,220 | 740 kg (610 kg to 900 kg) | 100% | 100% |
 
-“Cheapest of all” ranks all 10; “cheapest on its tariff” ranks those on the same electricity tariff (2 on Cosy, 4 on the cap and on Agile), so those shares don’t compare between tariffs. An exact tie counts as a share. With 500 samples a share carries up to about ±4 points of sampling noise. Cosy and Agile rows carry the [time-of-use caveats](#time-of-use-caveats): a smart controller, a warmer house that isn’t valued, carbon by the annual factor, 0% VAT on electricity in every payback year, and, for Agile, one past year of prices on typical weather.
+“Cheapest of all” ranks all 10; “cheapest on its tariff” ranks those on the same electricity tariff (2 on Cosy, 4 on the cap and on Agile), so those shares don’t compare between tariffs. An exact tie counts as a share. With 500 samples a share carries up to about ±4 percentage points of sampling noise. Cosy and Agile rows carry the [time-of-use caveats](#time-of-use-caveats): a smart controller, a warmer house that isn’t valued, carbon by the annual factor, 0% VAT on electricity in every payback year, and, for Agile, one past year of prices on typical weather.
 
 ### Solar’s own payback
 
@@ -218,6 +221,8 @@ On the price cap, a kWh of heat costs almost the same from either system at the 
 | Fabric quality factor (one multiplier on every U-value and the air change rate) | 0.75 to 1.15 | £1,730 to £2,220 | £1,640 to £2,130 | £90 |
 | Base electricity use (lights and appliances), the same in both setups | 1,600 to 3,800 kWh/year | £1,800 to £2,380 | £1,700 to £2,290 | £90 |
 
+Electricity carries 0% VAT today, and every payback year assumes it stays there while gas carries 5%: a small tilt towards the heat pump on every tariff ([time-of-use caveats](#time-of-use-caveats)).
+
 #### Gas boiler with solar, price cap against gas boiler, price cap
 
 | Row | Low to high | Gas boiler, price cap | Gas boiler with solar, price cap | Difference |
@@ -232,6 +237,8 @@ On the price cap, a kWh of heat costs almost the same from either system at the 
 | Fabric quality factor (one multiplier on every U-value and the air change rate) | 0.75 to 1.15 | £1,730 to £2,220 | £1,100 to £1,590 | £620 |
 | Internal gains per occupant | 75 to 140 W per occupant | £2,090 to £1,980 | £1,460 to £1,360 | £620 |
 | Gas combi boiler seasonal efficiency (space heat and hot water) | 0.8 to 0.89 | £2,100 to £1,990 | £1,480 to £1,360 | £620 |
+
+Electricity carries 0% VAT today, and every payback year assumes it stays there while gas carries 5%: a small tilt towards the heat pump on every tariff ([time-of-use caveats](#time-of-use-caveats)).
 
 #### Heat pump with solar, price cap against gas boiler, price cap
 
@@ -252,6 +259,8 @@ On the price cap, a kWh of heat costs almost the same from either system at the 
 | Heat pump space heating flow temperature at the design outdoor temperature | 35 to 50 °C | £2,040 | £1,230 to £1,240 | £800 |
 | Heat pump space heating flow temperature at the mild outdoor temperature | 25 to 35 °C | £2,040 | £1,240 | £800 |
 
+Electricity carries 0% VAT today, and every payback year assumes it stays there while gas carries 5%: a small tilt towards the heat pump on every tariff ([time-of-use caveats](#time-of-use-caveats)).
+
 #### Heat pump with solar, price cap against heat pump, price cap
 
 | Row | Low to high | Heat pump, price cap | Heat pump with solar, price cap | Difference |
@@ -269,6 +278,8 @@ On the price cap, a kWh of heat costs almost the same from either system at the 
 | Internal gains per occupant | 75 to 140 W per occupant | £1,990 to £1,890 | £1,280 to £1,190 | £710 to £700 |
 | Heat pump space heating flow temperature at the design outdoor temperature | 35 to 50 °C | £1,940 | £1,230 to £1,240 | £710 |
 | Heat pump space heating flow temperature at the mild outdoor temperature | 25 to 35 °C | £1,940 | £1,240 | £710 |
+
+Electricity carries 0% VAT today, and every payback year assumes it stays there while gas carries 5%: a small tilt towards the heat pump on every tariff ([time-of-use caveats](#time-of-use-caveats)).
 
 #### Heat pump, Cosy against gas boiler, price cap
 
@@ -308,7 +319,7 @@ Cosy and Agile rows carry the [time-of-use caveats](#time-of-use-caveats): a sma
 
 ### The heat pump on the gas schedule
 
-The heat pump schedule row is a profile, so the tables above can’t move it. Here each heat pump combination runs on the gas boiler’s schedule (SAP’s periods) instead of its own 7 am to 11 pm day, central, with everything else unchanged. The heat pump has its own day because, on the gas schedule, its capped output leaves the house colder on cold days than the field trial homes are. The difference between the two columns is the size of the schedule choice; the 6.7-point bias above is how far the engine’s one thermal-mass node shifts it.
+The heat pump schedule row is a profile, so the tables above can’t move it. Here each heat pump combination runs on the gas boiler’s schedule (SAP’s periods) instead of its own 7 am to 11 pm day, central, with everything else unchanged. The heat pump has its own day because, on the gas schedule, its capped output leaves the house colder on cold days than the field trial homes are. The difference between the two columns is the size of the schedule choice; the bias above (about 6.7 points) is how far the engine’s one thermal-mass node shifts it.
 
 | Central, a year | Space heat, own schedule | On the gas schedule | Running cost, own schedule | On the gas schedule | Reference minus it, own schedule | On the gas schedule |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -323,7 +334,7 @@ Cosy and Agile rows carry the [time-of-use caveats](#time-of-use-caveats): a sma
 
 ### Payback, one row at a time
 
-Capital costs, lifetimes and the real price changes never change a year’s running cost, so the tables above leave them out. Here each is moved alone to its low and its high, with every other row at its default, and the central payback year shown at both ends. Moving one price change alone ignores its correlation with the other. Lifetimes also move the horizon and the replacements inside it. The rows are ranked by how far they move the heat pump’s payback on the price cap, counting “beyond lifetime” as the lifetime and “cheaper up front, costs more to run” as no years.
+Capital costs, lifetimes and the real price changes never change a year’s running cost, so the tables above leave them out. Here each is moved alone to its low and its high, with every other row at its default, and the central payback year shown at both ends. Moving one price change alone ignores its correlation with the other. Lifetimes also move the horizon and the replacements inside it. The rows are ranked by how far they move the first column, the heat pump’s payback on the price cap, counting “beyond lifetime” as the lifetime and “cheaper up front, costs more to run” as no years.
 
 | Row | Low to high | Heat pump, price cap | Heat pump with solar, price cap | Gas boiler with solar, price cap | Heat pump, Cosy | Heat pump, Agile | Solar on the heat pump, price cap |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -356,7 +367,7 @@ Cosy and Agile rows carry the [time-of-use caveats](#time-of-use-caveats): a sma
 
 ## The archetype table
 
-Each archetype at its default floor area, occupants and quick-facts answers, on the price cap. Central, with the 10th to 90th percentile from 200 samples (seed 1). Gas is the gas boiler setup's annual gas use. The gap is how far central gas use lies outside the interval between NEED readings T and S; an archetype is flagged above 25% (see scripts/archetypes/README.md).
+Each archetype at its default floor area, occupants and quick-facts answers, on the price cap. Central, with the 10th to 90th percentile from 200 samples (seed 1). Gas is the gas boiler setup's annual gas use. The gap is how far central gas use lies outside the interval between NEED readings T and S; an archetype is flagged above 25% (see [scripts/archetypes/README.md](../scripts/archetypes/README.md)).
 
 | Archetype | Floor area, occupants | H | Gas | Gas boiler cost | Heat pump cost | NEED T | NEED S | Gap | Flag |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
@@ -371,7 +382,9 @@ Each archetype at its default floor area, occupants and quick-facts answers, on 
 | Semi-detached, 2007–11 | 85 m², 3 | 132 W/K | 6,200 kWh (5,200 kWh to 7,000 kWh) | £1,460 (£1,330 to £1,680) | £1,380 (£1,220 to £1,600) | 10,700 kWh | 6,300 kWh | −1% |  |
 | Mid-terrace, 2012–21 | 86 m², 3 | 119 W/K | 5,500 kWh (4,500 kWh to 6,100 kWh) | £1,400 (£1,280 to £1,620) | £1,310 (£1,170 to £1,530) | 8,700 kWh | 6,400 kWh | −15% |  |
 
-NEED reading T is the 2024 London median gas use for the archetype’s type, age band and bedrooms; reading S is the England and Wales per-m² median for its age band × its floor area. Both were fixed before any archetype ran. A flagged archetype stays in the table with a visible warning. The gaps are evidence on whether the calibrated setpoint absorbs fabric error ([issue 14](https://github.com/mannepanne/energy-sim/issues/14)).
+NEED reading T is the 2024 London median gas use for the archetype’s type, age band and bedrooms; reading S is the England and Wales per-m² median for its age band × its floor area. Both were fixed before any archetype ran, with the flag rule ([scripts/archetypes/README.md](../scripts/archetypes/README.md)). A flagged archetype stays in the table with a visible warning. The gaps are evidence on whether the calibrated setpoint absorbs fabric error ([issue 14](https://github.com/mannepanne/energy-sim/issues/14)).
+
+Electricity carries 0% VAT today, and every payback year assumes it stays there while gas carries 5%: a small tilt towards the heat pump on every tariff ([time-of-use caveats](#time-of-use-caveats)).
 
 ## Checks against outside references
 
@@ -408,6 +421,7 @@ The engine is −2.6% from PVcalc: inside the 8% tolerance. See [scripts/pvgis/]
 - **Central** is the run with every row at its default. **Median** and the **10th to 90th percentile** come from the samples (linear interpolation between ranked samples).
 - **Fabric quality** is one shared factor on every U-value and the air change rate.
 - **Correlated rows:** a Gaussian copula correlates, in normal-score space, internal gains and hot water use per occupant (0.5); and the gas and electricity real price changes (0.6). The other rows are drawn independently of each other.
+- **The COP ceiling:** the heat pump’s scaled COP never exceeds 7. Where it would, k is solved again so the year still matches the sampled SPF. That happened in 16 of 500 samples in the field-trial scenario and 233 in the well-installed one.
 - **Rounding:** costs to £10, energy to 100 kWh, carbon to 10 kg, shares to 5% and payback to whole years.
 
 ## Conventions

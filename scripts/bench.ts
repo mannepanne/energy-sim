@@ -14,7 +14,7 @@ import { createAccessor } from '../src/register/access.ts';
 import { loadRegister } from '../src/register/load.ts';
 import { loadOctopusSnapshot } from '../src/snapshots/octopusSchema.ts';
 import { loadPvgisSnapshot } from '../src/snapshots/pvgisSchema.ts';
-import { loadPvcalcSnapshot } from './pvgis/pvcalc.ts';
+import { loadPvcalcSnapshot, PVCALC_SNAPSHOT_PATH } from './pvgis/pvcalc.ts';
 import { buildReport, REPORT_PLAN } from './report/build.ts';
 
 /**
@@ -63,7 +63,7 @@ for (const { name, combinations, limitMs } of WORKLOADS) {
   check(`${REPORT_PLAN.count} samples × ${name}`, performance.now() - start, limitMs);
 }
 const reportStart = performance.now();
-buildReport({ register, pvgis: snapshot, octopus, pvcalc: loadPvcalcSnapshot(readJson('data/snapshots/pvgis-pvcalc-london.json')) });
+buildReport({ register, pvgis: snapshot, octopus, pvcalc: loadPvcalcSnapshot(readJson(PVCALC_SNAPSHOT_PATH)) });
 check('The full phase 2 report', performance.now() - reportStart, REPORT_LIMIT_MS);
 
 if (failed) {

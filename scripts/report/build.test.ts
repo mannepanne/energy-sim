@@ -15,7 +15,8 @@ import { ARCHETYPE_NAMES } from '../archetypes/table.ts';
 import { loadPvcalcSnapshot } from '../pvgis/pvcalc.ts';
 import { agileLimitations, TIME_OF_USE_ASSUMPTIONS } from '../tariffs/table.ts';
 import { buildReport, marginPoints, pricePeriod, REPORT_PATH, REPORT_PLAN, REPORT_PLANS } from './build.ts';
-import { TIME_OF_USE_NOTE } from './comparisons.ts';
+import { tableNotes } from './comparisons.ts';
+import { readInputs } from '../../src/engine/inputs.ts';
 
 const readJson = (path: string): unknown => JSON.parse(readFileSync(new URL(path, import.meta.url), 'utf8')) as unknown;
 const register = loadRegister(readJson('../../data/register.json'));
@@ -27,6 +28,15 @@ const data = {
 };
 const smallPlans = { main: { seed: 1, count: 20 }, archetypes: { seed: 1, count: 4 } };
 const report = buildReport(data, smallPlans);
+const notes = tableNotes(readInputs(createAccessor(register)).electricityVatRate);
+
+/** The report cut at every heading, each piece with its heading line first. */
+const pieces = report.split(/\n(?=#{2,4} )/);
+const hasTable = (piece: string): boolean => piece.includes('\n| --- |');
+/** A table line naming a Cosy or Agile combination in any cell, such as "| Heat pump, Cosy |". */
+const hasTimeOfUseRow = (piece: string): boolean => /\n\|[^\n]*\b(Cosy|Agile)\b[^\n]*\|/.test(piece);
+/** Sections whose tables hold no setup's running cost or payback. */
+const NOTE_FREE = ['## Time-of-use caveats', '### The Home Energy Model (HEM)', '### PVGIS’s PV calculator', '## Data dates'];
 
 /** The text from one heading to the next heading of the same or a higher level. */
 function section(heading: string): string {
@@ -95,27 +105,30 @@ describe('buildReport', () => {
     }
   });
 
-  it('states every time-of-use assumption and Agile limitation in full, and points to them from every section with Cosy or Agile rows', () => {
+  it('states every time-of-use assumption and Agile limitation in full, and the control table, in one section', () => {
     const caveats = section('## Time-of-use caveats');
     for (const line of [...TIME_OF_USE_ASSUMPTIONS, ...agileLimitations(agileFromSnapshot(data.octopus).window)]) expect(caveats).toContain(line);
     expect(caveats).toContain('Mean indoor temperature');
-    for (const heading of [
-      '## At a glance',
-      '### Running cost',
-      '### Carbon',
-      '### Payback against replacing the boiler',
-      '### Paired differences against the reference',
-      '### Which is cheapest to run',
-      '### Solar’s own payback',
-      '#### Heat pump, Cosy against gas boiler, price cap',
-      '#### Heat pump, Agile against gas boiler, price cap',
-      '### The heat pump on the gas schedule',
-      '### Payback, one row at a time',
-      '## The well-installed scenario',
-    ]) {
-      expect(`${heading}\n${section(heading)}`).toContain(TIME_OF_USE_NOTE);
+    expect(section('## At a glance')).toContain(notes.timeOfUse);
+  });
+
+  it('ends every table with Cosy or Agile rows with the time-of-use pointer, and every other results table with the VAT note', () => {
+    const checked = pieces.filter((piece) => hasTable(piece) && !NOTE_FREE.some((heading) => piece.startsWith(heading)));
+    expect(checked.length).toBeGreaterThan(15);
+    for (const piece of checked) {
+      const heading = piece.split('\n')[0];
+      expect({ heading, noted: piece.includes(hasTimeOfUseRow(piece) ? notes.timeOfUse : notes.vat) }).toEqual({ heading, noted: true });
     }
-    expect(section('#### Heat pump, price cap against gas boiler, price cap')).not.toContain(TIME_OF_USE_NOTE);
+    expect(hasTimeOfUseRow(section('### Energy, central'))).toBe(true);
+    expect(section('#### Heat pump, price cap against gas boiler, price cap')).toContain(notes.vat);
+  });
+
+  it('says what drives the heat pump’s payback on the cap when it falls in the boiler’s replacement year', () => {
+    for (const heading of ['## At a glance', '### Payback against replacing the boiler']) expect(section(heading)).toContain('like-for-like boiler would itself need replacing');
+  });
+
+  it('counts the samples in which the COP ceiling bound, in both scenarios', () => {
+    expect(section('## How the ranges are made')).toMatch(/in \d+ of 20 samples in the field-trial scenario and \d+ in the well-installed one/);
   });
 
   it('shows each of the 10 combinations in the results, with payback in words where it has no year', () => {

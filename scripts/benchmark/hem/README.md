@@ -19,7 +19,7 @@ This section was written and committed before HEM was run on the archetype. It f
 
 Phase 2 adds thermal mass and heating periods to the engine, and checks them against HEM under the same schedule ([phase 2 spec](../../../SPECIFICATIONS/02-complete-v1-model.md), "Heating over time"). This section was written and committed before HEM was run on the scheduled inputs. It fixes what counts as the answer, so the answer can't be chosen afterwards.
 
-- **The house:** the phase 1 benchmark house, as above: the draft values in `draftValues.ts`, with HEM's own element areas (heat loss coefficient 302 W/K). The engine side uses the same fixture as the continuous HEM check in `src/engine/simulate.test.ts`, not the register's semi with derived geometry.
+- **The house:** the phase 1 benchmark house, as above: the draft values in `draftValues.ts`, with HEM's own element areas (heat loss coefficient 302 W/K). The engine side uses the same fixture as the continuous HEM check, in `src/engine/testing/hemCheck.ts`, not the register's semi with derived geometry.
 - **The quantity compared:** annual space heat in kWh: HEM's "Space heat demand" in the results summary × 90 m², against the engine's annual space heat. HEM's heater stays the 50 kW instant electric heater and the engine's output cap is off for the check, so on both sides the heat delivered equals the demand. After the run, HEM's delivered space heat is checked to equal its demand to within 1%.
 - **The schedule:** SAP's heating periods. Weekdays 07:00–09:00 and 16:00–23:00 (SAP 10.2 Table 9), weekends 07:00–23:00 (SAP's unimodal day, Table N7 note b). Heating is off outside the periods, with no setback and no early start, on both sides.
   - In HEM: a `SetpointTimeControl` with `weekday` and `weekend` blocks, null outside the periods, and a one-hour step (`thermostatSchedule` in `hemInput.ts`).
@@ -83,7 +83,7 @@ HEM was rebuilt at the pinned commit and run on the committed input files with t
    target/release/hem path/to/main.input.json -e path/to/london_tmy.epw --heat-balance
    ```
 4. Read "Space heat demand" (kWh/m²) in the `__core__results_summary.csv` output, and multiply by 90 m². Record it in `HEM_RESULTS` in `comparison.ts`, then run `npm run benchmark:tables` and update the benchmark README.
-   For the scheduled runs, record the figures in the engine's HEM checks in `src/engine/simulate.test.ts` and in the table above. The hourly `__core__results.csv` gives the air temperature (`house: internal air temp`), the demand (`house: space heat demand`) and the heater's output (`main: energy output`).
+   For the scheduled runs, record HEM's figures in `SCHEDULED_HEM_RESULTS` in `comparison.ts`, the engine's pinned figures in the HEM checks in `src/engine/simulate.test.ts`, and both in the table above, then run `npm run report` and commit the report. The hourly `__core__results.csv` gives the air temperature (`house: internal air temp`), the demand (`house: space heat demand`) and the heater's output (`main: energy output`).
 
 ## Results (17 October 2026)
 

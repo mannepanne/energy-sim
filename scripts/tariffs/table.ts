@@ -9,7 +9,7 @@ import { simulate } from '../../src/engine/simulate.ts';
 import { agileTariff, CHEAP, cosyTariff, PEAK, type AgileRates, type ElectricityTariff, type TimeOfUseTariff } from '../../src/engine/tariffs.ts';
 import type { PreparedWeather } from '../../src/engine/weather.ts';
 import type { RegisterAccessor } from '../../src/register/access.ts';
-import { kgCo2e, kwh, pounds, share, wholeNumber } from '../report/format.ts';
+import { celsius, kgCo2e, kwh, pounds, share, wholeNumber } from '../report/format.ts';
 
 /** The table's method settings: the archetype table's sample count, enough for a first look before the report. */
 export const TARIFF_PLAN: SamplingPlan = { seed: 1, count: 200 };
@@ -131,8 +131,6 @@ function combinationLine(comparison: Comparison, combination: Combination): stri
   ].join(' | ');
 }
 
-const celsius = (value: number): string => `${value.toFixed(1)} °C`;
-
 function controlLine(effect: ControlEffect): string {
   const run = (label: string, values: ControlledRun): string =>
     [
@@ -150,7 +148,7 @@ function controlLine(effect: ControlEffect): string {
 /** The 10 combinations' line table from a comparison of all 10, with its lead-in sentence. */
 export function combinationsTable(comparison: Comparison, plan: SamplingPlan): string {
   return [
-    `The 1930s semi at its defaults, in London. Central, with the 10th to 90th percentile from ${wholeNumber(plan.count)} samples (seed ${plan.seed}). Gas is always on the price cap; the tariff is the electricity tariff. The difference is the gas boiler on the price cap minus the combination, so a positive difference is a saving. The heat pump follows the control rules on Cosy and Agile (REFERENCE/engine.md).`,
+    `The 1930s semi at its defaults, in London. Central, with the 10th to 90th percentile from ${wholeNumber(plan.count)} samples (seed ${plan.seed}). Gas is always on the price cap; the tariff is the electricity tariff. The difference is the gas boiler on the price cap minus the combination, so a positive difference is a saving. The heat pump follows the control rules on Cosy and Agile ([REFERENCE/engine.md](../REFERENCE/engine.md#tariffs-and-control)).`,
     '',
     '| Combination | Running cost a year | Difference | Carbon | Cheapest of all | Cheapest on its tariff |',
     '| --- | ---: | ---: | ---: | ---: | ---: |',

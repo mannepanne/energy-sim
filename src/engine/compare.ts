@@ -26,7 +26,7 @@ import {
 } from './combinations.ts';
 import { sampleOverrides, type SamplingPlan } from './sampling.ts';
 import { SETUP_KIT, SETUPS, setupOf } from './setups.ts';
-import type { AnnualResult } from './simulate.ts';
+import { referenceCopScale, runBasis, type AnnualResult } from './simulate.ts';
 import { checkAgileGiven, runCombinations } from './runCombinations.ts';
 import { TARIFFS, type AgileRates, type Tariff } from './tariffs.ts';
 import type { PreparedWeather } from './weather.ts';
@@ -162,6 +162,23 @@ export function runSamples(access: RegisterAccessor, weather: PreparedWeather, p
     }
   });
   return { plan, house, spfScenario, combinations, central, samples, centralEconomics: economicsOf(centralInputs), economics };
+}
+
+/**
+ * How many samples' k solve met the COP's physical ceiling in some hour, so k was solved iteratively to keep the year
+ * on the sampled SPF. It reads the same draws as `runSamples`, so the count describes that run's samples.
+ */
+export function copCeilingBoundCount(
+  access: RegisterAccessor,
+  weather: PreparedWeather,
+  plan: SamplingPlan,
+  options: Pick<RunOptions, 'house' | 'spfScenario'> = {},
+): number {
+  const { spfScenario = 'fieldTrial' } = options;
+  const house = options.house ?? defaultHouse(access, REFERENCE_ARCHETYPE);
+  return sampleOverrides(access, plan, house, spfScenario).filter(
+    (overrides) => referenceCopScale(runBasis(readInputs(access, { house, overrides, spfScenario }), weather)).ceilingBound,
+  ).length;
 }
 
 /**

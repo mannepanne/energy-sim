@@ -27,6 +27,9 @@ const pvcalcResponseSchema = z.object({
 
 const monthlySchema = z.array(z.number()).length(MONTHS);
 
+/** Where the PV check's snapshot is committed, relative to the repository root. */
+export const PVCALC_SNAPSHOT_PATH = 'data/snapshots/pvgis-pvcalc-london.json';
+
 export const pvcalcSnapshotSchema = z.strictObject({
   schema: z.literal('pvgis-pvcalc'),
   attribution: z.string().min(1),

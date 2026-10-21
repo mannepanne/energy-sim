@@ -3,7 +3,9 @@
 
 import { describe, expect, it } from 'vitest';
 import { band, byMetric, type Comparison } from '../../src/engine/compare.ts';
-import { metricTable, TIME_OF_USE_NOTE, valueRange } from './comparisons.ts';
+import { metricTable, tableNotes, valueRange } from './comparisons.ts';
+
+const notes = tableNotes(0);
 
 const inside = band([1, 2, 3, 4, 5], 3);
 const outside = band([1, 2, 3, 4, 5], 0);
@@ -23,15 +25,25 @@ const comparisonOf = (heatPumpCost: typeof inside, tariff: 'cap' | 'cosy'): Comp
 
 describe('metricTable', () => {
   it('says nothing about skew when every central value lies inside its band, and no pointer on the cap alone', () => {
-    const table = metricTable(comparisonOf(inside, 'cap'), 'costPounds', 'A year', String);
+    const table = metricTable(comparisonOf(inside, 'cap'), 'costPounds', 'A year', String, notes);
     expect(table).not.toContain('outside');
-    expect(table).not.toContain(TIME_OF_USE_NOTE);
+    expect(table).not.toContain(notes.timeOfUse);
+    expect(table.endsWith(notes.vat)).toBe(true);
   });
 
   it('names each combination whose central value lies outside its band, and points to the caveats for Cosy', () => {
-    const table = metricTable(comparisonOf(outside, 'cosy'), 'costPounds', 'A year', String);
+    const table = metricTable(comparisonOf(outside, 'cosy'), 'costPounds', 'A year', String, notes);
     expect(table).toContain('outside the 10th to 90th percentile for Heat pump, Cosy, because');
-    expect(table).toContain(TIME_OF_USE_NOTE);
+    expect(table.endsWith(notes.timeOfUse)).toBe(true);
+  });
+});
+
+describe('tableNotes', () => {
+  it('writes the VAT rate from the register row into both notes', () => {
+    const atFive = tableNotes(0.05);
+    expect(atFive.timeOfUse).toContain('5% VAT on electricity');
+    expect(atFive.vat).toContain('carries 5% VAT today');
+    expect(notes.vat).toContain('carries 0% VAT today');
   });
 });
 

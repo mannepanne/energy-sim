@@ -2,7 +2,7 @@
 // ABOUT: The engine's side of each is computed afresh; HEM's side is the recorded result of the committed input files
 
 import { readInputs } from '../../src/engine/inputs.ts';
-import { hemCheckEngine, SCHEDULED_CHECK_AIR_C, type HemCheckEngine, type HemPattern } from '../../src/engine/testing/hemCheck.ts';
+import { SCHEDULED_CHECK_AIR_C, type HemCheckEngine, type HemPattern } from '../../src/engine/testing/hemCheck.ts';
 import { prepareWeather, type Weather } from '../../src/engine/weather.ts';
 import type { RegisterAccessor } from '../../src/register/access.ts';
 import { HEM_RESULTS, SCHEDULED_HEM_RESULTS } from '../benchmark/comparison.ts';
@@ -21,18 +21,24 @@ const SCHEDULED_ROWS: readonly { run: keyof typeof SCHEDULED_HEM_RESULTS; patter
 ];
 
 /** The engine's gap from HEM on each scheduled run, and the bias between the gas and heat pump schedules. */
-export function scheduledGaps(check: HemCheckEngine): { run: keyof typeof SCHEDULED_HEM_RESULTS; engineKwh: number; gap: number }[] {
+export interface ScheduledGap {
+  run: keyof typeof SCHEDULED_HEM_RESULTS;
+  engineKwh: number;
+  /** Engine ÷ HEM − 1. */
+  gap: number;
+}
+
+export function scheduledGaps(check: HemCheckEngine): ScheduledGap[] {
   return SCHEDULED_ROWS.map(({ run, pattern }) => {
     const engineKwh = check.scheduledKwh(pattern);
     return { run, engineKwh, gap: gapFromReference(engineKwh, SCHEDULED_HEM_RESULTS[run].spaceHeatKwh) };
   });
 }
 
-export function hemSection(weather: Weather): string {
-  const check = hemCheckEngine(weather);
+/** The HEM check section, from the engine's scheduled gaps and its continuous run with no mass. */
+export function hemSection(gaps: readonly ScheduledGap[], continuousKwh: number): string {
   const continuousHem = HEM_RESULTS['thermostat-17']!;
-  const continuousGap = gapFromReference(check.continuousKwh, continuousHem.spaceHeatKwh);
-  const gaps = scheduledGaps(check);
+  const continuousGap = gapFromReference(continuousKwh, continuousHem.spaceHeatKwh);
   const gapOf = (run: keyof typeof SCHEDULED_HEM_RESULTS): number => gaps.find((entry) => entry.run === run)!.gap;
   const bias = gapOf('schedule-unimodal') - gapOf('schedule-sap');
   return [
@@ -42,7 +48,7 @@ export function hemSection(weather: Weather): string {
     '',
     '| Check | HEM | HEM air temperature when heating | Engine | Engine ÷ HEM − 1 |',
     '| --- | ---: | ---: | ---: | ---: |',
-    `| Heated in every hour, no thermal mass (phase 1, about 17.8 °C air) | ${kwh(continuousHem.spaceHeatKwh)} | ${celsius(continuousHem.meanAirTemperatureWhenHeatingC)} | ${kwh(check.continuousKwh)} | ${signedPercent(continuousGap, 1)} |`,
+    `| Heated in every hour, no thermal mass (phase 1, about 17.8 °C air) | ${kwh(continuousHem.spaceHeatKwh)} | ${celsius(continuousHem.meanAirTemperatureWhenHeatingC)} | ${kwh(continuousKwh)} | ${signedPercent(continuousGap, 1)} |`,
     ...SCHEDULED_ROWS.map(({ run, what }) => {
       const hem = SCHEDULED_HEM_RESULTS[run];
       const entry = gaps.find((candidate) => candidate.run === run)!;

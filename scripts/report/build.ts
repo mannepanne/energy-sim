@@ -1,7 +1,7 @@
 // ABOUT: Builds the phase 2 report (reports/phase-2-v1-model.md) from the register and the PVGIS, Octopus and PVcalc snapshots
 // ABOUT: Pure and clock-free: the same inputs always give byte-identical Markdown
 
-import { centralRunningCosts, compare, runSamples, type Comparison, type SampleRun } from '../../src/engine/compare.ts';
+import { centralRunningCosts, compare, copCeilingBoundCount, runSamples, type Comparison, type SampleRun } from '../../src/engine/compare.ts';
 import { PENCE_PER_POUND } from '../../src/engine/constants.ts';
 import { heatLoss } from '../../src/engine/geometry.ts';
 import {
@@ -30,7 +30,8 @@ import { ARCHETYPE_NAMES, ARCHETYPE_PLAN, archetypeRows, archetypeTable } from '
 import { NEED_GAS_TARGET_KWH } from '../calibration/setpoint.ts';
 import type { PvcalcSnapshot } from '../pvgis/pvcalc.ts';
 import { agileLimitations, COMBINATION_NAMES, combinationsTable, controlTable, TIME_OF_USE_ASSUMPTIONS } from '../tariffs/table.ts';
-import { hemSection, pvSection } from './checks.ts';
+import { hemCheckEngine } from '../../src/engine/testing/hemCheck.ts';
+import { hemSection, pvSection, scheduledGaps, type ScheduledGap } from './checks.ts';
 import {
   differenceTable,
   energyTable,
@@ -40,9 +41,11 @@ import {
   scheduleTable,
   sensitivityTable,
   solarPaybackTable,
-  TIME_OF_USE_NOTE,
+  tableNotes,
+  type TableNotes,
 } from './comparisons.ts';
 import { exactNumber, kgCo2e, paybackYears, pence, plainValue, pounds, range, share, wholeNumber } from './format.ts';
+import { wholeYears } from '../../src/engine/payback.ts';
 
 /**
  * The method settings for the committed report. They are not house parameters, so they live here rather than in
@@ -81,13 +84,43 @@ export function pricePeriod(access: RegisterAccessor): string {
   return access.fixed('prices.electricityUnitRate').label.split(', ').at(-1)!;
 }
 
+/** What several sections share: the table notes, and the HEM gaps the bias and the limitations quote. */
+interface ReportContext {
+  notes: TableNotes;
+  /** The engine's gap from HEM on SAP's periods, the heat pump's day and every hour, as fractions. */
+  hemGaps: Record<ScheduledGap['run'], number>;
+  /** The heat pump's day's gap minus SAP's periods', in percentage points, as written: "6.7 points". */
+  biasPoints: string;
+  grantPounds: number;
+}
+
+/** A percentage of a fraction without its sign, to one decimal: "4.3%". */
+const unsignedPercent = (fraction: number): string => `${Math.abs(fraction * 100).toFixed(1)}%`;
+
 /** The month and year of a UTC instant, such as "October 2025". */
 const monthYear = (instant: string): string => new Date(instant).toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' });
 
-const ISSUE_15_BIAS =
-  '**The heat pump figures carry a stated bias in the heat pump’s favour.** The heat pump heats from 7 am to 11 pm every day and the boiler in SAP’s two periods on weekdays. On those two schedules the engine understates the heat pump’s space heat against the boiler’s by about 6.7 points, against the government’s Home Energy Model, so the heat pump’s running costs may be a little low and its savings a little high ([issue 15](https://github.com/mannepanne/energy-sim/issues/15); see the [schedules ADR](../REFERENCE/decisions/2026-10-20-heating-schedules-one-thermal-mass-node.md)). The sensitivity section shows the heat pump on the gas schedule instead.';
+const issue15Bias = ({ biasPoints }: ReportContext): string =>
+  `**The heat pump figures carry a stated bias in the heat pump’s favour.** The heat pump heats from 7 am to 11 pm every day and the boiler in SAP’s two periods on weekdays. On those two schedules the engine understates the heat pump’s space heat against the boiler’s by about ${biasPoints}, against the government’s Home Energy Model, so the heat pump’s running costs may be a little low and its savings a little high ([issue 15](https://github.com/mannepanne/energy-sim/issues/15); see the [schedules ADR](../REFERENCE/decisions/2026-10-20-heating-schedules-one-thermal-mass-node.md)). The sensitivity section shows the heat pump on the gas schedule instead.`;
 
-function atAGlance(comparison: Comparison, count: number): string {
+/**
+ * When the heat pump's central payback on the cap falls in the year the reference's boiler is replaced, a sentence
+ * saying so: the replacement it avoids, not its yearly saving, recovers most of its extra cost. Otherwise nothing.
+ */
+export function paybackDriver(comparison: Comparison, run: SampleRun): string | undefined {
+  const central = forCombination(comparison.payback, 'heatPump/cap').central;
+  const boilerYears = wholeYears(run.centralEconomics.capital.boilerLifetimeYears);
+  if (central !== boilerYears) return undefined;
+  const bands = (combination: Combination) => forCombination(comparison.bands, combination);
+  const extra = bands('heatPump/cap').upfrontPounds.central - bands(REFERENCE_COMBINATION).upfrontPounds.central;
+  const saving = forCombination(comparison.differences, 'heatPump/cap').costPounds.central;
+  return `On the price cap the heat pump saves only about ${pounds(saving)} a year against ${pounds(extra)} of extra upfront cost, so its central payback falls in year ${central}, when the like-for-like boiler would itself need replacing (its lifetime is ${boilerYears} years). That avoided replacement, not the bill savings, recovers most of the extra cost.`;
+}
+
+const pointsOf = (margin: number): string => `±${margin} percentage point${margin === 1 ? '' : 's'}`;
+
+function atAGlance(comparison: Comparison, run: SampleRun, context: ReportContext): string {
+  const { count } = run.plan;
   const reference = forCombination(comparison.bands, REFERENCE_COMBINATION);
   const heatPump = forCombination(comparison.bands, 'heatPump/cap');
   const cheapest = COMBINATIONS.reduce((best, combination) =>
@@ -95,13 +128,18 @@ function atAGlance(comparison: Comparison, count: number): string {
   );
   const cheapestShare = forCombination(comparison.shareCheapest, cheapest);
   const heatPumpPayback = forCombination(comparison.payback, 'heatPump/cap');
+  const capShares = comparison.shareCheapestByTariff.cap!;
+  const cheapestOnCap = COMBINATIONS.filter((combination) => capShares[combination] !== undefined).reduce((best, combination) =>
+    forCombination(capShares, combination) > forCombination(capShares, best) ? combination : best,
+  );
+  const driver = paybackDriver(comparison, run);
   return [
     '## At a glance',
     '',
     `- **Replacing the gas boiler like for like** (the reference) costs ${pounds(reference.upfrontPounds.central)} and ${pounds(reference.costPounds.central)} a year to run, central (${range(pounds(reference.costPounds.p10), pounds(reference.costPounds.p90))}).`,
-    `- **A heat pump on the price cap** costs ${pounds(heatPump.upfrontPounds.central)} after the grant and ${pounds(heatPump.costPounds.central)} a year to run (${range(pounds(heatPump.costPounds.p10), pounds(heatPump.costPounds.p90))}), and emits ${kgCo2e(heatPump.carbonKg.central)} of CO₂e a year against ${kgCo2e(reference.carbonKg.central)}. It pays back within its lifetime in ${share(heatPumpPayback.sharePaysBack)} of samples (central: ${paybackYears(heatPumpPayback.central)}); in ${share(heatPumpPayback.shareDoesNotPayBack)} it doesn’t, and in ${share(heatPumpPayback.shareCheaperUpFrontCostsMoreToRun)} it is cheaper up front but costs more to run.`,
-    `- **The combination most often cheapest to run** is “${COMBINATION_NAMES[cheapest]}”, in ${share(cheapestShare)} of samples (with about ±${marginPoints(cheapestShare, count)} percentage points of sampling noise). ${TIME_OF_USE_NOTE}`,
-    `- ${ISSUE_15_BIAS}`,
+    `- **A heat pump on the price cap** costs ${pounds(heatPump.upfrontPounds.central)} after the grant and ${pounds(heatPump.costPounds.central)} a year to run (${range(pounds(heatPump.costPounds.p10), pounds(heatPump.costPounds.p90))}), and emits ${kgCo2e(heatPump.carbonKg.central)} of CO₂e a year against ${kgCo2e(reference.carbonKg.central)}. It pays back within its lifetime in ${share(heatPumpPayback.sharePaysBack)} of samples (central: ${paybackYears(heatPumpPayback.central)}); in ${share(heatPumpPayback.shareDoesNotPayBack)} it doesn’t, and in ${share(heatPumpPayback.shareCheaperUpFrontCostsMoreToRun)} it is cheaper up front but costs more to run.${driver === undefined ? '' : ` ${driver}`}`,
+    `- **The combination most often cheapest to run** is “${COMBINATION_NAMES[cheapest]}”, in ${share(cheapestShare)} of samples (with about ${pointsOf(marginPoints(cheapestShare, count))} of sampling noise). On the price cap alone it is “${COMBINATION_NAMES[cheapestOnCap]}”, in ${share(forCombination(capShares, cheapestOnCap))}. ${context.notes.timeOfUse}`,
+    `- ${issue15Bias(context)}`,
   ].join('\n');
 }
 
@@ -132,7 +170,9 @@ function houseSection(access: RegisterAccessor, inputs: EngineInputs): string {
   ].join('\n');
 }
 
-function resultsSection(comparison: Comparison): string {
+function resultsSection(comparison: Comparison, run: SampleRun, context: ReportContext): string {
+  const { notes } = context;
+  const driver = paybackDriver(comparison, run);
   return [
     '## Results for the 10 combinations',
     '',
@@ -140,33 +180,34 @@ function resultsSection(comparison: Comparison): string {
     '',
     '### Running cost',
     '',
-    metricTable(comparison, 'costPounds', 'A year', pounds),
+    metricTable(comparison, 'costPounds', 'A year', pounds, notes),
     '',
-    ISSUE_15_BIAS,
+    issue15Bias(context),
     '',
     '### Carbon',
     '',
-    metricTable(comparison, 'carbonKg', 'kgCO₂e a year', kgCo2e),
+    metricTable(comparison, 'carbonKg', 'kgCO₂e a year', kgCo2e, notes),
     '',
     'Carbon counts imported electricity and gas only: exported solar earns no credit.',
     '',
     '### Upfront cost after the grant',
     '',
-    metricTable(comparison, 'upfrontPounds', 'Upfront', pounds),
+    metricTable(comparison, 'upfrontPounds', 'Upfront', pounds, notes),
     '',
-    'The heat pump setups have the £7,500 Boiler Upgrade Scheme grant taken off. The tariff doesn’t change what the kit costs.',
+    `The heat pump setups have the ${pounds(context.grantPounds)} Boiler Upgrade Scheme grant taken off. The tariff doesn’t change what the kit costs.`,
     '',
     '### Payback against replacing the boiler',
     '',
-    paybackTable(comparison),
+    paybackTable(comparison, notes),
     '',
+    ...(driver === undefined ? [] : [`- **What drives the heat pump’s payback on the cap.** ${driver}`]),
     '- **The horizon** is the heat pump’s lifetime for a heat pump setup (any PV value left at the end is ignored), PV’s lifetime for gas with solar, and the boiler’s for the gas boiler on Agile. The reference’s boiler is replaced whenever its lifetime ends inside the horizon, and that cost counts against the reference.',
     '- **“At once”** means the combination costs no more up front and never costs more to run. **“Cheaper up front, costs more to run”** samples have no payback year and are left out of the percentiles, which rank “doesn’t pay back” after every year and show it as “beyond lifetime”. The three shares sum to 100%.',
     '- Payback is undiscounted, at today’s rates in year 1 with each fuel’s real price change after that.',
     '',
     '### Energy, central',
     '',
-    energyTable(comparison),
+    energyTable(comparison, notes),
   ].join('\n');
 }
 
@@ -174,7 +215,7 @@ function timeOfUseSection(inputs: EngineInputs, weather: PreparedWeather, agile:
   return [
     '## Time-of-use caveats',
     '',
-    'These apply to every Cosy and Agile result in this report.',
+    'These apply to every Cosy and Agile result in this report. The VAT caveat applies to the price cap too, so every table on the cap points here for it.',
     '',
     ...TIME_OF_USE_ASSUMPTIONS,
     ...agileLimitations(agile.window),
@@ -185,7 +226,7 @@ function timeOfUseSection(inputs: EngineInputs, weather: PreparedWeather, agile:
   ].join('\n');
 }
 
-function comparisonsSection(comparison: Comparison, plan: SamplingPlan): string {
+function comparisonsSection(comparison: Comparison, plan: SamplingPlan, { notes }: ReportContext): string {
   const { count } = plan;
   return [
     '## Comparisons',
@@ -194,23 +235,24 @@ function comparisonsSection(comparison: Comparison, plan: SamplingPlan): string 
     '',
     'Every combination runs on the same samples, so each sample compares the same house and household with different kit and tariffs. The difference is the reference (the gas boiler on the price cap) minus the combination: positive means it costs less to run, or emits less.',
     '',
-    differenceTable(comparison, { cost: pounds, carbon: kgCo2e }),
+    differenceTable(comparison, { cost: pounds, carbon: kgCo2e }, notes),
     '',
     '### Which is cheapest to run',
     '',
     combinationsTable(comparison, plan),
     '',
-    `“Cheapest of all” ranks all 10; “cheapest on its tariff” ranks those on the same electricity tariff (2 on Cosy, 4 on the cap and on Agile), so those shares don’t compare between tariffs. An exact tie counts as a share. With ${wholeNumber(count)} samples a share carries up to about ±${marginPoints(0.5, count)} points of sampling noise. ${TIME_OF_USE_NOTE}`,
+    `“Cheapest of all” ranks all 10; “cheapest on its tariff” ranks those on the same electricity tariff (2 on Cosy, 4 on the cap and on Agile), so those shares don’t compare between tariffs. An exact tie counts as a share. With ${wholeNumber(count)} samples a share carries up to about ${pointsOf(marginPoints(0.5, count))} of sampling noise. ${notes.timeOfUse}`,
     '',
     '### Solar’s own payback',
     '',
     'Solar against the same heating and tariff without it, over PV’s lifetime, so solar can’t hide a heat pump that doesn’t pay back.',
     '',
-    solarPaybackTable(comparison),
+    solarPaybackTable(comparison, notes),
   ].join('\n');
 }
 
-function sensitivitySection(access: RegisterAccessor, inputs: EngineInputs, weather: PreparedWeather, agile: AgileRates, run: SampleRun): string {
+function sensitivitySection(access: RegisterAccessor, inputs: EngineInputs, weather: PreparedWeather, agile: AgileRates, run: SampleRun, context: ReportContext): string {
+  const { notes } = context;
   const tables = sensitivity(access, weather, SENSITIVITY_PAIRS, { agile });
   const gasPence = inputs.gasUnitRatePence / inputs.boilerSeasonalEfficiency;
   const heatPumpPence = inputs.electricityUnitRatePence / inputs.heatPumpSpf;
@@ -227,22 +269,22 @@ function sensitivitySection(access: RegisterAccessor, inputs: EngineInputs, weat
     '',
     `On the price cap, a kWh of heat costs almost the same from either system at the central values: ${pence(gasPence)} from the boiler (${pence(inputs.gasUnitRatePence)} ÷ ${inputs.boilerSeasonalEfficiency}) and ${pence(heatPumpPence)} from the heat pump (${pence(inputs.electricityUnitRatePence)} ÷ ${inputs.heatPumpSpf}). So rows that change how much heat the house needs move both running costs but barely the difference, which turns on the SPF, the boiler efficiency and the gas standing charge the heat pump house doesn’t pay. The boiler’s pump and fan electricity (${wholeNumber(inputs.boilerAuxiliaryElectricityKwhPerYear)} kWh a year) adds about ${pounds(auxiliaryPounds)} to the gas setups’ bills.`,
     '',
-    ...tables.flatMap((table) => [`#### ${COMBINATION_NAMES[table.pair.option]} against ${COMBINATION_NAMES[table.pair.against].toLowerCase()}`, '', sensitivityTable(table), '']),
+    ...tables.flatMap((table) => [`#### ${COMBINATION_NAMES[table.pair.option]} against ${COMBINATION_NAMES[table.pair.against].toLowerCase()}`, '', sensitivityTable(table, notes), '']),
     '### The heat pump on the gas schedule',
     '',
-    'The heat pump schedule row is a profile, so the tables above can’t move it. Here each heat pump combination runs on the gas boiler’s schedule (SAP’s periods) instead of its own 7 am to 11 pm day, central, with everything else unchanged. The heat pump has its own day because, on the gas schedule, its capped output leaves the house colder on cold days than the field trial homes are. The difference between the two columns is the size of the schedule choice; the 6.7-point bias above is how far the engine’s one thermal-mass node shifts it.',
+    `The heat pump schedule row is a profile, so the tables above can’t move it. Here each heat pump combination runs on the gas boiler’s schedule (SAP’s periods) instead of its own 7 am to 11 pm day, central, with everything else unchanged. The heat pump has its own day because, on the gas schedule, its capped output leaves the house colder on cold days than the field trial homes are. The difference between the two columns is the size of the schedule choice; the bias above (about ${context.biasPoints}) is how far the engine’s one thermal-mass node shifts it.`,
     '',
-    scheduleTable(own, onGasSchedule, REFERENCE_COMBINATION),
+    scheduleTable(own, onGasSchedule, REFERENCE_COMBINATION, notes),
     '',
     '### Payback, one row at a time',
     '',
-    'Capital costs, lifetimes and the real price changes never change a year’s running cost, so the tables above leave them out. Here each is moved alone to its low and its high, with every other row at its default, and the central payback year shown at both ends. Moving one price change alone ignores its correlation with the other. Lifetimes also move the horizon and the replacements inside it. The rows are ranked by how far they move the heat pump’s payback on the price cap, counting “beyond lifetime” as the lifetime and “cheaper up front, costs more to run” as no years.',
+    'Capital costs, lifetimes and the real price changes never change a year’s running cost, so the tables above leave them out. Here each is moved alone to its low and its high, with every other row at its default, and the central payback year shown at both ends. Moving one price change alone ignores its correlation with the other. Lifetimes also move the horizon and the replacements inside it. The rows are ranked by how far they move the first column, the heat pump’s payback on the price cap, counting “beyond lifetime” as the lifetime and “cheaper up front, costs more to run” as no years.',
     '',
-    paybackSensitivityTable(paybackSensitivity(access, centralRunningCosts(run))),
+    paybackSensitivityTable(paybackSensitivity(access, centralRunningCosts(run)), notes),
   ].join('\n');
 }
 
-function wellInstalledSection(access: RegisterAccessor, weather: PreparedWeather, agile: AgileRates, plan: SamplingPlan, fieldTrial: Comparison): string {
+function wellInstalledSection(access: RegisterAccessor, weather: PreparedWeather, agile: AgileRates, plan: SamplingPlan, fieldTrial: Comparison, { notes }: ReportContext): string {
   const comparison = compare(runSamples(access, weather, plan, { combinations: COMBINATIONS, agile, spfScenario: 'wellInstalled' }));
   const spf = (scenario: 'fieldTrial' | 'wellInstalled'): string => plainValue(readInputs(access, { spfScenario: scenario }).heatPumpSpf);
   const lines = HEAT_PUMP_COMBINATIONS.map((combination) => {
@@ -266,25 +308,29 @@ function wellInstalledSection(access: RegisterAccessor, weather: PreparedWeather
     '| --- | ---: | ---: | ---: | ---: | ---: |',
     ...lines.map((line) => `| ${line} |`),
     '',
-    TIME_OF_USE_NOTE,
+    notes.timeOfUse,
   ].join('\n');
 }
 
-function archetypeSection(access: RegisterAccessor, weather: PreparedWeather, plan: SamplingPlan): string {
+function archetypeSection(access: RegisterAccessor, weather: PreparedWeather, plan: SamplingPlan, { notes }: ReportContext): string {
   return [
     '## The archetype table',
     '',
     archetypeTable(archetypeRows(access, weather, plan), plan).trimEnd(),
     '',
-    'NEED reading T is the 2024 London median gas use for the archetype’s type, age band and bedrooms; reading S is the England and Wales per-m² median for its age band × its floor area. Both were fixed before any archetype ran. A flagged archetype stays in the table with a visible warning. The gaps are evidence on whether the calibrated setpoint absorbs fabric error ([issue 14](https://github.com/mannepanne/energy-sim/issues/14)).',
+    'NEED reading T is the 2024 London median gas use for the archetype’s type, age band and bedrooms; reading S is the England and Wales per-m² median for its age band × its floor area. Both were fixed before any archetype ran, with the flag rule ([scripts/archetypes/README.md](../scripts/archetypes/README.md)). A flagged archetype stays in the table with a visible warning. The gaps are evidence on whether the calibrated setpoint absorbs fabric error ([issue 14](https://github.com/mannepanne/energy-sim/issues/14)).',
+    '',
+    notes.vat,
   ].join('\n');
 }
 
-function checksSection(access: RegisterAccessor, weather: Weather, pvcalc: PvcalcSnapshot): string {
-  return ['## Checks against outside references', '', hemSection(weather), '', pvSection(access, weather, pvcalc)].join('\n');
+function checksSection(access: RegisterAccessor, weather: Weather, pvcalc: PvcalcSnapshot, gaps: readonly ScheduledGap[], continuousKwh: number): string {
+  return ['## Checks against outside references', '', hemSection(gaps, continuousKwh), '', pvSection(access, weather, pvcalc)].join('\n');
 }
 
-function methodSection(access: RegisterAccessor, run: SampleRun): string {
+function methodSection(access: RegisterAccessor, weather: PreparedWeather, run: SampleRun): string {
+  const ceiling = (spfScenario: 'fieldTrial' | 'wellInstalled'): number => copCeilingBoundCount(access, weather, run.plan, { house: run.house, spfScenario });
+  const copCeiling = readInputs(access, { house: run.house }).copCurve.copCeiling;
   const uncertain = uncertainDraws(access, run.house).map((draw) => draw.label);
   // Each correlation row's label names its pair, such as "Correlation of the gas and electricity real price changes".
   const correlations = access.correlations().map((row) => `${row.label.replace(/^Correlation of /, '')} (${plainValue(row.value)})`);
@@ -296,18 +342,19 @@ function methodSection(access: RegisterAccessor, run: SampleRun): string {
     '- **Central** is the run with every row at its default. **Median** and the **10th to 90th percentile** come from the samples (linear interpolation between ranked samples).',
     '- **Fabric quality** is one shared factor on every U-value and the air change rate.',
     `- **Correlated rows:** a Gaussian copula correlates, in normal-score space, ${correlations.join('; and ')}. The other rows are drawn independently of each other.`,
+    `- **The COP ceiling:** the heat pump’s scaled COP never exceeds ${plainValue(copCeiling)}. Where it would, k is solved again so the year still matches the sampled SPF. That happened in ${wholeNumber(ceiling('fieldTrial'))} of ${wholeNumber(run.plan.count)} samples in the field-trial scenario and ${wholeNumber(ceiling('wellInstalled'))} in the well-installed one.`,
     '- **Rounding:** costs to £10, energy to 100 kWh, carbon to 10 kg, shares to 5% and payback to whole years.',
   ].join('\n');
 }
 
-const CONVENTIONS = [
+const conventions = ({ grantPounds }: ReportContext): string => [
   '## Conventions',
   '',
   '- **Time base:** the engine steps through the PVGIS typical year in UTC hours. Schedules and tariff periods are in UK local time, converted with the UK clock-change rule applied to 2026. The typical year’s months come from different years, so its weekdays are taken from 2026: 1 January is a Thursday, and the clock changes fall on Sundays ([issue 25](https://github.com/mannepanne/energy-sim/issues/25)). Agile’s past rates are placed on the typical year by calendar date and time, with 29 February dropped.',
   '- **Carbon:** imported electricity at the annual average grid factor and gas at its combustion factor. Exported solar electricity earns no carbon credit ([issue 34](https://github.com/mannepanne/energy-sim/issues/34)).',
   '- **Payback is undiscounted,** in today’s money with a real price change for each fuel ([issue 37](https://github.com/mannepanne/energy-sim/issues/37)).',
   '- **The boiler needs replacing now.** Every setup is compared with replacing it like for like, so a heat pump only has to recover its extra cost over a new boiler. A home with years left in its boiler would see later payback ([issue 37](https://github.com/mannepanne/energy-sim/issues/37)).',
-  '- **The grant and MCS:** the £7,500 Boiler Upgrade Scheme grant applies to the heat pump’s first installation only, and the heat pump and PV are assumed MCS-certified, which the grant and export payments need. The PV inverter is not replaced within PV’s lifetime ([issue 39](https://github.com/mannepanne/energy-sim/issues/39)).',
+  `- **The grant and MCS:** the ${pounds(grantPounds)} Boiler Upgrade Scheme grant applies to the heat pump’s first installation only, and the heat pump and PV are assumed MCS-certified, which the grant and export payments need. The PV inverter is not replaced within PV’s lifetime ([issue 39](https://github.com/mannepanne/energy-sim/issues/39)).`,
 ].join('\n');
 
 /** The base electricity profile's source title, from its register row. */
@@ -343,11 +390,11 @@ function dataDatesSection({ register, pvgis, octopus, pvcalc }: ReportData): str
   ].join('\n');
 }
 
-const LIMITATIONS = [
+const limitations = ({ hemGaps, biasPoints }: ReportContext): string => [
   '## Limitations',
   '',
-  '- **One calibrated setpoint applies to every setup.** It comes from gas-heated homes. The heat pump’s longer day comes from SAP, not field data, and on the two schedules the engine understates the heat pump’s space heat by about 6.7 points against the boiler’s ([issue 15](https://github.com/mannepanne/energy-sim/issues/15)). The setpoint may also absorb errors in the default U-values ([issue 14](https://github.com/mannepanne/energy-sim/issues/14)).',
-  '- **One thermal-mass node** holds the air and the fabric at one temperature. Against HEM it is 4.3% high on SAP’s periods, 2.4% low on the heat pump’s day and 8.4% low when heated in every hour.',
+  `- **One calibrated setpoint applies to every setup.** It comes from gas-heated homes. The heat pump’s longer day comes from SAP, not field data, and on the two schedules the engine understates the heat pump’s space heat by about ${biasPoints} against the boiler’s ([issue 15](https://github.com/mannepanne/energy-sim/issues/15)). The setpoint may also absorb errors in the default U-values ([issue 14](https://github.com/mannepanne/energy-sim/issues/14)).`,
+  `- **One thermal-mass node** holds the air and the fabric at one temperature. Against HEM it is ${unsignedPercent(hemGaps['schedule-sap'])} ${hemGaps['schedule-sap'] >= 0 ? 'high' : 'low'} on SAP’s periods, ${unsignedPercent(hemGaps['schedule-unimodal'])} ${hemGaps['schedule-unimodal'] >= 0 ? 'high' : 'low'} on the heat pump’s day and ${unsignedPercent(hemGaps['continuous-sap-mass'])} ${hemGaps['continuous-sap-mass'] >= 0 ? 'high' : 'low'} when heated in every hour.`,
   '- **The heat pump’s hourly COP follows a curve scaled to the sampled SPF** on the price cap and the gas schedule; its own schedule and control then change its efficiency through the curve. Its output cap is a simple limit, not a sizing method, and it has no backup heater. Its standby is a share of its electricity, so small houses get less of it.',
   '- **Time-of-use results assume a smart controller** and value none of the extra warmth control buys; Agile is one past year on typical weather (see the time-of-use caveats).',
   '- **One typical weather year and one location** ([issue 16](https://github.com/mannepanne/energy-sim/issues/16)), and an **annual average grid carbon factor** ([issue 17](https://github.com/mannepanne/energy-sim/issues/17)).',
@@ -367,6 +414,16 @@ export function buildReport(data: ReportData, plans: ReportPlans = REPORT_PLANS)
   const agile = agileFromSnapshot(data.octopus);
   const run = runSamples(access, weather, plans.main, { combinations: COMBINATIONS, agile });
   const comparison = compare(run);
+  const hem = hemCheckEngine(rawWeather);
+  const gaps = scheduledGaps(hem);
+  const gapOf = (name: ScheduledGap['run']): number => gaps.find((entry) => entry.run === name)!.gap;
+  const hemGaps = { 'schedule-sap': gapOf('schedule-sap'), 'schedule-unimodal': gapOf('schedule-unimodal'), 'continuous-sap-mass': gapOf('continuous-sap-mass') };
+  const context: ReportContext = {
+    notes: tableNotes(inputs.electricityVatRate),
+    hemGaps,
+    biasPoints: `${Math.abs((hemGaps['schedule-unimodal'] - hemGaps['schedule-sap']) * 100).toFixed(1)} points`,
+    grantPounds: inputs.capital.grantPounds,
+  };
   const sections = [
     [
       '# Phase 2 report: the v1 model',
@@ -375,19 +432,19 @@ export function buildReport(data: ReportData, plans: ReportPlans = REPORT_PLANS)
       '',
       'This report compares replacing a gas boiler with a new one, or with an air source heat pump, each with or without roof solar, on the price cap and on two Octopus time-of-use tariffs, for a 1930s semi in London, with honest ranges. It then runs the gas boiler and the heat pump on all ten house types. The numbers are estimates for a typical house of each kind, not advice for any particular home, and not financial advice.',
     ].join('\n'),
-    atAGlance(comparison, plans.main.count),
+    atAGlance(comparison, run, context),
     houseSection(access, inputs),
-    resultsSection(comparison),
+    resultsSection(comparison, run, context),
     timeOfUseSection(inputs, weather, agile),
-    comparisonsSection(comparison, plans.main),
-    sensitivitySection(access, inputs, weather, agile, run),
-    wellInstalledSection(access, weather, agile, plans.main, comparison),
-    archetypeSection(access, weather, plans.archetypes),
-    checksSection(access, rawWeather, data.pvcalc),
-    methodSection(access, run),
-    CONVENTIONS,
+    comparisonsSection(comparison, plans.main, context),
+    sensitivitySection(access, inputs, weather, agile, run, context),
+    wellInstalledSection(access, weather, agile, plans.main, comparison, context),
+    archetypeSection(access, weather, plans.archetypes, context),
+    checksSection(access, rawWeather, data.pvcalc, gaps, hem.continuousKwh),
+    methodSection(access, weather, run),
+    conventions(context),
     dataDatesSection(data),
-    LIMITATIONS,
+    limitations(context),
   ];
   return `${sections.join('\n\n')}\n`;
 }
