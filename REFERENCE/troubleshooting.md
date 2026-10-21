@@ -66,7 +66,7 @@ Add an entry here when a problem takes more than a few minutes to work out.
 
 **"The … schedule must be 168 values, each 0 (off) or 1 (heating)".** A heating schedule row (`heating.scheduleGas` or `heating.scheduleHeatPump`) has the wrong length or a value other than 0 or 1. Each value is one local hour of the week, Monday 00:00 first.
 
-**"The register and the Octopus snapshot" tests fail** (`src/engine/tariffs.test.ts`). The snapshot was refreshed but the register still holds the old Cosy rates, a standing charge or the export range, or the other way round. Copy the snapshot's values into `tariffs.cosyUnitRate`, `tariffs.cosyStandingCharge`, `tariffs.agileStandingCharge` and `prices.exportRate` (mode: Outgoing Octopus's rate; low: the fixed export rate; high: Outgoing Octopus's previous rate), update their `lastChecked`, and regenerate the report.
+**"The register and the Octopus snapshot" tests fail** (`src/engine/tariffs.test.ts`). The snapshot was refreshed but the register still holds the old Cosy rates, a standing charge or the export range, or the other way round. Copy the snapshot's values into `tariffs.cosyUnitRate`, `tariffs.cosyStandingCharge`, `tariffs.agileStandingCharge` and the mode of `prices.exportRate` (Outgoing Octopus's rate), update their `lastChecked`, and regenerate the report. The export row's low and high (4.1p and 15p) are Magnus's range: if the snapshot shows the fixed export tariff or Outgoing Octopus's range has moved, ask him before changing them.
 
 **"Combination … is not in this run" or "… cannot be on the cosy tariff".** A caller asked for a combination the run left out, or for a gas setup on Cosy, which only heat pump homes can have. The 10 combinations are in `COMBINATIONS` (`src/engine/combinations.ts`).
 
@@ -106,7 +106,7 @@ Add an entry here when a problem takes more than a few minutes to work out.
 - *The heat pump cost* (`costs.heatPumpInstalled`, quarterly): download the latest Boiler Upgrade Scheme statistics from GOV.UK (ask first), read table Q1.1A's latest quarter for air-to-water heat pumps, and update the median and the rationale's quartiles. Keep the file in `REFERENCE/data-downloads/`.
 - *PV per kWp* (yearly): DESNZ publishes solar PV cost data each financial year. Read the summary table's 0–4 kW median, then scale it by the domestic 0–4 kW mean ÷ the all-installs 0–4 kW mean (domestic costs table and summary table). The median includes cheaper non-domestic installs, so entering it unscaled flatters solar. Record both figures and the ratio in the rationale.
 - *The grant* (monthly): check GOV.UK's "Apply for the Boiler Upgrade Scheme" pages for the amount and the conditions, and update the row's rationale and `lastChecked`.
-- *The export rate* (quarterly): refresh the Octopus snapshot (below). The mode is Outgoing Octopus's rate, the low end the fixed Smart Export Guarantee tariff's and the high end Outgoing Octopus's previous rate.
+- *The export rate* (quarterly): refresh the Octopus snapshot (below) and copy Outgoing Octopus's rate into the mode. The low and high (4.1p and 15p) are Magnus's range; change them only with him.
 
 Each change moves payback, and the price rows also move running cost, so regenerate the report.
 

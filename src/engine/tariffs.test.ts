@@ -152,13 +152,10 @@ describe('the register and the Octopus snapshot', () => {
     expect(access.fixed('tariffs.agileStandingCharge').value).toBe(snapshot.agile.standingChargeIncVatPencePerDay);
   });
 
-  it('spans the export row from the fixed export tariff to Outgoing Octopus’s previous rate, with today’s as the mode', () => {
+  it('takes the export row’s mode from Outgoing Octopus’s rate in the snapshot; its low and high stay Magnus’s 4.1p and 15p', () => {
     const exportRate = access.uncertain('prices.exportRate');
-    expect([exportRate.low, exportRate.default, exportRate.high]).toEqual([
-      snapshot.export.fixedSeg.ratePence,
-      snapshot.export.outgoing.ratePence,
-      snapshot.export.outgoing.previousRatePence,
-    ]);
+    expect(exportRate.default).toBe(snapshot.export.outgoing.ratePence);
+    expect([exportRate.low, exportRate.high]).toEqual([4.1, 15]);
   });
 
   it('carries no VAT on today’s Cosy rates, matching the VAT row', () => {

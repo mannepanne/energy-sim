@@ -152,7 +152,7 @@ function sensitivitySection(access: RegisterAccessor, rows: readonly Sensitivity
   return [
     '## Sensitivity',
     '',
-    'Each uncertain row is run at its low and then its high value, with every other row at its default. The rows are ranked by how much they move the cost difference. Only rows that either setup’s running cost reads are listed, so the roof solar rows, installed costs, lifetimes and price changes are left out.',
+    'Each uncertain row is run at its low and then its high value, with every other row at its default. The rows are ranked by how much they move the cost difference. Only rows that either setup’s running cost reads are listed, so the roof solar rows, installed costs, lifetimes and price changes are left out, and so is the control boost, which changes nothing on the price cap.',
     '',
     `At the central values, a kWh of heat costs almost the same from either system: ${pence(gasPence)} from the boiler (${pence(inputs.gasUnitRatePence)} ÷ ${inputs.boilerSeasonalEfficiency}) and ${pence(heatPumpPence)} from the heat pump (${pence(inputs.electricityUnitRatePence)} ÷ ${inputs.heatPumpSpf}). So rows that change how much heat the house needs, such as fabric quality or the temperature, move both running costs by hundreds of pounds but barely move the difference. The difference turns on the SPF and the boiler efficiency, and on the gas standing charge the heat pump house does not pay. The boiler’s pump and fan electricity (${wholeNumber(inputs.boilerAuxiliaryElectricityKwhPerYear)} kWh a year) adds £${wholeNumber(Math.round(auxiliaryPounds))} to the gas setup’s bill, so it is part of the difference too. Base electricity use moves both setups equally.`,
     '',
