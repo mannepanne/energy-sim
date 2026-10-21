@@ -90,7 +90,7 @@ Each test should:
 **Coverage:** Vitest with v8 coverage provider
 
 ### Setup
-Vitest and its coverage provider are already dev dependencies; `npm ci` installs them. Configuration is in `vitest.config.ts`: which test files run, what coverage includes and excludes, and the thresholds.
+Vitest and its coverage provider are already dev dependencies; `npm ci` installs them. Configuration is in `vitest.config.ts`: which test files run, what coverage includes and excludes, the thresholds, and a 30-second per-test timeout for slow CI runners (see [troubleshooting.md](./troubleshooting.md#the-report-and-ci)).
 
 ---
 
