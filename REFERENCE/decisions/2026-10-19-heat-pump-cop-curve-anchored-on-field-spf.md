@@ -87,6 +87,7 @@ No curve row was changed after either check.
 
 **Prevents or complicates:**
 - Every caller that runs the heat pump under control must pass the reference run's k. A controlled run without it would silently re-solve k on itself. The tariffs PR adds a test that pins this.
+  - *Note, 21 October 2026:* since the tariffs PR, `simulate` solves k on the reference run itself (price cap, no control, the gas schedule) and reuses it on every tariff, so callers no longer need to pass it. `simulate.test.ts` checks that Cosy and Agile, with control, keep the reference run's k. See the [tariff control ADR](./2026-10-21-rule-based-tariff-control.md).
 - Changing a curve row moves when electricity is used, so time-of-use results shift, even though price cap results do not.
 
 ## References

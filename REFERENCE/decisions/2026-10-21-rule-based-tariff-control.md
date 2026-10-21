@@ -1,7 +1,7 @@
 # ADR: Rule-based tariff control for the heat pump
 
 **Date:** 2026-10-21
-**Status:** Proposed (awaiting Magnus's confirmation)
+**Status:** Accepted (confirmed by Magnus on 21 October 2026)
 **Supersedes:** N/A. It builds on the [schedules ADR](./2026-10-20-heating-schedules-one-thermal-mass-node.md), the [COP curve ADR](./2026-10-19-heat-pump-cop-curve-anchored-on-field-spf.md) and the [time-base ADR](./2026-10-18-time-base-utc-engine-local-schedules.md).
 
 ---
@@ -37,7 +37,9 @@ On a time-of-use tariff, the heat pump follows a few fixed, published rules. The
 - that control knows each day's prices in advance (realistic for a smart controller, since Octopus publishes them the day before, but it favours the heat pump over a household that doesn't respond);
 - that weekdays don't match between the past year and the reference year.
 
-**Agile's VAT, for Magnus to confirm:** the past 12 months carried 5% VAT on electricity, but there is no VAT on electricity from 1 October 2026 to 31 March 2027, and the price cap and Cosy rows carry none. The engine uses Agile's rates before VAT with today's VAT applied (`prices.electricityVatRate`, 0), so every tariff is on the same footing. Using the past year's inc-VAT rates instead would make Agile about 5% dearer than the cap for a reason that no longer applies. The snapshot keeps both, so either is a one-line change.
+**VAT** (Magnus, 21 October 2026): every electricity price row (the cap, Cosy's rates and both standing charges) is stored before VAT, and one row, `prices.electricityVatRate`, applies today's VAT to all of them and to Agile's past rates. It is 0 from 1 October 2026 to 31 March 2027. The past 12 months carried 5% VAT, so using their inc-VAT rates would have made Agile about 5% dearer than the cap for a reason that no longer applies. Every year of payback assumes 0%, while gas carries 5%, a small tilt towards the heat pump that the results state.
+
+**What every Cosy and Agile result states** (Magnus, 21 October 2026): beside Agile's limitations, that it assumes a smart controller, that the house is warmer under control and that comfort isn't valued (the tariff table shows mean indoor temperatures), that carbon uses the annual grid factor, and the VAT assumption.
 
 ## Context
 
@@ -83,7 +85,7 @@ For comparison, the gas boiler on the price cap costs £2,036 and emits 2,790 kg
 - **Rules are explainable.** Each one can be shown on the site in a sentence, and each result can be traced to it.
 - **Rules are fast.** One extra thermal pass per time-of-use tariff, shared by the solar and no-solar setups. One central run of all 10 combinations takes about 3 ms, and 500 samples of them about 1.2 seconds on Magnus's machine.
 - **Neutral by construction.** Control acts only on cheap and peak hours, so the price cap, where the phase 1 comparison sits, is unchanged. k stays anchored on the field SPF, so control can't make the heat pump's efficiency optimistic.
-- **The boost is in the sensitivity tables.** It is an uncertain row, listed only for the combinations whose cost it can move.
+- **The boost is in the sensitivity tables.** It is an uncertain row, listed only for the combinations whose cost it can move: the default pairs include the heat pump on Cosy and on Agile against the gas boiler on the cap.
 
 ## Trade-offs accepted
 
@@ -98,7 +100,8 @@ For comparison, the gas boiler on the price cap costs £2,036 and emits 2,790 kg
   - `src/engine/tariffs.ts` builds each tariff's hourly rates and bands;
   - `src/engine/control.ts` sets each hour's target temperature;
   - `src/engine/cylinder.ts` takes the bands;
-  - `src/engine/combinations.ts` names the 10 combinations and runs them, sharing heat sides.
+  - `src/engine/combinations.ts` names the 10 combinations, and `src/engine/runCombinations.ts` runs them, sharing heat sides;
+  - `readInputs` reads every electricity price with today's VAT, so overrides reach Cosy and Agile too.
 - **The comparison layer** compares combinations against the gas boiler on the price cap. It reports the share cheapest across all 10 and within each tariff.
 - **The register** gains the Cosy and Agile rows, the Octopus snapshot, the boost, the preheat lead time, the Agile quarter and today's VAT rate (see [register.md](../register.md)).
 - **The phase 2 report (PR 7)** must show Agile's limitations next to any Agile result. `scripts/tariffs/table.ts` exports the text.

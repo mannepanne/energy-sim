@@ -33,5 +33,7 @@ describe('loadOctopusSnapshot', () => {
     expect(() => loadOctopusSnapshot(broken)).toThrow(/field "region"/);
     expect(() => loadOctopusSnapshot(broken)).toThrow(/unexpected field\(s\) extra/);
     expect(() => loadOctopusSnapshot(null)).toThrow(/The Octopus snapshot is invalid/);
+    const wild = { ...parsed, agile: { ...parsed.agile, halfHourlyExcVatPence: Array.from({ length: HALF_HOURS_PER_TYPICAL_YEAR }, () => 9_999) } };
+    expect(() => loadOctopusSnapshot(wild)).toThrow(/field "agile.halfHourlyExcVatPence.0": must be from -100 to 500 p\/kWh/);
   });
 });

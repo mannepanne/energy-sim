@@ -10,10 +10,18 @@ export const HOURS_PER_DAY_PROFILE = 24;
 /** An instant as the API gives it, such as "2026-10-21T21:00:00Z". */
 const instantSchema = z.iso.datetime({ offset: true });
 
-const halfHourlyColumn = (name: string) =>
-  z.array(z.number()).length(HALF_HOURS_PER_TYPICAL_YEAR, { message: `column "${name}" must have exactly ${HALF_HOURS_PER_TYPICAL_YEAR} half-hours` });
+/**
+ * A broad bound on any unit rate, p/kWh, to catch a corrupted fetch. The snapshot's Agile rates run from about −11p to 87p,
+ * and negative prices are real, so the bound is wide.
+ */
+export const RATE_BOUNDS_PENCE = { low: -100, high: 500 } as const;
+const RATE_BOUNDS_MESSAGE = `must be from ${RATE_BOUNDS_PENCE.low} to ${RATE_BOUNDS_PENCE.high} p/kWh`;
+const rateSchema = z.number().min(RATE_BOUNDS_PENCE.low, { message: RATE_BOUNDS_MESSAGE }).max(RATE_BOUNDS_PENCE.high, { message: RATE_BOUNDS_MESSAGE });
 
-const dayProfile = z.array(z.number()).length(HOURS_PER_DAY_PROFILE);
+const halfHourlyColumn = (name: string) =>
+  z.array(rateSchema).length(HALF_HOURS_PER_TYPICAL_YEAR, { message: `column "${name}" must have exactly ${HALF_HOURS_PER_TYPICAL_YEAR} half-hours` });
+
+const dayProfile = z.array(rateSchema).length(HOURS_PER_DAY_PROFILE);
 
 const tariffIdentity = {
   productCode: z.string().min(1),

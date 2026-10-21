@@ -65,8 +65,17 @@ export const productPageSchema = z.object({
 export function agileImportProducts(page: unknown): string[] {
   return productPageSchema
     .parse(page)
-    .results.filter((product) => product.direction === 'IMPORT' && product.code.startsWith('AGILE-'))
+    .results.filter((product) => product.direction === 'IMPORT' && AGILE_PRODUCT_CODE.test(product.code))
     .map((product) => product.code);
+}
+
+/** An Agile product code as Octopus writes them, such as "AGILE-24-10-01". It goes into request paths, so nothing else is accepted. */
+const AGILE_PRODUCT_CODE = /^AGILE-\d{2}-\d{2}-\d{2}$/;
+
+/** Throws unless a `next` page link points to the API it came from, so paging never leaves Octopus's host. */
+export function checkNextPage(next: string): string {
+  if (new URL(next).origin !== new URL(API_ROOT).origin) throw new Error(`A next page link points away from ${API_ROOT}: ${next}`);
+  return next;
 }
 
 const MS_PER_HALF_HOUR = 1_800_000;

@@ -54,7 +54,7 @@ Add an entry here when a problem takes more than a few minutes to work out.
 - *The pinned gap (−2.55%) moved:* a change to the sun position, the transposition, the PV formulas or the weather moved the engine's yield. If the change is intended and the gap stays within 8%, re-pin it and update the table in [engine.md](./engine.md#checks-against-outside-references).
 - *Outside 8%:* stop and look for the cause before touching any row; the tolerance was fixed before the check ran.
 
-**"Setup "…" is not in this run" or "The reference setup "gas" is not in this run".** A caller asked `forSetup` or `compare` for a setup that `runSetups` was not given. Pass it in `setups`, or leave `setups` out to run all four.
+**"Setup "…" is not in this run" or "The reference combination "gas/cap" is not in this run".** A caller asked `forSetup`, `forCombination` or `compare` for something `runSamples` was not given. Pass it in `combinations`, or leave `combinations` out to run the four setups on the cap.
 
 **`setups.test.ts` fails on "… on gasSolar" (or another setup).** A row that `runningCostReads` says a setup does not read now moves that setup's running cost, so the sensitivity tables would drop a row that matters. Add the row to the right set in `src/engine/setups.ts` (heat pump, boiler, solar or capital), or remove it from the set it wrongly sits in.
 
@@ -70,7 +70,9 @@ Add an entry here when a problem takes more than a few minutes to work out.
 
 **"Combination … is not in this run" or "… cannot be on the cosy tariff".** A caller asked for a combination the run left out, or for a gas setup on Cosy, which only heat pump homes can have. The 10 combinations are in `COMBINATIONS` (`src/engine/combinations.ts`).
 
-**"The cosy tariff needs the time-of-use tariffs (readTimeOfUseTariffs)".** A run or sensitivity table includes a Cosy or Agile combination but was given no `timeOfUse`. Load the Octopus snapshot and pass `readTimeOfUseTariffs(access, snapshot)`.
+**"The agile tariff needs Agile's rates from the Octopus snapshot (agileFromSnapshot)".** A run or sensitivity table includes an Agile combination but was given no `agile`. Load the Octopus snapshot and pass `{ agile: agileFromSnapshot(snapshot) }`. Cosy needs nothing extra: its rows come through the inputs. The default sensitivity pairs include Agile.
+
+**"… must be from -100 to 500 p/kWh" in the Octopus snapshot.** A fetched rate is outside the broad bound on any unit rate (`RATE_BOUNDS_PENCE`), which catches a corrupted fetch. Check the rate in the API by hand; if it is real, widen the bound and say why.
 
 **Control looks as if it does nothing.** On the price cap that is right: it has no cheap or peak hours. On Cosy or Agile, check that the run passed `{ tariff }` and not `{ control: false }`, and that the gas setups are not the ones being looked at; they have no control.
 

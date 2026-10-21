@@ -352,7 +352,7 @@ C \frac{dT_{in}}{dt} = Q_{heat}(t) + G_{solar}(t) + G_{internal}(t) - H\,\big(T_
 That gives 10 combinations: 2 gas setups × 2 tariffs, plus 2 heat pump setups × 3 tariffs. Gas fuel is always on the price cap; a gas home's electricity may be on the cap or Agile.
 
 **Price rows for each tariff:**
-- unit rates and standing charges, including VAT (the Octopus API's inc-VAT values);
+- unit rates and standing charges, including VAT (the Octopus API's inc-VAT values). *Decided in PR 6 (Magnus, 21 October 2026): every electricity price row is stored before VAT and one VAT row, today 0% until 31 March 2027, applies to all of them, Agile's past rates included, so the tariffs stay consistent when VAT returns; see the [tariff control ADR](../REFERENCE/decisions/2026-10-21-rule-based-tariff-control.md);*
 - negative Agile prices are passed through, so the house is paid to import;
 - one flat export rate applies to every solar setup. It is an uncertain row from 4.1p (Octopus's fixed Smart Export Guarantee) to 15p, with a mode of 12p for Outgoing Octopus, the flat tariff once called Outgoing Fixed (Magnus, 20 October 2026). The rates are checked when the snapshot is built;
 - each tariff has its `lastChecked`, cadence and `validUntil`.
@@ -363,7 +363,7 @@ That gives 10 combinations: 2 gas setups × 2 tariffs, plus 2 heat pump setups �
   - on Agile, "cheap" is the cheapest quarter of each day's hours and "peak" the dearest quarter, with the quarter as a row. A "day" runs from midnight to midnight, UK local time.
 - **Preheat:** in cheap hours during a heating period, or up to 3 hours before one, the setpoint is raised by a boost row (uncertain, around 1–2 K). The comfort cap is setpoint + boost.
 - **Coast:** in peak hours during a heating period, the setpoint is lowered by the same boost. This is never below setpoint − boost.
-- **Cylinder:** under control, the cylinder is reheated in the cheapest hours that keep it above its minimum before each scheduled draw-off.
+- **Cylinder:** under control, the cylinder is reheated in the cheapest hours that keep it above its minimum before each scheduled draw-off. *Decided in PR 6 (Magnus, 21 October 2026): it is filled to its setpoint in every cheap hour and, outside them, reheated only back to its minimum; the store holds only about 1.2 kWh between the two, so this is the practical form of the rule (see the ADR).*
 - **On the price cap,** the rules change nothing.
 
 **Agile's limitations, stated in the report:**
@@ -458,7 +458,7 @@ Rows that become derived are removed: element areas, volume and `heating.meanInt
 - **Control:**
   - on the price cap, control changes nothing;
   - on Cosy, a larger share of heat pump electricity falls in cheap periods than with control off;
-  - during heating periods, the temperature never falls below setpoint − boost.
+  - during heating periods, the temperature never falls below setpoint − boost, with the output cap lifted (where the cap binds it can, as it can fall below the setpoint without control).
 - **Cylinder:** it never falls below its minimum at a draw-off hour, and its energy balance closes over the year.
 - **Time base:**
   - clock changes move local-time periods by one UTC hour on the right dates;
@@ -532,7 +532,7 @@ The flat-tariff work comes first, so a failed HEM check under a schedule still l
    - the HEM run and decision;
    - the recalibration and its ADR, with the sourced heat pump schedule (closes #13, with evidence on #14 and #15).
 6. `feature/phase-2-tariffs`: London cap rates, the Octopus snapshots (Cosy, Agile, export), and the control rules and their ADR.
-7. `feature/phase-2-report`: the phase 2 report, the archetype table, the bench workloads and the CI drift switch. The report shows the heat pump on the gas schedule as the sensitivity of the heat pump schedule row, which the row-by-row tables can't move (PR 5: central £1,911 against £1,967 a year on the GB average cap; on the London cap from PR 6, £1,885 against £1,943). The report adds a payback sensitivity table that ranks the capital costs, lifetimes and price changes by how much they move payback, since the running-cost tables can't show them (Magnus, 20 October 2026, after the [PR 38 review](https://github.com/mannepanne/energy-sim/pull/38)). Every Agile result carries Agile's limitations next to it (`agileLimitations` in `scripts/tariffs/table.ts`), and the report includes the tariff table and control table from `npm run tariffs`.
+7. `feature/phase-2-report`: the phase 2 report, the archetype table, the bench workloads and the CI drift switch. The report shows the heat pump on the gas schedule as the sensitivity of the heat pump schedule row, which the row-by-row tables can't move (PR 5: central £1,911 against £1,967 a year on the GB average cap; on the London cap from PR 6, £1,885 against £1,943). The report adds a payback sensitivity table that ranks the capital costs, lifetimes and price changes by how much they move payback, since the running-cost tables can't show them (Magnus, 20 October 2026, after the [PR 38 review](https://github.com/mannepanne/energy-sim/pull/38)). Every Agile result carries Agile's limitations next to it (`agileLimitations` in `scripts/tariffs/table.ts`), and every Cosy and Agile result the assumptions behind it (`TIME_OF_USE_ASSUMPTIONS`: a smart controller, a warmer house that isn't valued, carbon by the annual factor, 0% VAT in every payback year); the report includes the tariff table and the control table, with mean indoor temperatures, from `npm run tariffs` (Magnus, 21 October 2026, after the [PR 41 review](https://github.com/mannepanne/energy-sim/pull/41)).
 
 Until PR 5 lands, the engine heats continuously, as in phase 1. PRs 2–4 are built and tested on that, and their numbers shift once when schedules arrive. The report is only generated in PR 7.
 

@@ -9,6 +9,7 @@ import {
   agileOnTypicalYear,
   agileWindow,
   buildSnapshot,
+  checkNextPage,
   cosyLocalHours,
   currentAndPrevious,
   isoDateParts,
@@ -135,10 +136,17 @@ describe('the Agile window and products', () => {
       results: [
         { code: 'AGILE-24-10-01', direction: 'IMPORT' },
         { code: 'AGILE-OUTGOING-19-05-13', direction: 'EXPORT' },
+        { code: 'AGILE-24-10-01/../../x', direction: 'IMPORT' },
         { code: 'COSY-22-12-08', direction: 'IMPORT' },
       ],
     };
     expect(agileImportProducts(page)).toEqual(['AGILE-24-10-01']);
+  });
+
+  it('follows next page links only on Octopus’s own host', () => {
+    const next = 'https://api.octopus.energy/v1/products/A/electricity-tariffs/E-1R-A-C/standard-unit-rates/?page=2';
+    expect(checkNextPage(next)).toBe(next);
+    expect(() => checkNextPage('https://example.com/v1/products/?page=2')).toThrow(/points away from/);
   });
 
   it('builds the London request URLs', () => {

@@ -7,6 +7,7 @@ import {
   agileImportProducts,
   agileWindow,
   buildSnapshot,
+  checkNextPage,
   COSY_PRODUCT,
   FIXED_SEG_PRODUCT,
   OUTGOING_PRODUCT,
@@ -42,7 +43,7 @@ async function allRates(url: string): Promise<Rate[]> {
     if (page === MAX_PAGES) throw new Error(`More than ${MAX_PAGES} pages from ${url}`);
     const parsed = ratePageSchema.parse(await getJson(next));
     rates.push(...parsed.results);
-    next = parsed.next;
+    next = parsed.next === null ? null : checkNextPage(parsed.next);
   }
   return rates;
 }
