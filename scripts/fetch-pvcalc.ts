@@ -5,9 +5,9 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import { pvcalcRequestUrl } from './pvgis/pvcalcCheck.ts';
-import { serialisePvcalcSnapshot, trimPvcalcResponse } from './pvgis/pvcalc.ts';
+import { PVCALC_SNAPSHOT_PATH, serialisePvcalcSnapshot, trimPvcalcResponse } from './pvgis/pvcalc.ts';
 
-const OUTPUT = new URL('../data/snapshots/pvgis-pvcalc-london.json', import.meta.url);
+const OUTPUT = new URL(`../${PVCALC_SNAPSHOT_PATH}`, import.meta.url);
 /** The response is about 5 KB; anything far larger is not a PVcalc answer. */
 const MAX_RESPONSE_BYTES = 1_000_000;
 const [savedResponse, savedOn] = process.argv.slice(2);

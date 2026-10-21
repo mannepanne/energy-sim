@@ -4,7 +4,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { loadPvgisSnapshot } from '../snapshots/pvgisSchema.ts';
-import { band, centralOutsideBand, compare, METRICS, pairedDifference, quantile, runSamples, shareCheapest } from './compare.ts';
+import { band, centralOutsideBand, compare, copCeilingBoundCount, METRICS, pairedDifference, quantile, runSamples, shareCheapest } from './compare.ts';
 import { components, DOES_NOT_PAY_BACK, paybackQuantile, samplePayback, solarHorizon, upfrontPounds } from './payback.ts';
 import { COMBINATIONS, forCombination, onCap, partsOf, type Combination } from './combinations.ts';
 import { agileFromSnapshot } from './tariffs.ts';
@@ -304,5 +304,18 @@ describe('the tariff grid', () => {
 
   it('refuses an Agile combination without Agile’s rates, before running anything', () => {
     expect(() => runSamples(access, weather, plan, { combinations: ['heatPump/agile'] })).toThrow(/needs Agile's rates/);
+  });
+});
+
+describe('copCeilingBoundCount', () => {
+  const small = { seed: 11, count: 10 };
+  const ranges: FixtureRanges = { 'heating.heatPumpSpf': { low: 2, high: 3.5, sigma: 0.15 } };
+
+  it('counts the samples whose k solve met the ceiling: more under a low ceiling, none above every hour’s COP', () => {
+    const low = copCeilingBoundCount(fixtureAccessor({ 'heating.copCeiling': 3.6 }, ranges), weather, small);
+    const high = copCeilingBoundCount(fixtureAccessor({ 'heating.copCeiling': 50 }, ranges), weather, small);
+    expect(low).toBeGreaterThan(0);
+    expect(low).toBeLessThanOrEqual(small.count);
+    expect(high).toBe(0);
   });
 });

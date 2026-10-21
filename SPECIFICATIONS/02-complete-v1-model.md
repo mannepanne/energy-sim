@@ -32,42 +32,42 @@ Decisions: the [client-side snapshots](../REFERENCE/decisions/2026-10-17-client-
 ## Scope and deliverables
 
 ### In scope
-- [ ] **House types:** about ten archetypes, each keyed to one RdSAP age band, with floor area as an input. The engine derives geometry from a few facts about each archetype. See "House types and geometry".
-- [ ] **Quick facts:** loft insulation, wall insulation, glazing and occupants. A table maps each answer to register values, so no answer needs code. See "Quick facts".
-- [ ] **Hourly heat pump behaviour:**
+- [x] **House types:** about ten archetypes, each keyed to one RdSAP age band, with floor area as an input. The engine derives geometry from a few facts about each archetype. See "House types and geometry".
+- [x] **Quick facts:** loft insulation, wall insulation, glazing and occupants. A table maps each answer to register values, so no answer needs code. See "Quick facts".
+- [x] **Hourly heat pump behaviour:**
   - a COP curve against outdoor and flow temperature, scaled so the year's result equals the sampled SPF;
   - hot water at its own, higher flow temperature;
   - a "well-installed" SPF scenario.
 
   See "The heat pump over the year".
-- [ ] **Solar PV:** hourly generation from the PVGIS weather, used in the house first and the rest exported, checked against PVGIS's own PV calculator. See "Solar PV".
-- [ ] **Capital costs, grants and payback:**
+- [x] **Solar PV:** hourly generation from the PVGIS weather, used in the house first and the rest exported, checked against PVGIS's own PV calculator. See "Solar PV".
+- [x] **Capital costs, grants and payback:**
   - installed costs and lifetimes;
   - the Boiler Upgrade Scheme grant;
   - payback against replacing the boiler like for like, under a shared price scenario;
   - solar's own payback reported separately.
 
   See "Costs, grants and payback".
-- [ ] **Thermal mass and heating schedules:**
+- [x] **Thermal mass and heating schedules:**
   - a single thermal-mass node, a heating output cap and heating periods with a setpoint, in place of continuous heating to one mean temperature;
   - a check against HEM under the same schedule, with the rules committed before the run;
   - behaviour rows recalibrated to NEED.
 
   See "Heating over time".
-- [ ] **Tariffs:**
+- [x] **Tariffs:**
   - the London region's price cap, replacing the GB average;
   - Octopus Cosy, for heat pump setups only;
   - Octopus Agile, from the last 12 months of actual rates;
   - a flat export rate.
 
   A calendar module handles weekdays, clock changes and half-hours. Simple, published rules move heat pump and cylinder running into cheap periods. See "Time base" and "Tariffs and control".
-- [ ] **Base electricity by hour of day**, needed for time-of-use costs and solar self-consumption.
-- [ ] **Boiler auxiliary electricity** for the gas setups, which closes [#18](https://github.com/mannepanne/energy-sim/issues/18).
-- [ ] **Correlated sampling**, with a Gaussian copula and sourced or approximate correlation rows. This closes [#20](https://github.com/mannepanne/energy-sim/issues/20).
-- [ ] **A sourced heat pump heating schedule** (longer, lower heating), so the behaviour bias in [#15](https://github.com/mannepanne/energy-sim/issues/15) is either fixed or stated prominently. See "Heating over time".
-- [ ] **The phase 2 report**, `reports/phase-2-v1-model.md`. It is committed and checked for drift in CI. See "Sampling, the report and speed".
-- [ ] **The ADRs** listed under "Architecture decisions".
-- [ ] **Tests**, plus updates to `REFERENCE/engine.md`, `REFERENCE/register.md` and the troubleshooting guide.
+- [x] **Base electricity by hour of day**, needed for time-of-use costs and solar self-consumption.
+- [x] **Boiler auxiliary electricity** for the gas setups, which closes [#18](https://github.com/mannepanne/energy-sim/issues/18).
+- [x] **Correlated sampling**, with a Gaussian copula and sourced or approximate correlation rows. This closes [#20](https://github.com/mannepanne/energy-sim/issues/20).
+- [x] **A sourced heat pump heating schedule** (longer, lower heating), so the behaviour bias in [#15](https://github.com/mannepanne/energy-sim/issues/15) is either fixed or stated prominently. See "Heating over time".
+- [x] **The phase 2 report**, `reports/phase-2-v1-model.md`. It is committed and checked for drift in CI. See "Sampling, the report and speed".
+- [x] **The ADRs** listed under "Architecture decisions".
+- [x] **Tests**, plus updates to `REFERENCE/engine.md`, `REFERENCE/register.md` and the troubleshooting guide.
 
 ### Out of scope (later phases or deferred)
 - Any user interface, and user overrides through it (phase 3). The phase 3 notes in [SPECIFICATIONS/CLAUDE.md](./CLAUDE.md) still apply.
@@ -80,21 +80,23 @@ Decisions: the [client-side snapshots](../REFERENCE/decisions/2026-10-17-client-
 - A question about the current boiler's age. v1 assumes the boiler needs replacing now, and the report says so. A boiler-age answer is a phase 3 option.
 
 ### Acceptance criteria
-- [ ] **Geometry:**
+- [x] **Geometry:**
   - two archetypes' derived geometry matches hand calculations documented in `REFERENCE/engine.md`;
   - the RdSAP rows are checked line by line (closes [#9](https://github.com/mannepanne/energy-sim/issues/9));
   - the ground floor U-value uses the RdSAP method (closes [#7](https://github.com/mannepanne/energy-sim/issues/7)).
-- [ ] **Archetype gaps:** every archetype's gap from its pre-registered NEED readings is reported. A gap above the pre-registered threshold flags the archetype in the report. See "House types and geometry".
-- [ ] **COP curve:** on the reference run (price cap, no control), the year's COP gives the sampled SPF to within 0.1% in every sample.
-- [ ] **PV:** the reference system is within the pre-registered tolerance of PVGIS's calculator (see "Solar PV").
-- [ ] **HEM under a schedule:** the thermal-mass engine is checked against HEM using the same schedule and pre-registered rules, and the decision rule is applied and recorded.
-- [ ] **Recalibration:** the behaviour rows are recalibrated so the 1930s semi's central gas use hits the target fixed in this spec.
-- [ ] **Report:** `npm run report` regenerates the phase 2 report offline and byte-identically, and CI checks it for drift. Its contents are listed under "Sampling, the report and speed".
-- [ ] **Speed:**
+- [x] **Archetype gaps:** every archetype's gap from its pre-registered NEED readings is reported. A gap above the pre-registered threshold flags the archetype in the report. See "House types and geometry".
+- [x] **COP curve:** on the reference run (price cap, no control), the year's COP gives the sampled SPF to within 0.1% in every sample.
+- [x] **PV:** the reference system is within the pre-registered tolerance of PVGIS's calculator (see "Solar PV").
+- [x] **HEM under a schedule:** the thermal-mass engine is checked against HEM using the same schedule and pre-registered rules, and the decision rule is applied and recorded.
+- [x] **Recalibration:** the behaviour rows are recalibrated so the 1930s semi's central gas use hits the target fixed in this spec.
+- [x] **Report:** `npm run report` regenerates the phase 2 report offline and byte-identically, and CI checks it for drift. Its contents are listed under "Sampling, the report and speed".
+- [x] **Speed:**
   - one central run of one house, with all setup and tariff combinations, takes under 100 ms on the bench machine;
   - the full report builds in CI in under 60 seconds.
-- [ ] **Technical debt:** every open `technical-debt` issue is either closed by this phase or carried forward by number in "Technical debt".
-- [ ] **Quality:** tests pass, with coverage at 95% or above for lines, functions and statements and 90% or above for branches; type checking and lint pass; CI is green.
+
+  *PR 7 (21 October 2026): `npm run bench` times both; on the GitHub Actions runner, 3.9 ms and 6.9 seconds.*
+- [x] **Technical debt:** every open `technical-debt` issue is either closed by this phase or carried forward by number in "Technical debt". *Checked in PR 7 (21 October 2026): the 11 open issues (#14–#17, #24–#27, #34, #37, #39) are all listed below. #15 carries forward: the heat pump's day is SAP's, not a field source, and the report states the 6.7-point bias.*
+- [x] **Quality:** tests pass, with coverage at 95% or above for lines, functions and statements and 90% or above for branches; type checking and lint pass; CI is green.
 
 Validation against real homes and expert review stay after the beta launch, and don't gate this phase.
 
@@ -479,10 +481,10 @@ Rows that become derived are removed: element areas, volume and `heating.meanInt
 **HEM checks (engine tests):** the continuous check from phase 1 (re-pinned after PR 1's geometry change), and the scheduled check within 10% of the pre-registered HEM run.
 
 ### Integration tests
-- [ ] The phase 2 report regenerates offline and byte-identically, and CI checks it for drift.
+- [x] The phase 2 report regenerates offline and byte-identically, and CI checks it for drift.
 
 ### Performance check
-- [ ] The bench workloads and the 100 ms single-run check, as above.
+- [x] The bench workloads and the 100 ms single-run check, as above.
 
 ### Tests that are rewritten, not extended
 `geometry.test.ts`, `simulate.test.ts`, `compare.test.ts`, `sensitivity.test.ts`, the fixture register, the HEM check fixture, the calibration test and `scripts/report/build.test.ts`.
@@ -494,10 +496,10 @@ Rows that become derived are removed: element areas, volume and `heating.meanInt
 
 ## Pre-commit checklist
 
-- [ ] Tests pass, type checking and lint pass, and coverage meets targets.
-- [ ] `npm run report` regenerates with no diff.
-- [ ] The docs are updated: `REFERENCE/engine.md`, `REFERENCE/register.md`, the troubleshooting guide, the indexes and root `CLAUDE.md`.
-- [ ] There is no debug output and there are no secrets.
+- [x] Tests pass, type checking and lint pass, and coverage meets targets.
+- [x] `npm run report` regenerates with no diff.
+- [x] The docs are updated: `REFERENCE/engine.md`, `REFERENCE/register.md`, the troubleshooting guide, the indexes and root `CLAUDE.md`.
+- [x] There is no debug output and there are no secrets.
 
 ---
 
