@@ -23,7 +23,8 @@
     "bench": "tsx scripts/bench.ts",
     "derive:base-profile": "tsx scripts/derive-base-profile.ts",
     "fetch:pvcalc": "tsx scripts/fetch-pvcalc.ts",
-    "fetch:octopus": "tsx scripts/fetch-octopus.ts"
+    "fetch:octopus": "tsx scripts/fetch-octopus.ts",
+    "tariffs": "tsx scripts/tariffs.ts"
   },
   "devDependencies": {
     "@types/node": "^24.19.2",

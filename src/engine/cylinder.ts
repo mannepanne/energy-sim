@@ -1,5 +1,5 @@
 // ABOUT: The heat pump setups' hot water cylinder as one stored-energy state, stepped hour by hour
-// ABOUT: Draw-off and standing loss empty it; it is reheated below its minimum and, under control, topped up in cheap hours
+// ABOUT: Draw-off and standing loss empty it; it is reheated below its minimum and, under control, filled in cheap hours
 
 import { HOURS_PER_DAY, KJ_PER_KWH, WATER_SPECIFIC_HEAT_KJ_PER_KGK } from './constants.ts';
 import { CHEAP } from './tariffs.ts';
@@ -42,8 +42,9 @@ export function checkCylinder(cylinder: Cylinder): void {
 /**
  * Steps the cylinder through the year. Each hour, the draw-off and an hour's standing loss come out; if the stored
  * heat is then below the minimum, the heat pump reheats it to the setpoint within the hour. Under control (`band`
- * given), it is also topped up to the setpoint in every cheap hour, so the forced reheat rarely falls outside them.
- * Standing loss does not depend on the stored temperature here, so topping up moves reheats in time without adding heat. The store is one
+ * given), the cylinder is filled to the setpoint in every cheap hour, and outside them a reheat lifts it only back
+ * to its minimum, so as much of the reheat as the store can hold falls in cheap hours. Standing loss does not depend
+ * on the stored temperature here, so control moves reheats in time without adding heat. The store is one
  * temperature (no stratification), so the minimum is a reheat trigger, not a tap temperature: the draw-off is the
  * heat the taps need, whatever the cylinder's temperature. No immersion backup is modelled.
  * The cylinder starts the year full and ends it wherever the last hour leaves it, so the year's reheats equal
@@ -60,9 +61,14 @@ export function runCylinder(drawKwh: Float64Array, cylinder: Cylinder, band?: In
   let stored = full;
   for (let hour = 0; hour < drawKwh.length; hour += 1) {
     stored -= drawKwh[hour]! + lossPerHour;
-    if (stored < minimum || (band?.[hour] === CHEAP && stored < full)) {
+    const cheap = band?.[hour] === CHEAP;
+    if (cheap && stored < full) {
       reheatKwh[hour] = full - stored;
       stored = full;
+    } else if (stored < minimum) {
+      const target = band ? minimum : full;
+      reheatKwh[hour] = target - stored;
+      stored = target;
     }
     storedKwh[hour] = stored;
   }

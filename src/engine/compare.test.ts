@@ -6,8 +6,10 @@ import { describe, expect, it } from 'vitest';
 import { loadPvgisSnapshot } from '../snapshots/pvgisSchema.ts';
 import { band, centralOutsideBand, compare, METRICS, pairedDifference, quantile, runSetups, shareCheapest } from './compare.ts';
 import { components, DOES_NOT_PAY_BACK, paybackQuantile, samplePayback, solarHorizon, upfrontPounds } from './payback.ts';
-import { forCombination, onCap, type Combination } from './combinations.ts';
-import { SETUPS } from './setups.ts';
+import { COMBINATIONS, forCombination, onCap, partsOf, type Combination } from './combinations.ts';
+import { readTimeOfUseTariffs } from './tariffs.ts';
+import { loadOctopusSnapshot } from '../snapshots/octopusSchema.ts';
+import { SETUP_KIT, SETUPS } from './setups.ts';
 import { defaultHouse } from './archetypes.ts';
 import { readInputs } from './inputs.ts';
 import { simulate } from './simulate.ts';
@@ -266,5 +268,41 @@ describe('the well-installed SPF scenario', () => {
     forCombination(wellInstalled.samples, 'heatPump/cap').electricityKwh.forEach((electricity, sample) => {
       expect(electricity).toBeLessThan(forCombination(fieldTrial.samples, 'heatPump/cap').electricityKwh[sample]!);
     });
+  });
+});
+
+const sumShares = (shares: Partial<Record<Combination, number>>): number => Object.values(shares).reduce((total, value) => total + value, 0);
+
+describe('the tariff grid', () => {
+  const access = fixtureAccessor({}, { ...RANGES, 'heating.controlBoost': { low: 1, high: 2 } });
+  const octopus = loadOctopusSnapshot(JSON.parse(readFileSync(new URL('../../data/snapshots/octopus-london.json', import.meta.url), 'utf8')) as unknown);
+  const timeOfUse = readTimeOfUseTariffs(access, octopus);
+  const run = runSetups(access, weather, plan, { combinations: COMBINATIONS, timeOfUse });
+  const comparison = compare(run);
+
+  it('pairs every combination on one set of draws, so the cap runs match a run of the cap alone', () => {
+    const capOnly = runSetups(access, weather, plan, { combinations: CAP });
+    for (const combination of CAP) expect(forCombination(run.samples, combination).costPounds).toEqual(forCombination(capOnly.samples, combination).costPounds);
+    expect(run.economics).toEqual(capOnly.economics);
+  });
+
+  it('keeps gas on the price cap: the gas boiler’s gas cost is the same on Agile', () => {
+    expect(forCombination(run.samples, 'gas/agile').gasCostPounds).toEqual(forCombination(run.samples, 'gas/cap').gasCostPounds);
+  });
+
+  it('gives shares cheapest across all 10, and within each tariff, that each sum to 1', () => {
+    expect(sumShares(comparison.shareCheapest)).toBeCloseTo(1, 12);
+    expect(Object.keys(comparison.shareCheapestByTariff)).toEqual(['cap', 'cosy', 'agile']);
+    expect(Object.values(comparison.shareCheapestByTariff).map((shares) => Math.round(sumShares(shares) * 1e9) / 1e9)).toEqual([1, 1, 1]);
+    expect(Object.keys(comparison.shareCheapestByTariff.cosy!)).toEqual(['heatPump/cosy', 'heatPumpSolar/cosy']);
+  });
+
+  it('gives payback against the gas boiler on the cap for the other 9, and solar’s own payback on each heating system and tariff', () => {
+    expect(Object.keys(comparison.payback)).toHaveLength(9);
+    expect(Object.keys(comparison.solarPayback).toSorted()).toEqual(COMBINATIONS.filter((combination) => SETUP_KIT[partsOf(combination).setup].solar).toSorted());
+  });
+
+  it('refuses a time-of-use combination without the tariffs', () => {
+    expect(() => runSetups(access, weather, plan, { combinations: ['heatPump/cosy'] })).toThrow(/needs the time-of-use tariffs/);
   });
 });

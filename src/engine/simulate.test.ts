@@ -10,11 +10,14 @@ import { readInputs, type EngineInputs } from './inputs.ts';
 import { heatPumpOutputCapW, simulate } from './simulate.ts';
 import { totalGainsW } from './demand.ts';
 import { heatLoss } from './geometry.ts';
-import { runThermalNode } from './thermal.ts';
+import { heatingHours, runThermalNode } from './thermal.ts';
+import { buildCalendar } from './calendar.ts';
 import { sunPath } from './solar.ts';
 import { CONTINUOUS_SCHEDULE, fixtureAccessor, type FixtureValues } from './testing/fixtureRegister.ts';
 import { prepareWeather, weatherFromSnapshot, type PreparedWeather } from './weather.ts';
 import { heatingTargets } from './control.ts';
+import { loadOctopusSnapshot } from '../snapshots/octopusSchema.ts';
+import { CHEAP, importUnitPence, PEAK, readTimeOfUseTariffs, type ElectricityTariff } from './tariffs.ts';
 
 /** The node on a heating schedule at one setpoint, starting the pre-roll at the setpoint. */
 const runNode = (node: Parameters<typeof runThermalNode>[0], outdoorC: Float64Array, gainsW: Float64Array, heatingOn: ArrayLike<number>, setpointC: number) =>
@@ -414,5 +417,87 @@ describe('the HEM checks (benchmark archetype on the PVGIS year)', () => {
     const annual = runAt(19.8, 'continuous');
     expect(Math.round(annual)).toBe(HEM_CONTINUOUS_WITH_MASS_ENGINE_KWH);
     expect(annual / 17_311 - 1).toBeCloseTo(-0.084, 3);
+  });
+});
+
+/** The share of a year's electricity in the hours of one band. */
+function bandShare(electricity: Float64Array, band: Int8Array, which: number): number {
+  let inBand = 0;
+  let total = 0;
+  electricity.forEach((kwh, hour) => {
+    total += kwh;
+    if (band[hour] === which) inBand += kwh;
+  });
+  return inBand / total;
+}
+
+describe('the heat pump on a time-of-use tariff', () => {
+  /** Heating from 07:00 to 23:00 local every day, as the register's heat pump schedule. */
+  const DAYTIME = Array.from({ length: 168 }, (_, hour) => (hour % 24 >= 7 && hour % 24 < 23 ? 1 : 0));
+  const octopus = loadOctopusSnapshot(JSON.parse(readFileSync(new URL('../../data/snapshots/octopus-london.json', import.meta.url), 'utf8')) as unknown);
+  const setup = (values: FixtureValues = {}) => {
+    const access = fixtureAccessor({ 'heating.scheduleHeatPump': DAYTIME, 'heating.scheduleGas': DAYTIME, ...values });
+    const inputs = readInputs(access);
+    return { inputs, prepared: prepareWeather(weather, inputs), tariffs: readTimeOfUseTariffs(access, octopus) };
+  };
+  const { inputs, prepared, tariffs } = setup();
+  const onTariff = (tariff: ElectricityTariff | undefined, control = true) =>
+    simulate(inputs, prepared, 'heatPump', { ...(tariff && { tariff }), control });
+  it('changes nothing on the price cap: control on and off give identical hourly results', () => {
+    const on = onTariff(undefined, true);
+    const off = onTariff(undefined, false);
+    expect(on.hourly).toEqual(off.hourly);
+    expect(on.annual).toEqual(off.annual);
+    expect([on.tariff, on.controlled]).toEqual(['cap', false]);
+  });
+
+  it('puts a larger share of the heat pump’s electricity in Cosy’s cheap hours, and a smaller one in its peak, than with control off', () => {
+    const on = onTariff(tariffs.cosy);
+    const off = onTariff(tariffs.cosy, false);
+    expect(on.controlled).toBe(true);
+    expect(off.controlled).toBe(false);
+    const { band } = tariffs.cosy;
+    expect(bandShare(on.hourly.heatingElectricityKwh, band, CHEAP)).toBeGreaterThan(bandShare(off.hourly.heatingElectricityKwh, band, CHEAP) + 0.2);
+    expect(bandShare(on.hourly.heatingElectricityKwh, band, PEAK)).toBeLessThan(bandShare(off.hourly.heatingElectricityKwh, band, PEAK));
+    expect(on.annual.cost.totalPounds).toBeLessThan(off.annual.cost.totalPounds);
+  });
+
+  it('does the same on Agile, against each day’s cheapest and dearest quarter', () => {
+    const { band } = tariffs.agile;
+    const on = onTariff(tariffs.agile);
+    const off = onTariff(tariffs.agile, false);
+    expect(bandShare(on.hourly.heatingElectricityKwh, band, CHEAP)).toBeGreaterThan(bandShare(off.hourly.heatingElectricityKwh, band, CHEAP));
+    expect(bandShare(on.hourly.heatingElectricityKwh, band, PEAK)).toBeLessThan(bandShare(off.hourly.heatingElectricityKwh, band, PEAK));
+  });
+
+  it('keeps the reference run’s k whatever the tariff and control, so moving running changes efficiency only through the curve', () => {
+    const reference = onTariff(undefined).copScale;
+    expect(onTariff(tariffs.cosy).copScale).toEqual(reference);
+    expect(onTariff(tariffs.agile).copScale).toEqual(reference);
+  });
+
+  it('never lets the house fall below setpoint − boost in a heating period, nor heats it above setpoint + boost, with an uncapped heat pump', () => {
+    const uncapped = setup({ 'heating.heatPumpOutputMargin': 100 });
+    const result = simulate(uncapped.inputs, uncapped.prepared, 'heatPump', { tariff: uncapped.tariffs.cosy });
+    const { setpointC, control } = uncapped.inputs;
+    const heatingOn = heatingHours(DAYTIME, buildCalendar());
+    const temperatures = Array.from(result.hourly.internalTemperatureC);
+    const inPeriods = temperatures.filter((_, hour) => heatingOn[hour]);
+    const whileHeating = temperatures.filter((_, hour) => result.hourly.spaceHeatKwh[hour]! > 0);
+    expect(Math.min(...inPeriods)).toBeGreaterThanOrEqual(setpointC - control.boostK - 1e-9);
+    expect(Math.max(...whileHeating)).toBeLessThanOrEqual(setpointC + control.boostK + 1e-9);
+  });
+
+  it('prices each hour’s import at the tariff’s rate, with the tariff’s standing charge, and keeps gas on the cap', () => {
+    const agile = onTariff(tariffs.agile, false);
+    const cap = onTariff(undefined);
+    expect(agile.hourly.importKwh).toEqual(cap.hourly.importKwh);
+    expect(agile.annual.cost.electricityUnitPounds * 100).toBeCloseTo(importUnitPence(agile.hourly.importKwh, tariffs.agile), 6);
+    expect(agile.annual.cost.electricityStandingPounds).toBeCloseTo((35 * 365) / 100, 9);
+    const gasCap = simulate(inputs, prepared, 'gas');
+    const gasAgile = simulate(inputs, prepared, 'gas', { tariff: tariffs.agile });
+    expect([gasAgile.annual.gasKwh, gasAgile.annual.importKwh, gasAgile.annual.cost.gasPounds]).toEqual([gasCap.annual.gasKwh, gasCap.annual.importKwh, gasCap.annual.cost.gasPounds]);
+    expect(gasAgile.controlled).toBe(false);
+    expect(gasAgile.annual.cost.electricityPounds).not.toBe(gasCap.annual.cost.electricityPounds);
   });
 });
