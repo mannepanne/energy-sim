@@ -30,7 +30,7 @@ On a time-of-use tariff, the heat pump follows a few fixed, published rules. The
 - **k:** the heat pump's COP scale is solved once per sample on the reference run (the price cap, no control, the gas schedule). Every tariff and control run reuses it, so moving running into warmer or colder hours changes efficiency only through the curve.
 - **Solar:** control is blind to solar. Solar then meets what it can in each hour, as before.
 
-**Agile's limitations** are stated wherever Agile results appear (`npm run tariffs` now, the phase 2 report in PR 7, the register row):
+**Agile's limitations** are stated wherever Agile results appear (`npm run tariffs`, the [phase 2 report](../../reports/phase-2-v1-model.md) and the register row):
 - which 12 months were used (October 2025 to September 2026);
 - that a past year is not a forecast;
 - that past prices on typical-year weather lose the link between price spikes and cold, still days, which likely flatters the heat pump;
@@ -104,10 +104,10 @@ For comparison, the gas boiler on the price cap costs £2,036 and emits 2,790 kg
   - `readInputs` reads every electricity price with today's VAT, so overrides reach Cosy and Agile too.
 - **The comparison layer** compares combinations against the gas boiler on the price cap. It reports the share cheapest across all 10 and within each tariff.
 - **The register** gains the Cosy and Agile rows, the Octopus snapshot, the boost, the preheat lead time, the Agile quarter and today's VAT rate (see [register.md](../register.md)).
-- **The phase 2 report (PR 7)** must show Agile's limitations next to any Agile result. `scripts/tariffs/table.ts` exports the text.
+- **The phase 2 report** shows Agile's limitations next to every Agile result. `scripts/tariffs/table.ts` exports the text.
 
 ## References
 
-- [Phase 2 spec](../../SPECIFICATIONS/02-complete-v1-model.md): "Tariffs and control", "Time base" and architecture decision 4.
+- [Phase 2 spec](../../SPECIFICATIONS/ARCHIVE/02-complete-v1-model.md): "Tariffs and control", "Time base" and architecture decision 4.
 - [Octopus Energy public API](https://api.octopus.energy/v1/products/): Cosy (COSY-22-12-08) and Agile (AGILE-24-10-01) for region C, fetched on 21 October 2026.
 - [Ofgem: energy price cap unit rates and standing charges](https://www.ofgem.gov.uk/your-energy-supply/your-energy-bill/energy-price-cap-unit-rates-and-standing-charges): no VAT on electricity from 1 October 2026 to 31 March 2027.

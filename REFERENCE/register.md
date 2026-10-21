@@ -92,7 +92,7 @@ Cross-row rules (duplicates, dependencies) run only once every row is valid on i
 
 ## The rows
 
-**Archetypes.** Ten house types, each keyed to one RdSAP age band (see the [phase 2 spec](../SPECIFICATIONS/02-complete-v1-model.md), "House types and geometry"). The 1930s semi is the phase 1 house: about 90 m², two storeys, 100 mm of loft insulation and double glazing installed before 2002. Its cavity walls are filled by default, because 73% of owner-occupied cavity-walled homes have cavity wall insulation (English Housing Survey 2024 to 2025). Phase 1 had them unfilled; the `asBuilt` answer gives that house.
+**Archetypes.** Ten house types, each keyed to one RdSAP age band (see the [phase 2 spec](../SPECIFICATIONS/ARCHIVE/02-complete-v1-model.md), "House types and geometry"). The 1930s semi is the phase 1 house: about 90 m², two storeys, 100 mm of loft insulation and double glazing installed before 2002. Its cavity walls are filled by default, because 73% of owner-occupied cavity-walled homes have cavity wall insulation (English Housing Survey 2024 to 2025). Phase 1 had them unfilled; the `asBuilt` answer gives that house.
 
 | Section | Rows |
 | --- | --- |

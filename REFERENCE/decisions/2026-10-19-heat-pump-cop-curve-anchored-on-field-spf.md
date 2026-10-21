@@ -92,6 +92,6 @@ No curve row was changed after either check.
 
 ## References
 
-- [Phase 2 spec: "The heat pump over the year"](../../SPECIFICATIONS/02-complete-v1-model.md#the-heat-pump-over-the-year)
+- [Phase 2 spec: "The heat pump over the year"](../../SPECIFICATIONS/ARCHIVE/02-complete-v1-model.md#the-heat-pump-over-the-year)
 - [Typed parameter register ADR](./2026-10-17-typed-parameter-register.md)
 - `src/engine/heatPump.ts` and `src/engine/heatPump.test.ts`

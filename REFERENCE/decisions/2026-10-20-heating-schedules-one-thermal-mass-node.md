@@ -104,7 +104,7 @@ The spec asks for a sourced heat pump schedule ("longer, lower heating"), never 
 
 ## References
 
-- [Phase 2 spec](../../SPECIFICATIONS/02-complete-v1-model.md), "Heating over time"
+- [Phase 2 spec](../../SPECIFICATIONS/ARCHIVE/02-complete-v1-model.md), "Heating over time"
 - [The HEM runs and their pre-registered rules](../../scripts/benchmark/hem/README.md)
 - [SAP 10.2 specification (BRE, 14 March 2025)](https://bregroup.com/documents/d/bre-group/sap-10-2-14-03-2025): Table 9, Table 9a–c, Appendix N
 - [RdSAP 10 specification (BRE, 9 June 2025)](https://bregroup.com/documents/d/bre-group/rdsap-10-specification-10-06-2025): Table 22

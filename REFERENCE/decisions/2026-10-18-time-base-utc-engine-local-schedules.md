@@ -73,6 +73,6 @@ Mixing time bases between modules would shift every time-of-use cost by an hour 
 
 ## References
 
-- [Phase 2 spec](../../SPECIFICATIONS/02-complete-v1-model.md), "Time base"
+- [Phase 2 spec](../../SPECIFICATIONS/ARCHIVE/02-complete-v1-model.md), "Time base"
 - [The Summer Time Order 2002](https://www.legislation.gov.uk/uksi/2002/262/contents/made): the last-Sunday rule at 01:00 GMT
 - [REFERENCE/register.md](../register.md), "The PVGIS snapshot": the typical year's UTC timestamps and source months
