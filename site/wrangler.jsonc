@@ -1,0 +1,19 @@
+// The Cloudflare Worker that serves the static export. It has no script of its own: Workers static assets
+// serve out/ and apply the headers in out/_headers. The "staging" environment is a separate Worker for PRs.
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "energy-sim",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "./out",
+    "not_found_handling": "404-page",
+    "html_handling": "auto-trailing-slash"
+  },
+  "workers_dev": true,
+  "preview_urls": false,
+  "env": {
+    "staging": {
+      "name": "energy-sim-staging"
+    }
+  }
+}

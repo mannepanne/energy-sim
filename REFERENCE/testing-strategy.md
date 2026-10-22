@@ -235,6 +235,7 @@ export function createMockReaderAPI() {
 - Type definition files (no executable code)
 - Configuration files
 - Command-line entry points at the top of `scripts/` (`scripts/*.ts`)
+- The site's web worker entry (`site/src/*.worker.ts`), which only relays messages to tested modules
 - Explicitly marked `/* istanbul ignore */` with explanation
 
 ### Coverage Reporting
@@ -259,7 +260,9 @@ npm run test:coverage   # Tests must pass and meet the coverage thresholds
 ```
 
 ### Pull Request Checks
-GitHub Actions (`.github/workflows/ci.yml`) runs the same three commands on every pull request, on the Node version in `.nvmrc`. It then runs two more checks:
+GitHub Actions (`.github/workflows/ci.yml`) runs the same three commands on every pull request, on the Node version in `.nvmrc`. It then runs four more checks:
+- **Site build:** `npm run site:build`, the static export. `next build` type-checks the site too.
+- **Site payload:** `npm run site:payload` fails if the home page's first load is over 350 KB gzipped.
 - **Report drift:** `npm run report` (the phase 2 report; the phase 1 report is historical and not regenerated), then fails if `reports/` differs from the committed copy or holds an uncommitted file. After changing a register row, regenerate the report and commit it.
 - **Bench:** `npm run bench` runs outside the coverage run and logs each time: one central run of the 10 combinations (limit 100 ms), 500 samples of 2 setups (5 s), of the 4 setups and of all 10 (10 s each), and the full phase 2 report (60 s).
 

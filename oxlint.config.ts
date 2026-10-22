@@ -10,10 +10,19 @@ export default defineConfig({
     suspicious: 'error',
   },
   env: { node: true, es2024: true },
-  ignorePatterns: ['coverage/**', 'node_modules/**', '.claude/**'],
+  ignorePatterns: ['coverage/**', 'node_modules/**', '.claude/**', 'site/out/**', 'site/.next/**', 'site/next-env.d.ts'],
   options: {
     typeAware: true,
   },
+  overrides: [
+    // The site's pages and worker run in the browser.
+    {
+      files: ['site/pages/**', 'site/src/**'],
+      env: { browser: true, worker: true },
+      // The rule is for window.postMessage; a web worker's postMessage takes no target origin.
+      rules: { 'unicorn/require-post-message-target-origin': 'off' },
+    },
+  ],
   rules: {
     // Test helpers whose names start with "expect" make assertions themselves.
     'vitest/expect-expect': ['error', { assertFunctionNames: ['expect', 'expect*'] }],

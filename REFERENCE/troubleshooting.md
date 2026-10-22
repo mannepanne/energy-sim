@@ -1,6 +1,6 @@
 # Troubleshooting
 
-**When to read this:** a check fails locally or in CI, the register won't load, or a data file needs refreshing.
+**When to read this:** a check fails locally or in CI, the site won't build, the register won't load, or a data file needs refreshing.
 
 **Related documents:**
 - [CLAUDE.md](../CLAUDE.md): the project navigation index
@@ -19,6 +19,16 @@ Add an entry here when a problem takes more than a few minutes to work out.
 **Type errors appear only in CI.** Run `npm run typecheck` locally. TypeScript is pinned to an exact version and upgraded together with `oxlint-tsgolint`, so a version mismatch between the two shows up as lint or type errors ([TypeScript 7 and Oxlint ADR](./decisions/2026-10-17-typescript-7-with-oxlint.md)).
 
 **Lint rejects a type assertion (`no-unsafe-type-assertion`).** The type-aware lint rules don't allow `as` casts that narrow a type. Give the value a proper type, or narrow it with a check, instead.
+
+## The site
+
+**`next build` fails with "Module parse failed" on a file in `../src`.** webpack is compiling the engine without `experimental.externalDir`. Keep that flag in `site/next.config.ts` ([site.md](./site.md#building)).
+
+**`next build` rewrites `site/tsconfig.json`.** Next.js adds the values it requires. Commit them if they are mandatory (it says so); the site's tsconfig already holds the current set.
+
+**The page loads but a script or the worker is blocked.** The content security policy in `site/public/_headers` allows no inline scripts or styles. Look for an inline `<script>` or `<style>` (Turbopack's Pages Router output adds one; build with `--webpack`), or a new origin the policy doesn't list.
+
+**`npm run site:payload` fails.** The first load is over 350 KB gzipped. Its table shows which file grew. The spec's fallbacks are trimming the weather snapshot to the columns the engine reads, and shipping hourly arrays in a compact binary form.
 
 ## The register
 
