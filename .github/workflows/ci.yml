@@ -1,5 +1,5 @@
 # ABOUT: Continuous integration for every pull request and every push to main
-# ABOUT: Runs type checking, lint, tests with coverage, the report drift check and the bench on the Node LTS in .nvmrc
+# ABOUT: Runs type checking, lint, tests with coverage, the site build and payload check, the report drift check and the bench on the Node LTS in .nvmrc
 
 name: CI
 
@@ -40,6 +40,15 @@ jobs:
 
       - name: Test with coverage
         run: npm run test:coverage
+
+      - name: Site build
+        run: npm run site:build
+        env:
+          NEXT_TELEMETRY_DISABLED: 1
+
+      # The home page's first load, gzipped: scripts, the worker and the data. Fails above 350 KB.
+      - name: Site payload
+        run: npm run site:payload
 
       # Regenerates the phase 2 report offline and fails if it differs from the committed copy,
       # including a report that was never committed. The phase 1 report is historical and not regenerated.

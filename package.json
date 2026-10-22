@@ -2,13 +2,16 @@
   "name": "energy-sim",
   "version": "0.0.0",
   "private": true,
+  "workspaces": [
+    "site"
+  ],
   "description": "Compare whole-house energy setups for a home in England, with cost, carbon and payback as honest ranges.",
   "type": "module",
   "engines": {
     "node": ">=24"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p site",
     "lint": "oxlint --deny-warnings",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -24,7 +27,9 @@
     "derive:base-profile": "tsx scripts/derive-base-profile.ts",
     "fetch:pvcalc": "tsx scripts/fetch-pvcalc.ts",
     "fetch:octopus": "tsx scripts/fetch-octopus.ts",
-    "tariffs": "tsx scripts/tariffs.ts"
+    "tariffs": "tsx scripts/tariffs.ts",
+    "site:build": "npm run build -w site",
+    "site:payload": "npm run payload -w site"
   },
   "devDependencies": {
     "@types/node": "^24.19.2",

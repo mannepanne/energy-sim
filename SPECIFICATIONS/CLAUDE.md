@@ -115,7 +115,7 @@ Replace this template guidance with your actual phase list when you:
 
 Development runs in four phases. v1 leads with the numbers, and the 3D street follows once the numbers are trusted. Only the current phase has a full spec file; later phases get theirs when they start.
 
-**Current phase:** Phase 3, v1 website and beta launch (spec written and reviewed; implementation not started). Phases 1 and 2 are complete and their specs are archived.
+**Current phase:** Phase 3, v1 website and beta launch (PR 1, the stack spike, in review). Phases 1 and 2 are complete and their specs are archived.
 
 1. **[01-engine-core.md](./ARCHIVE/01-engine-core.md)** (complete, archived 18 October 2026)
    Proves the heat-demand physics and the trust plumbing. A benchmark against HEM or measured data comes first. Then repo tooling and CI, the typed parameter register, and a headless hourly engine for one archetype (a 1930s semi in London), comparing gas with a heat pump on the price cap. Results come with paired uncertainty ranges and a sensitivity table, and the phase ends with a report Magnus can check without running code. Sending it to an outside expert is optional.

@@ -21,15 +21,20 @@ Row kinds and fields (including `table` and `correlation`), the integrity rules 
 
 The hourly engine's files and API, houses and quick facts, derived geometry, the ISO 13370 ground floor, the heat loss, space heat on a thermal-mass node with heating schedules and output caps, solar, hot water and cylinder, supply, the heat pump COP curve, roof solar and its self-consumption, cost and carbon formulas, costs, the grant and payback with its hand-worked examples, the hand-calculated fixture house and two archetypes, the checks against Duffie and Beckman, HEM (continuous and scheduled) and PVGIS's PV calculator, the archetype table, the time base, the tariffs and the control rules with Agile's limitations, the seeded sampling with its copula, the comparison of the 10 setup and tariff combinations and the sensitivity tables, the payback sensitivity, and how the phase 2 report is generated.
 
+### [site.md](./site.md)
+**When to read:** Building, previewing or deploying the website, changing its headers, or moving the engine into the browser.
+
+The `site/` workspace, how a page runs the engine in a module worker, the build (Next.js static export with webpack), the security headers and policy, the beta and staging Workers and their deploy workflow, and the payload budget.
+
 ### [environment-setup.md](./environment-setup.md)
 **When to read:** Setting up local development, configuring secrets, or deploying to production.
 
-Node version, installing dependencies, and where secrets will go. Phase 1 needs no API keys.
+Node version, installing dependencies, the Cloudflare credentials for deploying the site, and CI.
 
 ### [troubleshooting.md](./troubleshooting.md)
-**When to read:** A check fails locally or in CI, the register won't load, or a data file needs refreshing.
+**When to read:** A check fails locally or in CI, the site won't build, the register won't load, or a data file needs refreshing.
 
-Set-up problems, register validation, table key parity, setup row tags, payback examples and calibration failures, the tariff snapshot test and combination errors, flagged archetypes, report drift and bench failures in CI, the HEM check and the benchmark's drift tests, and refreshing PVGIS, prices, costs, the grant, the export rate and the Octopus snapshot.
+Set-up problems, site build, policy and payload failures, register validation, table key parity, setup row tags, payback examples and calibration failures, the tariff snapshot test and combination errors, flagged archetypes, report drift and bench failures in CI, the HEM check and the benchmark's drift tests, and refreshing PVGIS, prices, costs, the grant, the export rate and the Octopus snapshot.
 
 ### [pr-review-workflow.md](./pr-review-workflow.md)
 **When to read:** Starting a new feature, creating PRs, or running any kind of review.

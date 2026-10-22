@@ -6,7 +6,7 @@ The site gives estimates, not financial advice. Its results are never influenced
 
 ## Status
 
-Phases 1 and 2 of 4 are complete: a headless TypeScript engine for ten house types in London, adjusted by quick facts (loft, walls, glazing, occupants), comparing a gas boiler with a heat pump, each with or without roof solar. So far the repository has its tooling, CI, the benchmark (a rough heat-demand estimate checked against the government's Home Energy Model and against measured gas use), the parameter register that holds every number the engine uses, the hourly engine (with a heat pump efficiency curve, roof solar checked against PVGIS's PV calculator, and an hourly base electricity profile from Elexon), the London price cap and Octopus Cosy and Agile with simple control rules, costs, the grant and payback, and seeded uncertainty ranges with paired comparisons and sensitivity tables. The results for all 10 setup and tariff combinations are in the [phase 2 report](./reports/phase-2-v1-model.md); the [phase 1 report](./reports/phase-1-london-semi.md) is kept as a historical file. There is no website yet.
+Phases 1 and 2 of 4 are complete: a headless TypeScript engine for ten house types in London, adjusted by quick facts (loft, walls, glazing, occupants), comparing a gas boiler with a heat pump, each with or without roof solar. So far the repository has its tooling, CI, the benchmark (a rough heat-demand estimate checked against the government's Home Energy Model and against measured gas use), the parameter register that holds every number the engine uses, the hourly engine (with a heat pump efficiency curve, roof solar checked against PVGIS's PV calculator, and an hourly base electricity profile from Elexon), the London price cap and Octopus Cosy and Agile with simple control rules, costs, the grant and payback, and seeded uncertainty ranges with paired comparisons and sensitivity tables. The results for all 10 setup and tariff combinations are in the [phase 2 report](./reports/phase-2-v1-model.md); the [phase 1 report](./reports/phase-1-london-semi.md) is kept as a historical file. Phase 3, the website, has started: `site/` holds the stack spike, a static page that runs the engine in the browser. How it works: [REFERENCE/site.md](./REFERENCE/site.md).
 
 - What the project is: [project outline](./SPECIFICATIONS/ORIGINAL_IDEA/project-outline.md)
 - What phase 1 built: [phase 1 spec, archived](./SPECIFICATIONS/ARCHIVE/01-engine-core.md)
@@ -43,9 +43,12 @@ Other commands:
 | `npm run archetypes` | Prints the archetype table against the pre-registered NEED readings (offline) |
 | `npm run tariffs` | Prints the 10 setup and tariff combinations and what control does on Cosy and Agile (offline) |
 | `npm run report` | Writes the phase 2 report, `reports/phase-2-v1-model.md` (offline; commit the result) |
+| `npm run site:build` | Builds the static site into `site/out/` |
+| `npm run site:payload` | Measures the site's first load and fails above 350 KB gzipped |
+| `npm run preview -w site` | Serves the built site locally with its headers, on `http://localhost:8787` |
 | `npm run bench` | Times 500 samples of 2 setups, 4 and all 10 setup and tariff combinations, one central run of the 10 and the full report, and fails above its limits |
 
-GitHub Actions runs the type check, lint, tests with coverage, the report drift check and the bench on every pull request.
+GitHub Actions runs the type check, lint, tests with coverage, the site build and payload check, the report drift check and the bench on every pull request. Once Cloudflare is set up, it also deploys pull requests to a staging site and `main` to the beta ([environment-setup.md](./REFERENCE/environment-setup.md#deploying-the-site)).
 
 ## How the repository is organised
 
@@ -58,6 +61,7 @@ scripts/             Build-time scripts: the PVGIS fetches and the PV check, the
 scripts/archetypes/  Pre-registered NEED readings and the archetype table
 scripts/report/      Builds the phase 2 report
 scripts/benchmark/   Benchmark: rough estimate, HEM run and measured-data comparison
+site/                The website: a Next.js static export served by a Cloudflare Worker
 reports/             The phase 2 report, generated, committed and checked for drift in CI; the phase 1 report, kept as a historical file
 SPECIFICATIONS/      Plans for the current and future phases
 REFERENCE/           How implemented parts work, and decision records
@@ -66,7 +70,7 @@ REFERENCE/           How implemented parts work, and decision records
 
 ## Data and privacy
 
-All outside data (weather, prices, carbon factors) is fetched by scripts at build time and committed as snapshots. The website will run entirely in the visitor's browser, so no server ever holds a visitor's details. See the [decision record](./REFERENCE/decisions/2026-10-17-client-side-build-time-snapshots.md).
+All outside data (weather, prices, carbon factors) is fetched by scripts at build time and committed as snapshots. The website runs entirely in the visitor's browser, so no server ever holds a visitor's details. See the [decision record](./REFERENCE/decisions/2026-10-17-client-side-build-time-snapshots.md).
 
 ## Credits
 
