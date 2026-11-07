@@ -30,7 +30,7 @@
     "@types/node": "^24.19.2",
     "@vitest/coverage-v8": "^5.0.5",
     "oxlint": "^1.88.0",
-    "oxlint-tsgolint": "^7.0.2004",
+    "oxlint-tsgolint": "^7.0.2005",
     "tsx": "^4.23.15",
     "typescript": "7.0.2",
     "vite": "^8.3.4",
